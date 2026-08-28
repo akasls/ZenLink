@@ -1,0 +1,62 @@
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { dbHelper, saveDatabase } from '../db/index.js';
+import { requireAuth } from '../middleware/auth.js';
+
+export default async function settingsRoutes(fastify: FastifyInstance) {
+  // 确保 system_settings 表存在
+  dbHelper.exec(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+
+  // 1. 获取公开站点设置
+  fastify.get('/api/settings', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const rows = dbHelper.all('SELECT key, value FROM system_settings');
+    const settings: Record<string, string> = {
+      site_name: '不凡导航',
+      site_desc: '干净简洁的导航！',
+      site_logo: '',
+      default_engine: 'google',
+      search_bg_mode: 'dynamic',
+      search_bg_image: '',
+      theme_primary_color: '#f1404b',
+    };
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
+    return reply.send({ settings });
+  });
+
+  // 2. 保存站点设置（需要管理员登录）
+  fastify.post('/api/settings', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    const { site_name, site_logo, site_desc, default_engine, search_bg_mode, search_bg_image, theme_primary_color } = body;
+
+    if (site_name !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)', ['site_name', String(site_name)]);
+    }
+    if (site_logo !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)', ['site_logo', String(site_logo)]);
+    }
+    if (site_desc !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)', ['site_desc', String(site_desc)]);
+    }
+    if (default_engine !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)', ['default_engine', String(default_engine)]);
+    }
+    if (search_bg_mode !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)', ['search_bg_mode', String(search_bg_mode)]);
+    }
+    if (search_bg_image !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)', ['search_bg_image', String(search_bg_image)]);
+    }
+    if (theme_primary_color !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)', ['theme_primary_color', String(theme_primary_color)]);
+    }
+
+    saveDatabase();
+    return reply.send({ success: true });
+  });
+}

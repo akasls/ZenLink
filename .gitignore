@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build output
+dist/
+client/dist/
+server/dist/
+*.js.map
+*.d.ts.map
+
+# Database files & local cache (包含用户数据与缓存，不应提交)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/favicons/*
+!data/favicons/.gitkeep
+data/uploads/*
+!data/uploads/.gitkeep
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
+server/data/favicons/*
+!server/data/favicons/.gitkeep
+server/data/uploads/*
+!server/data/uploads/.gitkeep
+zenlink_data/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+npm-debug.log*
+.gemini/
+target_site.html
+scraped_data.json
+parsed_summary.json
+webstack_*.css

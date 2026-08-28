@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.vscode
+.gemini
+data/
+server/data/*.db
+server/data/uploads/*
+client/dist
+server/dist
+*.md
+target_site.html
+scraped_data.json
+parsed_summary.json
+webstack_*.css
+.DS_Store
