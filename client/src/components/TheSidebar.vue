@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { mapIcon } from '@/utils/icon-map';
 import { useSiteStore } from '@/stores/site';
@@ -140,7 +140,7 @@ function handleToggleCollapse() {
         <div class="sidebar-header-left" @click="handleLogoClick" title="返回导航页顶部">
           <div class="sidebar-logo">
             <img v-if="siteStore.siteLogo" :src="siteStore.siteLogo" class="sidebar-logo-img" alt="logo" />
-            <span v-else>{{ (siteStore.siteName || 'Z').trim().charAt(0) }}</span>
+            <img v-else src="/favicon.svg" class="sidebar-logo-img" alt="logo" />
           </div>
           <span class="sidebar-brand">{{ siteStore.siteName || 'ZenLink' }}</span>
         </div>
