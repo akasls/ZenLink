@@ -49,7 +49,7 @@ function onLoginSuccess(targetView?: string) {
 }
 
 function onChangeAppView(v: string) {
-  if (v !== 'home' && !authStore.isLoggedIn) {
+  if (v !== 'home' && !authStore.token) {
     onOpenLogin(v);
     return;
   }
@@ -58,18 +58,17 @@ function onChangeAppView(v: string) {
   const routes: Record<string, string> = {
     home: '/',
     admin: '/admin',
-    
     notes: '/notes',
     ai: '/ai',
   };
   router.push(routes[v] || '/');
 }
 
-// 监听路由同步视图状态 (如果未登录则拦截并以弹窗方式登录)
+// 监听路由同步视图状态 (若无登录 Token 则拦截并提示登录)
 watch(
   () => route.meta.view,
   (newView) => {
-    if (newView && newView !== 'home' && !authStore.isLoggedIn) {
+    if (newView && newView !== 'home' && !authStore.token) {
       currentView.value = 'home';
       router.replace('/');
       onOpenLogin(newView as string);

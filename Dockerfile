@@ -27,6 +27,9 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
+# 安装 su-exec 用于安全自动修复宿主机挂载目录权限并降权运行
+RUN apk add --no-cache su-exec
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
@@ -50,8 +53,9 @@ COPY --from=builder /app/server/src/db/schema.sql ./server/src/db/schema.sql
 RUN mkdir -p /app/server/data /app/server/data/favicons /app/server/data/uploads && \
     chown -R node:node /app
 
-# 切换为非 root 用户运行
-USER node
+# 复制 entrypoint 启动脚本并赋权
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # 声明持久化数据卷
 VOLUME ["/app/server/data"]
@@ -63,5 +67,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/settings || exit 1
 
-# 启动服务
+# 通过 entrypoint 自动修复挂载权限并降权至 node 用户启动
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "server/dist/index.js"]

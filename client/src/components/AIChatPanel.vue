@@ -91,7 +91,7 @@ const defaultRoles: RolePreset[] = [
   { id: 'analyst', name: '深度推理', icon: '🧠', prompt: '你是一个严谨的逻辑分析专家。请分步推理、条理分明地拆解问题，深入剖析核心逻辑并给出结构化结论。' },
 ];
 
-const roles = ref<RolePreset[]>([]);
+const roles = ref<RolePreset[]>([...defaultRoles]);
 const selectedRoleId = ref<string>('default');
 
 function getRoleIcon(roleId?: string): string {
@@ -125,8 +125,8 @@ function loadCustomRoles() {
   }
 }
 
-const currentRole = computed(() => {
-  return roles.value.find(r => r.id === selectedRoleId.value) || roles.value[0];
+const currentRole = computed<RolePreset>(() => {
+  return roles.value.find(r => r.id === selectedRoleId.value) || roles.value[0] || defaultRoles[0];
 });
 
 // 自定义角色弹窗状态
@@ -940,12 +940,12 @@ onUnmounted(() => {
           <!-- 空状态：问候语 + 简约说明 -->
           <div v-if="messages.length === 0" class="openwebui-hero-container">
             <div class="openwebui-greeting">
-              <div class="greeting-logo robot-logo">{{ currentRole.icon }}</div>
+              <div class="greeting-logo robot-logo">{{ currentRole?.icon || '🤖' }}</div>
               <h1>有什么可以帮到您？</h1>
             </div>
             
             <p class="openwebui-hero-desc">
-              当前角色：{{ currentRole.name }} · 支持多模型深度对话与提示词自定义
+              当前角色：{{ currentRole?.name || '默认助手' }} · 支持多模型深度对话与提示词自定义
             </p>
           </div>
 
@@ -1117,8 +1117,8 @@ onUnmounted(() => {
                 >
                   <template #reference>
                     <button type="button" class="dock-attached-trigger-btn" title="选择或自定义角色提示词">
-                      <span class="mr-1 text-xs">{{ currentRole.icon }}</span>
-                      <span class="pill-btn-title">{{ currentRole.name }}</span>
+                      <span class="mr-1 text-xs">{{ currentRole?.icon || '🤖' }}</span>
+                      <span class="pill-btn-title">{{ currentRole?.name || '默认助手' }}</span>
                       <el-icon class="ml-0.5 text-[10px] arrow-icon"><component is="ArrowDown" /></el-icon>
                     </button>
                   </template>
