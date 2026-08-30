@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { noteApi } from '@/api';
+import { useAuthStore } from '@/stores/auth';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -8,6 +9,8 @@ import DOMPurify from 'dompurify';
 const props = defineProps<{
   active?: boolean;
 }>();
+
+const authStore = useAuthStore();
 
 marked.setOptions({
   breaks: true,
@@ -181,6 +184,7 @@ const filteredNotes = computed(() => {
 const totalNoteCount = computed(() => notes.value.length);
 
 async function loadTags() {
+  if (!authStore.isLoggedIn) return;
   try {
     const { data } = await noteApi.getTags();
     availableTags.value = data.tags || [];
@@ -190,6 +194,7 @@ async function loadTags() {
 }
 
 async function loadNotes() {
+  if (!authStore.isLoggedIn) return;
   loading.value = true;
   try {
     const params: any = {};
@@ -1166,9 +1171,34 @@ ${htmlBody}
 }
 
 onMounted(() => {
-  loadTags();
-  loadNotes();
+  if (authStore.isLoggedIn) {
+    loadTags();
+    loadNotes();
+  }
 });
+
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive && authStore.isLoggedIn) {
+      loadTags();
+      loadNotes();
+    }
+  }
+);
+
+watch(
+  () => authStore.isLoggedIn,
+  (isLogged) => {
+    if (isLogged) {
+      loadTags();
+      loadNotes();
+    } else {
+      notes.value = [];
+      selectedNote.value = null;
+    }
+  }
+);
 </script>
 
 <template>

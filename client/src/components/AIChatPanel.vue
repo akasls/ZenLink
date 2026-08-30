@@ -842,8 +842,30 @@ onMounted(() => {
     loadAiSettings();
     loadConversations();
     loadCustomRoles();
-    }
+  }
 });
+
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive && authStore.isLoggedIn) {
+      loadAiSettings();
+      loadConversations();
+      loadCustomRoles();
+    }
+  }
+);
+
+watch(
+  () => authStore.isLoggedIn,
+  (isLogged) => {
+    if (isLogged) {
+      loadAiSettings();
+      loadConversations();
+      loadCustomRoles();
+    }
+  }
+);
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);

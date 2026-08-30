@@ -5,12 +5,15 @@ import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
+import { registerSW } from 'virtual:pwa-register';
 
 import './style.css';
 
 import App from './App.vue';
 import router from './router';
 import { useThemeStore } from './stores/theme';
+
+registerSW({ immediate: true });
 
 const app = createApp(App);
 const pinia = createPinia();
