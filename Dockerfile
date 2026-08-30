@@ -1,7 +1,8 @@
 # ==========================================
 # 阶段 1: 构建前端和后端 (Build Stage)
+# 使用宿主机原生 CPU 架构进行编译 (零 QEMU 开销，秒级极速构建)
 # ==========================================
-FROM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
 
 WORKDIR /app
 
