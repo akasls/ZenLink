@@ -48,15 +48,15 @@ const isExpanded = computed(() => {
 });
 
 const topCats = computed(() =>
-  props.categories
-    .filter(c => !c.parent_id)
-    .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
+  (props.categories || [])
+    .filter(c => c && !c.parent_id)
+    .sort((a: any, b: any) => (a?.sort_order || 0) - (b?.sort_order || 0))
 );
 
 function getSubCats(parentId: number) {
-  return props.categories
-    .filter(c => c.parent_id === parentId)
-    .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
+  return (props.categories || [])
+    .filter(c => c && c.parent_id === parentId)
+    .sort((a: any, b: any) => (a?.sort_order || 0) - (b?.sort_order || 0));
 }
 
 function handleSelectCategory(id: number) {
@@ -194,14 +194,14 @@ function handleToggleCollapse() {
               @click="handleSelectCategory(cat.id)"
             >
               <el-icon class="sidebar-icon">
-                <component :is="mapIcon(cat.icon)" />
+                <component :is="mapIcon(cat?.icon)" />
               </el-icon>
             </button>
           </template>
 
           <div class="flyout-menu-container">
             <div class="flyout-menu-header" @click="handleSelectCategory(cat.id)" title="跳转至该分类">
-              <el-icon class="mr-1.5"><component :is="mapIcon(cat.icon)" /></el-icon>
+              <el-icon class="mr-1.5"><component :is="mapIcon(cat?.icon)" /></el-icon>
               <span>{{ cat.name }}</span>
             </div>
             <div class="flyout-menu-divider"></div>
@@ -233,7 +233,7 @@ function handleToggleCollapse() {
             @click="handleSelectCategory(cat.id)"
           >
             <el-icon class="sidebar-icon">
-              <component :is="mapIcon(cat.icon)" />
+              <component :is="mapIcon(cat?.icon)" />
             </el-icon>
             <span v-if="!collapsed" class="sidebar-label">{{ cat.name }}</span>
             <el-icon v-if="!collapsed" class="sidebar-arrow">

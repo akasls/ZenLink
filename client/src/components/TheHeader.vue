@@ -59,7 +59,7 @@ onMounted(() => {
         <div class="header-brand" @click="switchApp({ id: 'home', path: '/' })">
           <div class="brand-logo">
             <img v-if="siteStore.siteLogo" :src="siteStore.siteLogo" alt="Logo" class="brand-logo-img" />
-            <span v-else>{{ (siteStore.siteName || 'Z').trim().charAt(0) }}</span>
+            <img v-else src="/favicon.svg" alt="Logo" class="brand-logo-img" />
           </div>
           <span class="brand-name">{{ siteStore.siteName || '不凡导航' }}</span>
         </div>

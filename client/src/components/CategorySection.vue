@@ -37,10 +37,10 @@ function onSelectSub(subId: number) {
 </script>
 
 <template>
-  <section :id="`sec-${category.id}`" class="category-section scroll-mt-4">
+  <section :id="`sec-${category?.id}`" class="category-section scroll-mt-4">
     <div class="category-header">
-      <el-icon class="category-header-icon"><component :is="mapIcon(category.icon)" /></el-icon>
-      <h2>{{ category.name }}</h2>
+      <el-icon class="category-header-icon"><component :is="mapIcon(category?.icon)" /></el-icon>
+      <h2>{{ category?.name }}</h2>
     </div>
 
     <!-- 二级分类圆角胶囊组件 (单行可水平滑动) -->
