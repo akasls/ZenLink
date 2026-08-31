@@ -6,6 +6,7 @@ import multipart from '@fastify/multipart';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
+import crypto from 'crypto';
 
 import { initDatabase, saveDatabase } from './db/index.js';
 import { seedDatabase } from './db/seed.js';
@@ -45,8 +46,17 @@ await fastify.register(cors, {
   credentials: true,
 });
 
+let jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret || jwtSecret === 'zenlink-dev-secret-change-in-production') {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ FATAL SECURITY ERROR: 生产环境下必须设置强随机 JWT_SECRET 环境变量！');
+    process.exit(1);
+  }
+  jwtSecret = crypto.randomBytes(32).toString('hex');
+}
+
 await fastify.register(jwt, {
-  secret: process.env.JWT_SECRET || 'zenlink-dev-secret-change-in-production',
+  secret: jwtSecret,
 });
 
 await fastify.register(multipart, {
@@ -89,11 +99,18 @@ if (existsSync(clientDist)) {
 // 优雅停机保证数据完整落盘
 const handleShutdown = () => {
   console.log('\n🛑 正在安全持久化数据库并关闭服务...');
-  saveDatabase();
+  saveDatabase(true);
   process.exit(0);
 };
 process.on('SIGINT', handleShutdown);
 process.on('SIGTERM', handleShutdown);
+
+process.on('uncaughtException', (err) => {
+  console.error('🚨 [uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 [unhandledRejection]', reason);
+});
 
 // 启动服务器
 const PORT = Number(process.env.PORT) || 3000;

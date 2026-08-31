@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import net from 'net';
+import dns from 'dns/promises';
 
 export interface SiteMeta {
   title: string;
@@ -8,16 +9,43 @@ export interface SiteMeta {
 }
 
 /**
- * 深度 SSRF 防御：严格阻断私有网段、本地环回、云厂商元数据接口及非法协议
+ * 校验 IP 是否属于受保护的私有网段、本地环回、云厂商元数据接口及保留地址
  */
-export function isSafeUrl(targetUrl: string): boolean {
+export function isPrivateIp(ip: string): boolean {
+  const ipType = net.isIP(ip);
+  if (ipType === 4) {
+    const parts = ip.split('.').map(Number);
+    if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) return true;
+    const [a, b, c, d] = parts;
+    if (a === 0 || a === 127 || a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a >= 224) return true;
+  } else if (ipType === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === '::1' || lower === '0:0:0:0:0:0:0:1' || lower === '::' || lower === '0:0:0:0:0:0:0:0') return true;
+    if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
+    if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true;
+    if (lower.startsWith('::ffff:')) {
+      const v4Part = lower.slice(7);
+      return isPrivateIp(v4Part);
+    }
+  }
+  return false;
+}
+
+/**
+ * 深度 SSRF 防御（异步 DNS 校验）：严格解析实际 IP 记录，抵御 DNS Rebinding 与私网映射
+ */
+export async function isSafeUrlAsync(targetUrl: string): Promise<boolean> {
   if (!targetUrl || typeof targetUrl !== 'string') return false;
   try {
     const parsed = new URL(targetUrl);
     if (!['http:', 'https:'].includes(parsed.protocol)) return false;
 
     let hostname = parsed.hostname.toLowerCase();
-    // 移除 IPv6 方括号
     if (hostname.startsWith('[') && hostname.endsWith(']')) {
       hostname = hostname.slice(1, -1);
     }
@@ -39,54 +67,87 @@ export function isSafeUrl(targetUrl: string): boolean {
       return false;
     }
 
-    // 2. IP 地址检测
-    const ipType = net.isIP(hostname);
-    if (ipType === 4) {
-      const parts = hostname.split('.').map(Number);
-      if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) {
-        return false;
-      }
-      const [a, b, c, d] = parts;
+    // 2. 直接 IP 地址检测
+    if (net.isIP(hostname)) {
+      return !isPrivateIp(hostname);
+    }
 
-      // 0.0.0.0/8
-      if (a === 0) return false;
-      // 127.0.0.0/8 环回地址
-      if (a === 127) return false;
-      // 10.0.0.0/8 私网
-      if (a === 10) return false;
-      // 172.16.0.0/12 私网 (172.16.0.0 - 172.31.255.255)
-      if (a === 172 && b >= 16 && b <= 31) return false;
-      // 192.168.0.0/16 私网
-      if (a === 192 && b === 168) return false;
-      // 169.254.0.0/16 链路本地 / 云厂商元数据 (169.254.169.254)
-      if (a === 169 && b === 254) return false;
-      // 100.64.0.0/10 运营商级 NAT / 阿里云内部元数据 (100.100.100.200)
-      if (a === 100 && b >= 64 && b <= 127) return false;
-      // 224.0.0.0/4 组播与保留
-      if (a >= 224) return false;
-    } else if (ipType === 6) {
-      const lower = hostname.toLowerCase();
-      // ::1 环回
-      if (lower === '::1' || lower === '0:0:0:0:0:0:0:1') return false;
-      // :: 未指定
-      if (lower === '::' || lower === '0:0:0:0:0:0:0:0') return false;
-      // fc00::/7 (Unique Local Address)
-      if (lower.startsWith('fc') || lower.startsWith('fd')) return false;
-      // fe80::/10 (Link-Local)
-      if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return false;
-      // IPv4 映射 IPv6 (::ffff:127.0.0.1 等)
-      if (lower.startsWith('::ffff:')) {
-        const v4Part = lower.slice(7);
-        if (net.isIPv4(v4Part) && !isSafeUrl(`http://${v4Part}`)) {
+    // 3. 解析真实 DNS A/AAAA 记录，彻底抵御 DNS Rebinding
+    try {
+      const addresses = await dns.lookup(hostname, { all: true });
+      if (!addresses || addresses.length === 0) return false;
+      for (const addr of addresses) {
+        if (isPrivateIp(addr.address)) {
           return false;
         }
       }
+      return true;
+    } catch {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 同步基础 URL 安全检查（快速初筛）
+ */
+export function isSafeUrl(targetUrl: string): boolean {
+  if (!targetUrl || typeof targetUrl !== 'string') return false;
+  try {
+    const parsed = new URL(targetUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+
+    let hostname = parsed.hostname.toLowerCase();
+    if (hostname.startsWith('[') && hostname.endsWith(']')) {
+      hostname = hostname.slice(1, -1);
     }
 
+    if (!hostname || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+      return false;
+    }
+    if (net.isIP(hostname)) {
+      return !isPrivateIp(hostname);
+    }
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * 安全的 HTTP 抓取客户端：严格限制重定向次数并逐跳校验目标 IP，杜绝 302 重定向 SSRF
+ */
+export async function safeFetch(url: string, options: RequestInit = {}, maxRedirects = 3): Promise<Response> {
+  let currentUrl = url;
+  let redirectCount = 0;
+
+  while (redirectCount <= maxRedirects) {
+    const isSafe = await isSafeUrlAsync(currentUrl);
+    if (!isSafe) {
+      throw new Error(`SSRF Blocked: ${currentUrl} is not a safe destination`);
+    }
+
+    const res = await fetch(currentUrl, {
+      ...options,
+      redirect: 'manual',
+    });
+
+    if ([301, 302, 303, 307, 308].includes(res.status)) {
+      const location = res.headers.get('location');
+      if (!location) {
+        return res;
+      }
+      currentUrl = new URL(location, currentUrl).toString();
+      redirectCount++;
+      continue;
+    }
+
+    return res;
+  }
+
+  throw new Error('Too many redirects');
 }
 
 /**
@@ -100,7 +161,7 @@ export async function fetchSiteMeta(url: string): Promise<SiteMeta> {
     favicon: '',
   };
 
-  if (!isSafeUrl(url)) {
+  if (!(await isSafeUrlAsync(url))) {
     return result;
   }
 
@@ -112,14 +173,13 @@ export async function fetchSiteMeta(url: string): Promise<SiteMeta> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
       },
-      redirect: 'follow',
     });
 
     clearTimeout(timeout);
@@ -209,17 +269,16 @@ function resolveUrl(href: string, baseUrl: string): string {
  * 检测链接连通性
  */
 export async function checkUrlStatus(url: string): Promise<'online' | 'offline'> {
-  if (!isSafeUrl(url)) {
+  if (!(await isSafeUrlAsync(url))) {
     return 'offline';
   }
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method: 'HEAD',
       signal: controller.signal,
-      redirect: 'follow',
       headers: {
         'User-Agent': 'ZenLink-Bot/1.0',
       },

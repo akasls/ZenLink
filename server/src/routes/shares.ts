@@ -1,6 +1,22 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import dbHelper, { saveDatabase } from '../db/index.js';
 
+interface ShareAttempt {
+  count: number;
+  lockedUntil: number;
+}
+const shareVerifyAttempts = new Map<string, ShareAttempt>();
+
+// 定期清理过期的频控记录，防止内存泄漏
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of shareVerifyAttempts.entries()) {
+    if (val.lockedUntil < now && val.count === 0) {
+      shareVerifyAttempts.delete(key);
+    }
+  }
+}, 60000);
+
 export default async function shareRoutes(fastify: FastifyInstance) {
   // 1. 获取公开笔记分享内容元数据及公开正文
   fastify.get('/api/shares/:code', async (request: FastifyRequest<{ Params: { code: string } }>, reply: FastifyReply) => {
@@ -75,6 +91,16 @@ export default async function shareRoutes(fastify: FastifyInstance) {
   fastify.post('/api/shares/:code/verify', async (request: FastifyRequest<{ Params: { code: string }; Body: { password?: string } }>, reply: FastifyReply) => {
     const { code } = request.params;
     const { password = '' } = (request.body as any) || {};
+    const clientIp = request.ip || 'unknown';
+    const rateLimitKey = `${clientIp}:${code}`;
+    const nowTime = Date.now();
+
+    // 频控检查：防暴力破解密码
+    const attempt = shareVerifyAttempts.get(rateLimitKey);
+    if (attempt && attempt.lockedUntil > nowTime) {
+      const waitMin = Math.ceil((attempt.lockedUntil - nowTime) / 60000);
+      return reply.status(429).send({ error: `密码错误次数过多，请 ${waitMin} 分钟后再试` });
+    }
 
     if (!code) {
       return reply.status(400).send({ error: '分享代码无效' });
@@ -93,8 +119,17 @@ export default async function shareRoutes(fastify: FastifyInstance) {
     }
 
     if (noteShare.password && noteShare.password.trim() !== String(password).trim()) {
+      const rec = shareVerifyAttempts.get(rateLimitKey) || { count: 0, lockedUntil: 0 };
+      rec.count += 1;
+      if (rec.count >= 5) {
+        rec.lockedUntil = nowTime + 15 * 60 * 1000;
+      }
+      shareVerifyAttempts.set(rateLimitKey, rec);
       return reply.status(401).send({ error: '提取密码错误' });
     }
+
+    // 验证成功，清除尝试计数
+    shareVerifyAttempts.delete(rateLimitKey);
 
     const note = dbHelper.get('SELECT * FROM notes WHERE id = ?', [noteShare.note_id]);
     if (!note) {

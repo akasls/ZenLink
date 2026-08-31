@@ -144,10 +144,37 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     return { success: true, message: '2FA 已启用' };
   });
 
+// WebAuthn 动态配置助手
+function getWebAuthnContext(request: any) {
+  const reqOrigin = request.headers.origin;
+  const hostHeader = (request.headers.host || 'localhost:3000').trim();
+  const hostname = hostHeader.split(':')[0] || 'localhost';
+
+  const origins = new Set<string>([
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+  ]);
+
+  if (reqOrigin) origins.add(reqOrigin);
+  if (process.env.ORIGIN) origins.add(process.env.ORIGIN);
+
+  const rpId = process.env.RP_ID || (hostname === '127.0.0.1' ? '127.0.0.1' : hostname);
+  const rpName = 'ZenLink';
+
+  return {
+    rpName,
+    rpId,
+    allowedOrigins: Array.from(origins),
+  };
+}
+
   // ==================== WebAuthn (Passkey) ====================
 
   fastify.post('/api/auth/webauthn/register-options', { preHandler: [requireAuth] }, async (request) => {
     const { userId, username } = request.user as any;
+    const { rpName, rpId } = getWebAuthnContext(request);
 
     const existingCredentials = dbHelper.all(
       'SELECT id, transports FROM webauthn_credentials WHERE user_id = ?',
@@ -155,8 +182,8 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     );
 
     const options = await generateRegistrationOptions({
-      rpName: RP_NAME,
-      rpID: RP_ID,
+      rpName,
+      rpID: rpId,
       userID: String(userId),
       userName: username,
       attestationType: 'none',
@@ -178,6 +205,7 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
   fastify.post('/api/auth/webauthn/register-verify', { preHandler: [requireAuth] }, async (request, reply) => {
     const { userId } = request.user as any;
     const body = request.body as RegistrationResponseJSON;
+    const { rpId, allowedOrigins } = getWebAuthnContext(request);
 
     const stored = regChallengeStore.get(userId);
     if (!stored || stored.expiresAt < Date.now()) {
@@ -189,8 +217,8 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
       const verification = await verifyRegistrationResponse({
         response: body,
         expectedChallenge: stored.challenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: allowedOrigins,
+        expectedRPID: rpId,
       });
 
       if (verification.verified && verification.registrationInfo) {
@@ -220,9 +248,10 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     }
   });
 
-  fastify.post('/api/auth/webauthn/login-options', async () => {
+  fastify.post('/api/auth/webauthn/login-options', async (request) => {
+    const { rpId } = getWebAuthnContext(request);
     const options = await generateAuthenticationOptions({
-      rpID: RP_ID,
+      rpID: rpId,
       userVerification: 'preferred',
     });
 
@@ -232,6 +261,7 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
 
   fastify.post('/api/auth/webauthn/login-verify', async (request, reply) => {
     const body = request.body as AuthenticationResponseJSON;
+    const { rpId, allowedOrigins } = getWebAuthnContext(request);
 
     // 解析 clientDataJSON 获取 challenge
     let clientChallenge = '';
@@ -261,8 +291,8 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
       const verification = await verifyAuthenticationResponse({
         response: body,
         expectedChallenge: clientChallenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: allowedOrigins,
+        expectedRPID: rpId,
         authenticator: {
           credentialID: Buffer.from(credential.id, 'base64url'),
           credentialPublicKey: Buffer.from(credential.public_key, 'base64url'),

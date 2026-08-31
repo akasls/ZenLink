@@ -1,5 +1,5 @@
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, promises as fsPromises } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -39,7 +39,7 @@ export async function initDatabase(): Promise<void> {
   }
 
   // 保存到文件
-  saveDatabase();
+  saveDatabase(true);
   // 扩展表字段与配置
   try { db.run("CREATE TABLE IF NOT EXISTS storage_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);"); } catch {}
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN role_id TEXT DEFAULT 'default';"); } catch {}
@@ -54,13 +54,46 @@ export async function initDatabase(): Promise<void> {
   console.log('✅ 数据库初始化完成与高性能索引生效:', DB_PATH);
 }
 
+let saveTimer: NodeJS.Timeout | null = null;
+let isSaving = false;
+
 /**
- * 将内存中的数据库持久化到文件
+ * 将内存中的数据库安全、原子化、防抖持久化到文件
+ * @param immediate 若为 true 则立即同步原子持久化（用于服务关闭退出等关键时刻）
  */
-export function saveDatabase(): void {
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  writeFileSync(DB_PATH, buffer);
+export function saveDatabase(immediate = false): void {
+  if (immediate) {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    try {
+      const data = db.export();
+      const tempPath = `${DB_PATH}.tmp`;
+      writeFileSync(tempPath, Buffer.from(data));
+      renameSync(tempPath, DB_PATH);
+    } catch (e) {
+      console.error('❌ 同步写入数据库失败:', e);
+    }
+    return;
+  }
+
+  if (saveTimer) return;
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    if (isSaving) return;
+    isSaving = true;
+    try {
+      const data = db.export();
+      const tempPath = `${DB_PATH}.tmp`;
+      await fsPromises.writeFile(tempPath, Buffer.from(data));
+      await fsPromises.rename(tempPath, DB_PATH);
+    } catch (e) {
+      console.error('❌ 异步持久化数据库失败:', e);
+    } finally {
+      isSaving = false;
+    }
+  }, 500);
 }
 
 /**

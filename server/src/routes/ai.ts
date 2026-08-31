@@ -5,8 +5,8 @@ import { isSafeUrl } from '../services/meta-scraper.js';
 import { randomUUID } from 'crypto';
 
 export default async function aiRoutes(fastify: FastifyInstance) {
-  // 1. 获取 AI 配置
-  fastify.get('/api/ai/settings', async (request: FastifyRequest, reply: FastifyReply) => {
+  // 1. 获取 AI 配置（需要登录鉴权，杜绝未授权敏感配置暴露）
+  fastify.get('/api/ai/settings', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const settingsRows = dbHelper.all('SELECT key, value FROM ai_settings');
     const settings: Record<string, any> = {
       api_key: '',
@@ -344,8 +344,16 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         if (typeof top_p === 'number') llmPayload.top_p = top_p;
         if (typeof max_tokens === 'number' && max_tokens > 0) llmPayload.max_tokens = max_tokens;
 
+        const upstreamAbortController = new AbortController();
+        request.raw.on('close', () => {
+          if (!upstreamAbortController.signal.aborted) {
+            upstreamAbortController.abort();
+          }
+        });
+
         const response = await fetch(targetUrl, {
           method: 'POST',
+          signal: upstreamAbortController.signal,
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${apiKey}`,
@@ -482,6 +490,11 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 60000);
+        request.raw.on('close', () => {
+          if (!controller.signal.aborted) {
+            controller.abort();
+          }
+        });
 
         const upstreamRes = await fetch(targetUrl, {
           method: 'POST',

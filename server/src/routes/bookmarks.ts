@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import crypto from 'crypto';
 import dbHelper, { saveDatabase } from '../db/index.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { fetchSiteMeta, checkUrlStatus, isSafeUrl } from '../services/meta-scraper.js';
+import { fetchSiteMeta, checkUrlStatus, isSafeUrl, isSafeUrlAsync, safeFetch } from '../services/meta-scraper.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FAVICON_DIR = resolve(__dirname, '../../../data/favicons');
@@ -122,14 +122,13 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     async function tryFetchIcon(iconUrl: string): Promise<{ buffer: Buffer; contentType: string } | null> {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2000);
-        const res = await fetch(iconUrl, {
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const res = await safeFetch(iconUrl, {
           signal: controller.signal,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
           },
-          redirect: 'follow',
         });
         clearTimeout(timeout);
 
@@ -500,23 +499,24 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
 
     // 2. 如果描述以产品名称开头（如“帮小忙，腾讯QQ浏览器...”），剔除开头的重复产品名与标点
     if (titleCore && titleCore.length >= 2) {
-      const escapedTitle = titleCore.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const leadingRegex = new RegExp(`^${escapedTitle}\\s*[,，\\-_–—|:：\\s]+`, 'i');
-      d = d.replace(leadingRegex, '');
+      if (d.toLowerCase().startsWith(titleCore.toLowerCase())) {
+        d = d.slice(titleCore.length).replace(/^[,，\-_–—|:：\s]+/, '').trim();
+      }
     }
 
     // 3. 去除末尾的重复产品名或SEO分类
     if (titleCore && titleCore.length >= 2) {
-      const escapedTitle = titleCore.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const trailingRegex = new RegExp(`([。！!？?~～]|，|,|\\s)\\s*${escapedTitle}[\\s\\S]*$`, 'i');
-      d = d.replace(trailingRegex, '$1');
+      const lastIdx = d.toLowerCase().lastIndexOf(titleCore.toLowerCase());
+      if (lastIdx > 0 && lastIdx >= d.length - titleCore.length - 20) {
+        d = d.slice(0, lastIdx).replace(/[,，、\-_–—|:：\s]+$/, '').trim();
+      }
     }
 
     // 4. 去除末尾常见的 SEO 堆砌字样
     d = d.replace(/([。！!？?~～]|\s)[^。！!？?~～]{0,10}(全部分类|分类工具|官网|官方网站|首页)[^。！!？?~～]*$/, '$1');
 
     // 5. 清理末尾悬空的逗号或标点
-    d = d.replace(/[,，、\\-_–—|:：\s]+$/, '');
+    d = d.replace(/[,，、\-_–—|:：\s]+$/, '');
     if (d && !/[。！!？?~～]$/.test(d)) {
       d += '。';
     }
