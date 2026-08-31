@@ -37,13 +37,13 @@ function onSelectSub(subId: number) {
 </script>
 
 <template>
-  <section :id="`sec-${category?.id}`" class="category-section scroll-mt-4">
-    <div class="category-header">
-      <el-icon class="category-header-icon"><component :is="mapIcon(category?.icon)" /></el-icon>
-      <h2>{{ category?.name }}</h2>
+  <section :id="`sec-${category?.id}`" class="scroll-mt-6 space-y-3">
+    <div class="flex items-center gap-2">
+      <el-icon class="text-sm text-slate-500 dark:text-slate-400"><component :is="mapIcon(category?.icon)" /></el-icon>
+      <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100 tracking-tight m-0">{{ category?.name }}</h2>
     </div>
 
-    <!-- 二级分类圆角胶囊组件 (单行可水平滑动) -->
+    <!-- 二级分类圆角胶囊组件 -->
     <CategoryCapsule
       :sub-categories="subCategories"
       :model-value="activeSubId"
@@ -60,6 +60,7 @@ function onSelectSub(subId: number) {
       @delete="emit('delete', $event)"
       @reorder="emit('reorder', $event)"
     />
-    <p v-else class="text-xs text-center py-4" style="color: var(--zl-text-muted);">暂无书签</p>
+    <p v-else class="text-xs text-center py-6 text-slate-400 dark:text-slate-500 m-0">暂无书签</p>
   </section>
 </template>
+

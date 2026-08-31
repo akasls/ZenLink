@@ -1202,255 +1202,269 @@ watch(
 </script>
 
 <template>
-  <div class="openwebui-ai-panel notes-modern-panel">
+  <div class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
     <!-- ==================== 1. 顶部控制栏 ==================== -->
-    <div class="openwebui-top-bar">
+    <div class="h-12 px-3 sm:px-4 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between flex-shrink-0 sticky top-0 z-20">
       <!-- 场景 A：列表视图顶部 -->
       <template v-if="!selectedNote">
-        <!-- 移动端展开搜索模式：直接在顶栏内展开充满 -->
-        <div v-if="isMobile && isMobileSearchOpen" class="top-bar-mobile-search-inline">
-          <el-icon class="search-icon"><component :is="'Search'"></component></el-icon>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="搜索笔记标题、内容或标签..."
-            class="mobile-inline-search-input"
-            autofocus
-            @input="loadNotes"
-          />
+        <!-- 移动端展开搜索模式 -->
+        <div v-if="isMobile && isMobileSearchOpen" class="flex-1 flex items-center gap-2">
+          <div class="flex-1 flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-2.5 py-1">
+            <el-icon class="text-xs text-slate-400 mr-1.5"><component is="Search" /></el-icon>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索笔记标题、内容或标签..."
+              class="w-full bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none"
+              autofocus
+              @input="loadNotes"
+            />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="text-slate-400 text-xs hover:text-slate-600 px-1"
+              @click="searchQuery = ''; loadNotes()"
+            >×</button>
+          </div>
           <button
-            v-if="searchQuery"
             type="button"
-            class="search-clear-cross"
-            @click="searchQuery = ''; loadNotes()"
-          >×</button>
-          <button
-            type="button"
-            class="mobile-search-cancel-btn"
+            class="text-xs text-slate-500 px-2 py-1 hover:text-slate-900"
             @click="isMobileSearchOpen = false; searchQuery = ''; loadNotes()"
           >取消</button>
         </div>
 
-        <!-- 正常顶栏模式 (左侧横向滚动标签胶囊，右侧紧凑搜索和无高亮新建按钮) -->
+        <!-- 正常顶栏模式 -->
         <template v-else>
-          <div class="top-bar-left flex-1 min-w-0">
-            <div class="top-bar-tags-slider">
+          <div class="flex-1 min-w-0 pr-2">
+            <div class="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
               <button
                 type="button"
-                class="tag-pill-btn"
-                :class="{ active: selectedTag === null }"
+                class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer"
+                :class="[
+                  selectedTag === null
+                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                ]"
                 @click="filterByTag(null)"
               >
                 <span>全部</span>
-                <span class="tag-count-badge">{{ totalNoteCount }}</span>
+                <span class="text-[10px] opacity-70 font-mono">({{ totalNoteCount }})</span>
               </button>
+
               <button
                 v-for="tag in availableTags"
                 :key="tag.name"
                 type="button"
-                class="tag-pill-btn"
-                :class="{ active: selectedTag === tag.name }"
+                class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer"
+                :class="[
+                  selectedTag === tag.name
+                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                ]"
                 @click="filterByTag(tag.name)"
               >
                 <span>#{{ tag.name }}</span>
-                <span class="tag-count-badge">{{ tag.count }}</span>
+                <span class="text-[10px] opacity-70 font-mono">({{ tag.count }})</span>
               </button>
             </div>
           </div>
 
-          <!-- 列表态右侧：PC 搜索框 + 柔和新建；移动端纯图标 -->
-          <div class="top-bar-right flex-shrink-0 flex items-center gap-2">
-            <!-- PC 端搜索框 -->
-            <div v-if="!isMobile" class="notes-search-input-box">
-              <el-icon class="search-icon"><component :is="'Search'"></component></el-icon>
+          <div class="flex-shrink-0 flex items-center gap-2">
+            <!-- PC 搜索框 -->
+            <div v-if="!isMobile" class="flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-2.5 py-1 w-44 focus-within:w-56 transition-all duration-150">
+              <el-icon class="text-xs text-slate-400 mr-1.5"><component is="Search" /></el-icon>
               <input
                 v-model="searchQuery"
                 type="text"
                 placeholder="搜索笔记..."
-                class="notes-search-input-field"
+                class="w-full bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none"
                 @input="loadNotes"
               />
               <button
                 v-if="searchQuery"
                 type="button"
-                class="search-clear-cross"
+                class="text-slate-400 text-xs hover:text-slate-600 px-1"
                 @click="searchQuery = ''; loadNotes()"
               >×</button>
             </div>
 
-            <!-- PC 端新建按钮 (无高亮强色，契合整体柔和色调) -->
+            <!-- PC 新建按钮 -->
             <button
               v-if="!isMobile"
               type="button"
-              class="notes-new-btn-neutral"
+              class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer"
               title="新建空白笔记"
               @click="createNote"
             >
-              <el-icon class="mr-1"><component :is="'Plus'"></component></el-icon>
-              <span>新建</span>
+              <el-icon class="text-xs"><component is="Plus" /></el-icon>
+              <span>新建笔记</span>
             </button>
 
             <!-- 移动端搜索与新建图标按钮 -->
             <template v-else>
               <button
                 type="button"
-                class="notes-mobile-icon-btn"
-                :class="{ active: searchQuery }"
+                class="w-7 h-7 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300"
                 title="搜索笔记"
                 @click="isMobileSearchOpen = true"
               >
-                <el-icon><component :is="'Search'"></component></el-icon>
+                <el-icon class="text-xs"><component is="Search" /></el-icon>
               </button>
 
               <button
                 type="button"
-                class="notes-mobile-icon-btn"
+                class="w-7 h-7 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center"
                 title="新建笔记"
                 @click="createNote"
               >
-                <el-icon><component :is="'Plus'"></component></el-icon>
+                <el-icon class="text-xs"><component is="Plus" /></el-icon>
               </button>
             </template>
           </div>
         </template>
       </template>
 
-      <!-- 场景 B：编辑视图顶部 (左侧纯图标返回 + 纯净标题输入；右侧展示标签栏) -->
+      <!-- 场景 B：编辑视图顶部 -->
       <template v-else>
-        <div class="top-bar-left flex-1 min-w-0 flex items-center gap-2">
-          <!-- 纯图标返回按钮 (无胶囊无文字) -->
+        <div class="flex-1 min-w-0 flex items-center gap-2.5">
           <button
-            class="top-bar-icon-back-btn"
+            type="button"
+            class="w-7 h-7 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
             title="返回笔记列表"
             @click="selectedNote = null; loadTags(); loadNotes()"
           >
-            <el-icon><component :is="'ArrowLeft'"></component></el-icon>
+            <el-icon class="text-xs"><component is="ArrowLeft" /></el-icon>
           </button>
 
-          <!-- 标题输入框 (纯净可编辑，无多余AI生成图标) -->
           <input
             v-model="editTitle"
             type="text"
-            class="top-bar-title-input"
+            class="flex-1 bg-transparent text-sm font-semibold text-slate-900 dark:text-slate-100 outline-none border-b border-transparent focus:border-slate-300 dark:focus:border-slate-700 py-0.5 transition-colors"
             placeholder="输入笔记标题..."
             @blur="saveNote"
           />
         </div>
 
-        <!-- 编辑态右侧：放置文章标签 (Desktop 直接平铺，Mobile 弹出式) -->
-        <div class="top-bar-right flex-shrink-0 flex items-center">
-          <!-- PC 端右上角标签平铺展示与添加 -->
-          <div v-if="!isMobile" class="top-bar-tags-wrap">
-            <span
-              v-for="tag in editTags"
-              :key="tag"
-              class="editor-tag-badge"
-            >
-              #{{ tag }}
-              <button type="button" class="tag-del-x" title="删除标签" @click="removeTag(tag)">×</button>
-            </span>
-
-            <div v-if="isTagInputVisible" class="editor-tag-input-box">
-              <input
-                v-model="newTagInput"
-                type="text"
-                class="editor-tag-input"
-                placeholder="标签名..."
-                autofocus
-                @keydown.enter="addTag"
-                @keydown.esc="isTagInputVisible = false"
-                @blur="addTag"
-              />
-            </div>
+        <div class="flex-shrink-0 flex items-center gap-1.5 pl-2">
+          <!-- 模式切换 Tabs -->
+          <div class="flex items-center gap-0.5 p-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
             <button
-              v-else
               type="button"
-              class="editor-add-tag-btn"
-              title="添加新标签"
-              @click="isTagInputVisible = true"
+              class="px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 cursor-pointer"
+              :class="[
+                viewMode === 'split' || viewMode === 'edit'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              ]"
+              @click="setEditMode"
+              title="编辑模式"
             >
-              + 标签
+              <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+              <span>编辑</span>
             </button>
-          </div>
 
-          <!-- 移动端右上角仅展示标签图标按钮，点击展开管理 -->
-          <el-popover
-            v-else
-            trigger="click"
-            width="260"
-            placement="bottom-end"
-            popper-class="zenlink-custom-popover"
-          >
-            <template #reference>
-              <button type="button" class="notes-mobile-icon-btn" title="管理文章标签">
-                <el-icon><component :is="'PriceTag'"></component></el-icon>
-                <span v-if="editTags.length" class="mobile-tag-count-dot">{{ editTags.length }}</span>
-              </button>
-            </template>
+            <button
+              type="button"
+              class="px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 cursor-pointer"
+              :class="[
+                viewMode === 'preview'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              ]"
+              @click="setPreviewMode"
+              title="纯预览模式"
+            >
+              <el-icon class="text-xs"><component is="View" /></el-icon>
+              <span>预览</span>
+            </button>
 
-            <div class="p-2 space-y-2">
-              <div class="text-xs font-semibold text-muted mb-1.5 flex items-center justify-between">
-                <span>文章标签 ({{ editTags.length }})</span>
-              </div>
-              <div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                <span
-                  v-for="tag in editTags"
-                  :key="tag"
-                  class="editor-tag-badge"
+            <!-- 标签管理 -->
+            <el-popover
+              v-model:visible="isTagPopoverVisible"
+              trigger="click"
+              width="260"
+              placement="bottom-end"
+              popper-class="!p-3 !bg-white dark:!bg-slate-900 !border-slate-200/80 dark:!border-slate-800 !rounded-lg !shadow-lg"
+              :show-arrow="false"
+            >
+              <template #reference>
+                <button
+                  type="button"
+                  class="px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                  :class="{ '!bg-white dark:!bg-slate-700 !text-slate-900 dark:!text-slate-100 !font-semibold': isTagPopoverVisible }"
+                  title="管理文章标签"
                 >
-                  #{{ tag }}
-                  <button type="button" class="tag-del-x" title="删除" @click="removeTag(tag)">×</button>
-                </span>
-                <span v-if="!editTags.length" class="text-xs text-muted">暂无标签</span>
+                  <el-icon class="text-xs"><component is="PriceTag" /></el-icon>
+                  <span>标签{{ editTags.length ? ` (${editTags.length})` : '' }}</span>
+                </button>
+              </template>
+
+              <div class="space-y-2.5">
+                <div class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>文章标签 ({{ editTags.length }})</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                  <span
+                    v-for="tag in editTags"
+                    :key="tag"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    #{{ tag }}
+                    <button type="button" class="text-slate-400 hover:text-red-500 text-xs leading-none cursor-pointer" title="删除" @click="removeTag(tag)">×</button>
+                  </span>
+                  <span v-if="!editTags.length" class="text-xs text-slate-400">暂无标签，在下方输入添加</span>
+                </div>
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
+                  <input
+                    v-model="newTagInput"
+                    type="text"
+                    class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none"
+                    placeholder="新标签名..."
+                    @keydown.enter="addTag"
+                  />
+                  <button type="button" class="h-6 px-2 rounded bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium cursor-pointer" @click="addTag">添加</button>
+                </div>
               </div>
-              <div class="pt-2 border-t border-light flex items-center gap-1.5">
-                <input
-                  v-model="newTagInput"
-                  type="text"
-                  class="editor-tag-input flex-1"
-                  placeholder="新标签名..."
-                  @keydown.enter="addTag"
-                />
-                <button type="button" class="editor-add-tag-btn" @click="addTag">添加</button>
-              </div>
-            </div>
-          </el-popover>
+            </el-popover>
+          </div>
         </div>
       </template>
     </div>
 
     <!-- ==================== 2. 主体工作区 ==================== -->
-    <div class="notes-body-container">
-      <!-- 场景 1：无选中笔记时，展示等高整齐排列、支持拖拽排序的笔记列表卡片 -->
-      <div class="notes-cards-waterfall-view" v-if="!selectedNote">
-        <div v-if="loading && notes.length === 0" class="memo-loading-state">
-          <el-icon class="is-loading"><component :is="'Loading'"></component></el-icon>
-          <span>正在加载笔记列表...</span>
+    <div class="flex-1 flex flex-col min-h-0">
+      <!-- 场景 1：无选中笔记时的卡片网格列表 -->
+      <div v-if="!selectedNote" class="flex-1 p-4 sm:p-5 max-w-7xl w-full mx-auto">
+        <div v-if="loading && notes.length === 0" class="py-20 text-center text-slate-400">
+          <el-icon class="is-loading text-2xl mb-2 text-indigo-500"><component is="Loading" /></el-icon>
+          <p class="text-xs m-0">正在加载笔记列表...</p>
         </div>
 
-        <div v-else-if="filteredNotes.length === 0" class="memo-empty-state">
-          <div class="empty-memo-box">
-            <el-icon class="empty-memo-icon"><component :is="'Document'"></component></el-icon>
-            <h3>暂无匹配笔记</h3>
-            <p v-if="searchQuery">没有搜索到包含「{{ searchQuery }}」的笔记</p>
-            <p v-else-if="selectedTag">当前标签 #{{ selectedTag }} 下暂无笔记</p>
-            <p v-else>点击右上角「新建」开启您的第一篇 Markdown 知识库</p>
-            <button class="empty-create-btn" @click="createNote">
-              <el-icon class="mr-1"><component :is="'Plus'"></component></el-icon>
-              立即新建
-            </button>
-          </div>
+        <div v-else-if="filteredNotes.length === 0" class="py-16 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-8">
+          <el-icon class="text-3xl text-slate-300 dark:text-slate-600 mb-2"><component is="Document" /></el-icon>
+          <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200 m-0 mb-1">暂无匹配笔记</h3>
+          <p v-if="searchQuery" class="text-xs text-slate-400 m-0 mb-4">没有搜索到包含「{{ searchQuery }}」的笔记</p>
+          <p v-else-if="selectedTag" class="text-xs text-slate-400 m-0 mb-4">当前标签 #{{ selectedTag }} 下暂无笔记</p>
+          <p v-else class="text-xs text-slate-400 m-0 mb-4">点击右上角「新建」开启您的第一篇知识笔记</p>
+          <button
+            type="button"
+            class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer"
+            @click="createNote"
+          >
+            <el-icon class="mr-1"><component is="Plus" /></el-icon>
+            <span>立即新建</span>
+          </button>
         </div>
 
-        <!-- 等高笔记卡片栅格 (支持拖拽排序) -->
-        <div v-else class="memo-cards-grid">
+        <!-- 笔记卡片网格 -->
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           <div
             v-for="(n, idx) in filteredNotes"
             :key="n.id"
-            class="memo-card equal-height-card"
+            class="group relative flex flex-col justify-between p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg shadow-subtle hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm transition-all duration-150 cursor-pointer h-40 select-none overflow-hidden"
             :class="{
-              'is-dragging': draggedNoteIndex === idx,
-              'is-drag-over': dragOverNoteIndex === idx
+              'opacity-50 scale-95': draggedNoteIndex === idx,
+              'ring-2 ring-indigo-500': dragOverNoteIndex === idx
             }"
             draggable="true"
             @dragstart="onNoteDragStart(idx, $event)"
@@ -1459,409 +1473,286 @@ watch(
             @dragend="onNoteDragEnd"
             @click="selectNote(n)"
           >
-            <!-- 卡片顶部 -->
-            <div class="memo-card-header">
-              <div class="memo-title-row">
-                <span class="memo-title-text">{{ n.title || '未命名笔记' }}</span>
-              </div>
+            <!-- 卡片头部 -->
+            <div class="flex items-start justify-between gap-2">
+              <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate flex-1 group-hover:text-slate-950 dark:group-hover:text-white transition-colors">
+                {{ n.title || '未命名笔记' }}
+              </span>
 
-              <!-- 卡片操作按钮 (右上角直接分享，复制，删除) -->
-              <div class="memo-card-actions" @click.stop>
+              <!-- 悬浮操作按钮 -->
+              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" @click.stop>
                 <button
                   type="button"
-                  class="memo-act-btn"
+                  class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   title="分享此笔记"
                   @click="openShareModal(n, $event)"
                 >
-                  <el-icon><component :is="'Share'"></component></el-icon>
+                  <el-icon class="text-xs"><component is="Share" /></el-icon>
                 </button>
                 <button
                   type="button"
-                  class="memo-act-btn"
+                  class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   title="复制内容"
                   @click="copyNoteContent(n.content, $event)"
                 >
-                  <el-icon><component :is="'CopyDocument'"></component></el-icon>
+                  <el-icon class="text-xs"><component is="CopyDocument" /></el-icon>
                 </button>
                 <button
                   type="button"
-                  class="memo-act-btn del"
+                  class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
                   title="删除笔记"
                   @click="deleteNote(n, $event)"
                 >
-                  <el-icon><component :is="'Delete'"></component></el-icon>
+                  <el-icon class="text-xs"><component is="Delete" /></el-icon>
                 </button>
               </div>
             </div>
 
-            <!-- 卡片预览正文 (固定3行截断) -->
-            <div class="memo-card-body">
-              <div class="memo-preview-text">{{ getPreview(n.content) }}</div>
+            <!-- 预览正文 -->
+            <div class="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed my-1.5 flex-1">
+              {{ getPreview(n.content) }}
             </div>
 
-            <!-- 卡片底部：左下角显示标签(无高亮灰调轻柔样式)，右下角显示时间 -->
-            <div class="memo-card-footer">
-              <div class="memo-footer-tags-wrap" @click.stop>
+            <!-- 卡片底部 -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400">
+              <div class="flex items-center gap-1 overflow-hidden pr-2" @click.stop>
                 <template v-if="n.tags && n.tags.length">
                   <span
                     v-for="t in n.tags"
                     :key="t"
-                    class="memo-tag-chip-subtle"
+                    class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-500 dark:text-slate-400 truncate hover:text-slate-900 cursor-pointer"
                     @click="filterByTag(t)"
                   >#{{ t }}</span>
                 </template>
               </div>
-              <span class="memo-time">{{ formatDate(n.updated_at) }}</span>
+              <span class="font-mono flex-shrink-0">{{ formatDate(n.updated_at) }}</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 场景 2：Markdown 工作台 -->
-      <div v-else class="notes-editor-workspace">
-        <!-- Markdown 快捷排版工具栏 (AI首位，精选菜单，上传靠左排列) -->
-        <div v-if="viewMode !== 'preview'" class="notes-syntax-toolbar">
-          <!-- 1. AI 智能写作下拉菜单 (居于工具条首位) -->
+      <div v-else class="flex-1 flex flex-col min-h-0 bg-white dark:bg-slate-900">
+        <!-- 工具栏 -->
+        <div v-if="viewMode !== 'preview'" class="flex items-center gap-1 px-3 py-1.5 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-x-auto scrollbar-none flex-shrink-0">
+          <!-- 1. AI 写作下拉 -->
           <el-dropdown trigger="click" @command="handleAiCommand">
             <button
-              class="syntax-tool-btn ai-magic-toolbar-btn mr-0.5"
-              :class="{ 'is-ai-active': isAiWorking }"
+              type="button"
+              class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center gap-1 transition-colors cursor-pointer"
               title="AI 智能写作助手"
             >
-              <el-icon v-if="isAiWorking" class="is-loading"><component :is="'Loading'"></component></el-icon>
-              <el-icon v-else><component :is="'MagicStick'"></component></el-icon>
+              <el-icon v-if="isAiWorking" class="is-loading"><component is="Loading" /></el-icon>
+              <el-icon v-else><component is="MagicStick" /></el-icon>
+              <span class="text-[11px]">AI 助手</span>
             </button>
             <template #dropdown>
-              <el-dropdown-menu class="zenlink-custom-dropdown zenlink-ai-dropdown">
-                <el-dropdown-item command="title_and_tags" class="font-semibold text-primary">
-                  <el-icon class="mr-1.5"><component :is="'MagicStick'"></component></el-icon>
+              <el-dropdown-menu>
+                <el-dropdown-item command="title_and_tags">
+                  <el-icon class="mr-1.5"><component is="MagicStick" /></el-icon>
                   <span>生成标题标签</span>
                 </el-dropdown-item>
                 <el-dropdown-item command="custom">
-                  <el-icon class="mr-1.5"><component :is="'Operation'"></component></el-icon>
+                  <el-icon class="mr-1.5"><component is="Operation" /></el-icon>
                   <span>自定义指令</span>
                 </el-dropdown-item>
                 <el-dropdown-item command="polish">
-                  <el-icon class="mr-1.5"><component :is="'Brush'"></component></el-icon>
+                  <el-icon class="mr-1.5"><component is="Brush" /></el-icon>
                   <span>文字润色</span>
                 </el-dropdown-item>
                 <el-dropdown-item command="shorten">
-                  <el-icon class="mr-1.5"><component :is="'Scissor'"></component></el-icon>
+                  <el-icon class="mr-1.5"><component is="Scissor" /></el-icon>
                   <span>提炼精简</span>
                 </el-dropdown-item>
-
                 <el-dropdown-item command="continue" divided>
-                  <el-icon class="mr-1.5"><component :is="'DocumentAdd'"></component></el-icon>
+                  <el-icon class="mr-1.5"><component is="DocumentAdd" /></el-icon>
                   <span>续写下文</span>
                 </el-dropdown-item>
                 <el-dropdown-item command="expand">
-                  <el-icon class="mr-1.5"><component :is="'Reading'"></component></el-icon>
-                  <span>丰富论述扩写</span>
+                  <el-icon class="mr-1.5"><component is="Reading" /></el-icon>
+                  <span>扩写丰富</span>
                 </el-dropdown-item>
                 <el-dropdown-item command="summarize">
-                  <el-icon class="mr-1.5"><component :is="'Memo'"></component></el-icon>
-                  <span>提取核心摘要</span>
+                  <el-icon class="mr-1.5"><component is="Memo" /></el-icon>
+                  <span>提取摘要</span>
                 </el-dropdown-item>
                 <el-dropdown-item command="translate">
-                  <el-icon class="mr-1.5"><component :is="'Switch'"></component></el-icon>
-                  <span>中英双向翻译</span>
+                  <el-icon class="mr-1.5"><component is="Switch" /></el-icon>
+                  <span>中英翻译</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
 
-          <span class="syntax-divider"></span>
+          <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
-          <!-- 2. 标题下拉菜单 -->
+          <!-- 2. 标题下拉 -->
           <el-dropdown trigger="click" @command="insertHeading">
-            <button class="syntax-tool-btn" title="插入标题 (H1-H4)">
-              <span class="font-bold text-xs">H</span>
-              <el-icon class="ml-0.5 text-[10px]"><component :is="'ArrowDown'"></component></el-icon>
+            <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs font-bold transition-colors cursor-pointer" title="插入标题">
+              <span>H</span>
             </button>
             <template #dropdown>
-              <el-dropdown-menu class="zenlink-custom-dropdown">
-                <el-dropdown-item command="1"><span class="font-bold">H1</span><span class="ml-2 text-xs text-muted">一级大标题</span></el-dropdown-item>
-                <el-dropdown-item command="2"><span class="font-bold">H2</span><span class="ml-2 text-xs text-muted">二级中标题</span></el-dropdown-item>
-                <el-dropdown-item command="3"><span class="font-bold">H3</span><span class="ml-2 text-xs text-muted">三级小标题</span></el-dropdown-item>
-                <el-dropdown-item command="4"><span class="font-bold">H4</span><span class="ml-2 text-xs text-muted">四级正文标题</span></el-dropdown-item>
-                <el-dropdown-item command="0" divided><span class="text-xs">常规段落 (取消标题)</span></el-dropdown-item>
+              <el-dropdown-menu>
+                <el-dropdown-item command="1"><span class="font-bold">H1</span> 一级标题</el-dropdown-item>
+                <el-dropdown-item command="2"><span class="font-bold">H2</span> 二级标题</el-dropdown-item>
+                <el-dropdown-item command="3"><span class="font-bold">H3</span> 三级标题</el-dropdown-item>
+                <el-dropdown-item command="4"><span class="font-bold">H4</span> 四级标题</el-dropdown-item>
+                <el-dropdown-item command="0" divided>常规段落</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
 
           <!-- 3. 加粗/斜体/删除线 -->
-          <button class="syntax-tool-btn" @click="insertWrap('**', '**', '加粗文本')" title="加粗 (Ctrl+B)">
-            <span class="font-bold">B</span>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs font-bold transition-colors cursor-pointer" @click="insertWrap('**', '**', '加粗文本')" title="加粗">B</button>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs italic font-serif transition-colors cursor-pointer" @click="insertWrap('*', '*', '斜体文本')" title="斜体">I</button>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs line-through transition-colors cursor-pointer" @click="insertWrap('~~', '~~', '删除文本')" title="删除线">S</button>
+
+          <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <!-- 4. 块级工具 -->
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="insertBlockPrefix('> ')" title="引用块"><el-icon><component is="ChatLineSquare" /></el-icon></button>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="insertBlockPrefix('- [ ] ')" title="待办清单"><el-icon><component is="CircleCheck" /></el-icon></button>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="insertBlockPrefix('- ')" title="无序列表"><el-icon><component is="List" /></el-icon></button>
+
+          <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <!-- 5. 代码/表格/链接 -->
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-[11px] font-mono transition-colors cursor-pointer" @click="insertWrap('\n```\n', '\n```\n', '代码内容')" title="代码块">&lt;/&gt;</button>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="insertTable" title="插入表格"><el-icon><component is="Grid" /></el-icon></button>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="insertLink" title="插入链接"><el-icon><component is="Link" /></el-icon></button>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="insertWrap('\n---\n', '', '')" title="分割线"><el-icon><component is="SemiSelect" /></el-icon></button>
+
+          <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <!-- 6. 撤销/重做/清除格式 -->
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="undoText" title="撤销 (Ctrl+Z)">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C20.91 11.23 17.11 8 12.5 8z"/></svg>
           </button>
-          <button class="syntax-tool-btn" @click="insertWrap('*', '*', '斜体文本')" title="斜体 (Ctrl+I)">
-            <span class="italic font-serif">I</span>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="redoText" title="重做 (Ctrl+Y)">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.61 0-8.41 3.23-9.57 7.22l2.37.78c1.05-3.19 4.06-5.5 7.6-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
           </button>
-          <button class="syntax-tool-btn" @click="insertWrap('~~', '~~', '删除文本')" title="删除线">
-            <span class="line-through">S</span>
+          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer" @click="clearFormatting" title="清除格式">
+            <el-icon><component is="Close" /></el-icon>
           </button>
 
-          <span class="syntax-divider"></span>
-
-          <!-- 4. 引用 / 待办 / 无序列表 / 有序列表 -->
-          <button class="syntax-tool-btn" @click="insertBlockPrefix('> ')" title="引用块">
-            <el-icon><component :is="'ChatLineSquare'"></component></el-icon>
-          </button>
-          <button class="syntax-tool-btn" @click="insertBlockPrefix('- [ ] ')" title="待办清单">
-            <el-icon><component :is="'CircleCheck'"></component></el-icon>
-          </button>
-          <button class="syntax-tool-btn" @click="insertBlockPrefix('- ')" title="无序列表">
-            <el-icon><component :is="'List'"></component></el-icon>
-          </button>
-          <button class="syntax-tool-btn" @click="insertBlockPrefix('1. ')" title="有序列表">
-            <span class="font-mono text-xs font-bold">1.</span>
-          </button>
-
-          <span class="syntax-divider"></span>
-
-          <!-- 5. 代码块 / 表格 / 链接 / 分割线 -->
-          <button class="syntax-tool-btn" @click="insertWrap('\n```\n', '\n```\n', '代码内容')" title="代码块">
-            <span class="font-mono text-xs">&lt;/&gt;</span>
-          </button>
-          <button class="syntax-tool-btn" @click="insertTable" title="插入表格">
-            <el-icon><component :is="'Grid'"></component></el-icon>
-          </button>
-          <button class="syntax-tool-btn" @click="insertLink" title="插入链接">
-            <el-icon><component :is="'Link'"></component></el-icon>
-          </button>
-          <button class="syntax-tool-btn" @click="insertWrap('\n---\n', '', '')" title="水平分割线">
-            <el-icon><component :is="'SemiSelect'"></component></el-icon>
-          </button>
-
-          <span class="syntax-divider"></span>
-
-          <!-- 6. 撤销 / 重做 / 清除格式 -->
-          <button class="syntax-tool-btn" @click="undoText" title="撤销 (Ctrl+Z)">
-            <el-icon><component :is="'Back'"></component></el-icon>
-          </button>
-          <button class="syntax-tool-btn" @click="redoText" title="重做 (Ctrl+Y)">
-            <el-icon><component :is="'Right'"></component></el-icon>
-          </button>
-          <button class="syntax-tool-btn" @click="clearFormatting" title="清除选中格式">
-            <el-icon><component :is="'Close'"></component></el-icon>
-          </button>
-
-          <!-- 7. 上传图片/附件 (靠左排列) -->
-          <span class="syntax-divider"></span>
+          <!-- 7. 上传图片附件 -->
+          <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
           <button
-            class="syntax-tool-btn"
+            type="button"
+            class="w-6 h-6 rounded flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer"
             :disabled="uploadingNoteFile"
             @click="triggerNoteFileUpload"
-            title="上传图片或附件 (Ctrl+V 粘贴)"
+            title="上传图片或附件"
           >
-            <el-icon v-if="!uploadingNoteFile"><component :is="'Paperclip'"></component></el-icon>
-            <el-icon v-else class="is-loading"><component :is="'Loading'"></component></el-icon>
+            <el-icon v-if="!uploadingNoteFile"><component is="Paperclip" /></el-icon>
+            <el-icon v-else class="is-loading"><component is="Loading" /></el-icon>
           </button>
           <input ref="noteFileInputRef" type="file" hidden @change="onNoteFileChange" />
         </div>
 
-        <!-- 内容分栏展示区域 (PC 端默认分栏，支持双栏同步滚动) -->
-        <div class="notes-content-container" :class="viewMode">
+        <!-- 内容分栏展示区域 -->
+        <div class="flex-1 flex min-h-0 overflow-hidden">
           <!-- 1. 编辑框 -->
-          <div v-show="viewMode === 'edit' || viewMode === 'split'" class="notes-editor-pane">
-            <div class="notes-textarea-surface">
-              <textarea
-                ref="textareaRef"
-                v-model="editContent"
-                class="notes-native-textarea"
-                placeholder="在此撰写 Markdown 笔记内容，支持快捷键 (Ctrl+B/I/S, Tab缩进, 回车智能列表)..."
-                @keydown="handleTextareaKeyDown"
-                @paste="handleNotesPaste"
-                @scroll="onEditorScroll"
-                @blur="saveNote"
-              ></textarea>
+          <div
+            v-show="viewMode === 'edit' || viewMode === 'split'"
+            class="flex-1 flex flex-col min-w-0 border-r border-slate-200/80 dark:border-slate-800 relative bg-white dark:bg-slate-900"
+            @mouseenter="setScrollSource('editor')"
+          >
+            <textarea
+              ref="textareaRef"
+              v-model="editContent"
+              class="flex-1 w-full p-4 sm:p-5 text-xs font-mono bg-transparent text-slate-800 dark:text-slate-200 outline-none resize-none leading-relaxed"
+              placeholder="在此撰写 Markdown 笔记内容，支持快捷键 (Ctrl+B/I/S, Tab缩进, 回车智能列表)..."
+              @keydown="handleTextareaKeyDown"
+              @paste="handleNotesPaste"
+              @scroll="onEditorScroll"
+              @blur="saveNote"
+              @mouseenter="setScrollSource('editor')"
+            ></textarea>
 
-              <!-- 编辑区右下角实时字数与精准保存状态指示器 -->
-              <div class="editor-bottom-meta-row">
-                <span class="editor-stat-text">{{ noteStats.chars }} 字符 · {{ noteStats.words }} 词</span>
-                <div class="editor-save-indicator" :class="saveStatus">
-                  <template v-if="saveStatus === 'saving'">
-                    <el-icon class="is-loading mr-1"><component :is="'Loading'"></component></el-icon>
-                    <span>正在保存...</span>
-                  </template>
-                  <template v-else-if="saveStatus === 'unsaved'">
-                    <span class="unsaved-dot mr-1">●</span>
-                    <span>未保存更改</span>
-                  </template>
-                  <template v-else>
-                    <el-icon class="saved-icon mr-1"><component :is="'CircleCheck'"></component></el-icon>
-                    <span>已保存 {{ lastSavedTime ? '于 ' + lastSavedTime : '' }}</span>
-                  </template>
-                </div>
+            <!-- 底部状态栏 -->
+            <div class="h-7 px-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between text-[11px] text-slate-400 font-mono flex-shrink-0">
+              <span>{{ noteStats.chars }} 字符 · {{ noteStats.words }} 词</span>
+              <div class="flex items-center gap-1">
+                <template v-if="saveStatus === 'saving'">
+                  <el-icon class="is-loading text-indigo-500"><component is="Loading" /></el-icon>
+                  <span>正在保存...</span>
+                </template>
+                <template v-else-if="saveStatus === 'unsaved'">
+                  <span class="text-amber-500 font-bold">●</span>
+                  <span>未保存</span>
+                </template>
+                <template v-else>
+                  <el-icon class="text-emerald-500"><component is="CircleCheck" /></el-icon>
+                  <span>已保存 {{ lastSavedTime ? '于 ' + lastSavedTime : '' }}</span>
+                </template>
               </div>
             </div>
           </div>
 
           <!-- 2. 实时预览区 -->
-          <div v-show="viewMode === 'preview' || viewMode === 'split'" class="notes-preview-pane">
+          <div
+            v-show="viewMode === 'preview' || viewMode === 'split'"
+            ref="previewWrapperRef"
+            class="flex-1 p-4 sm:p-6 overflow-y-auto bg-slate-50/40 dark:bg-slate-950/30"
+            @scroll="onPreviewScroll"
+            @click="handlePreviewClick"
+            @mouseenter="setScrollSource('preview')"
+          >
             <div
-              ref="previewWrapperRef"
-              class="preview-scroll-wrapper"
-              @scroll="onPreviewScroll"
-              @click="handlePreviewClick"
-            >
-              <div
-                v-if="editContent.trim()"
-                class="ai-markdown-body"
-                v-html="renderMarkdown(editContent)"
-              />
-              <div v-else class="preview-empty-hint">
-                <el-icon class="empty-preview-icon"><component :is="'View'"></component></el-icon>
-                <p>预览区域：在左侧输入 Markdown 内容即可在此实时呈现</p>
-              </div>
+              v-if="editContent.trim()"
+              class="ai-markdown-body max-w-3xl"
+              v-html="renderMarkdown(editContent)"
+            />
+            <div v-else class="h-full flex flex-col items-center justify-center text-slate-400 py-12">
+              <el-icon class="text-2xl mb-1 text-slate-300 dark:text-slate-600"><component is="View" /></el-icon>
+              <p class="text-xs m-0">在左侧输入 Markdown 内容即可在此实时呈现</p>
             </div>
-          </div>
-        </div>
-
-        <!-- 底部状态栏 (55px 高度，左侧放视图切换，右侧严格顺序：分享 复制 导出 删除) -->
-        <div class="notes-status-bar">
-          <!-- 左侧：PC 端展示 [分栏 / 编辑 / 预览]；移动端展示 [编辑 / 预览] -->
-          <div class="status-left">
-            <!-- PC 端分栏控制组 -->
-            <div v-if="!isMobile" class="notes-mode-capsule-group">
-              <button
-                class="notes-mode-btn"
-                :class="{ active: viewMode === 'split' }"
-                @click="viewMode = 'split'"
-                title="双栏实时对照与同步滚动"
-              >
-                <el-icon class="mr-1 text-xs"><component :is="'Files'"></component></el-icon>
-                <span>分栏</span>
-              </button>
-              <button
-                class="notes-mode-btn"
-                :class="{ active: viewMode === 'edit' }"
-                @click="viewMode = 'edit'"
-                title="纯编辑模式"
-              >
-                <el-icon class="mr-1 text-xs"><component :is="'EditPen'"></component></el-icon>
-                <span>编辑</span>
-              </button>
-              <button
-                class="notes-mode-btn"
-                :class="{ active: viewMode === 'preview' }"
-                @click="viewMode = 'preview'"
-                title="纯预览模式"
-              >
-                <el-icon class="mr-1 text-xs"><component :is="'View'"></component></el-icon>
-                <span>预览</span>
-              </button>
-            </div>
-
-            <!-- 移动端模式切换 -->
-            <div v-else class="notes-mode-capsule-group">
-              <button
-                class="notes-mode-btn"
-                :class="{ active: viewMode === 'edit' }"
-                @click="viewMode = 'edit'"
-                title="编辑"
-              >
-                <el-icon class="mr-1 text-xs"><component :is="'EditPen'"></component></el-icon>
-                <span>编辑</span>
-              </button>
-              <button
-                class="notes-mode-btn"
-                :class="{ active: viewMode === 'preview' }"
-                @click="viewMode = 'preview'"
-                title="预览"
-              >
-                <el-icon class="mr-1 text-xs"><component :is="'View'"></component></el-icon>
-                <span>预览</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 右侧操作按钮组 (顺序：分享 复制 导出 删除；移动端正方形 32x32) -->
-          <div class="status-right">
-            <!-- 1. 分享按钮 (放置在右下角第一个) -->
-            <button
-              class="notes-status-act-btn"
-              title="加密/限时分享此笔记"
-              @click="openShareModal(selectedNote)"
-            >
-              <el-icon><component :is="'Share'"></component></el-icon>
-              <span>分享</span>
-            </button>
-
-            <!-- 2. 复制按钮 -->
-            <button
-              class="notes-status-act-btn"
-              @click="copyNoteContent(editContent)"
-              title="复制 Markdown 全文"
-            >
-              <el-icon><component :is="'CopyDocument'"></component></el-icon>
-              <span>复制</span>
-            </button>
-
-            <!-- 3. 导出下拉菜单 -->
-            <el-dropdown trigger="click" placement="top-end">
-              <button class="notes-status-act-btn" title="导出笔记文件">
-                <el-icon><component :is="'Download'"></component></el-icon>
-                <span>导出</span>
-              </button>
-              <template #dropdown>
-                <el-dropdown-menu class="zenlink-custom-dropdown">
-                  <el-dropdown-item @click="exportMarkdownFile">
-                    <el-icon class="mr-1.5"><component :is="'Document'"></component></el-icon>导出为 Markdown (.md)
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="exportHtmlFile">
-                    <el-icon class="mr-1.5"><component :is="'Reading'"></component></el-icon>导出为网页 (.html)
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-
-            <!-- 4. 删除按钮 -->
-            <button
-              class="notes-status-act-btn danger-hover"
-              @click="deleteNote(selectedNote)"
-              title="删除此笔记"
-            >
-              <el-icon><component :is="'Delete'"></component></el-icon>
-              <span>删除</span>
-            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 笔记加密/限时分享与历史记录弹窗 (添加 align-center 垂直居中) -->
+    <!-- 分享弹窗 -->
     <el-dialog
       v-model="showShareModal"
       :title="`🔗 分享笔记「${targetNoteForShare?.title || '未命名'}」`"
-      width="480px"
-      class="zenlink-custom-dialog"
+      width="440px"
       align-center
       append-to-body
     >
-      <div class="mb-3 flex items-center gap-2 border-b border-light pb-2">
+      <div class="mb-3 flex items-center gap-1 border-b border-slate-100 dark:border-slate-800 pb-2">
         <button
           type="button"
-          class="share-tab-pill-btn"
-          :class="{ active: activeShareTab === 'create' }"
+          class="px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer"
+          :class="[
+            activeShareTab === 'create'
+              ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          ]"
           @click="activeShareTab = 'create'"
         >
           创建新分享
         </button>
         <button
           type="button"
-          class="share-tab-pill-btn"
-          :class="{ active: activeShareTab === 'history' }"
+          class="px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer"
+          :class="[
+            activeShareTab === 'history'
+              ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
+              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          ]"
           @click="activeShareTab = 'history'"
         >
           历史分享 ({{ noteShareHistory.length }})
         </button>
       </div>
 
-      <!-- 选项卡 1：创建分享 -->
+      <!-- 创建分享 -->
       <div v-if="activeShareTab === 'create'">
-        <div v-if="!createdShare" class="space-y-4 py-1">
+        <div v-if="!createdShare" class="space-y-3 py-1">
           <div>
-            <label class="block text-xs font-semibold text-muted mb-1">提取密码（可选，留空为公开免密）</label>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">提取密码 (可选，留空为公开)</label>
             <div class="flex gap-2">
               <el-input
                 v-model="shareForm.password"
@@ -1869,12 +1760,12 @@ watch(
                 maxlength="16"
                 clearable
               />
-              <el-button type="default" @click="generateRandomPassword">随机密码</el-button>
+              <el-button @click="generateRandomPassword">随机生成</el-button>
             </div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-muted mb-1">有效时长</label>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">有效时长</label>
             <el-select v-model="shareForm.expire_hours" class="w-full">
               <el-option :value="1" label="1 小时内有效" />
               <el-option :value="24" label="24 小时 (1天) 内有效" />
@@ -1883,66 +1774,64 @@ watch(
             </el-select>
           </div>
 
-          <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center justify-between p-2.5 rounded border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30">
             <div>
-              <div class="text-xs font-semibold">阅后即焚</div>
-              <div class="text-[11px] text-muted">访问一次后立即自动销毁链接</div>
+              <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">阅后即焚</div>
+              <div class="text-[11px] text-slate-400">访问一次后立即自动销毁链接</div>
             </div>
             <el-switch v-model="shareForm.burn_after_reading" />
           </div>
         </div>
 
-        <!-- 已生成分享结果展示 -->
         <div v-else class="space-y-3 py-1">
-          <div class="p-3 bg-card border rounded-lg space-y-2">
-            <div class="text-xs text-muted">分享链接：</div>
-            <div class="text-xs font-mono break-all p-2 bg-main rounded border select-all">
+          <div class="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg space-y-2">
+            <div class="text-xs text-slate-400">分享链接：</div>
+            <div class="text-xs font-mono break-all p-2 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 select-all">
               {{ createdShare.url }}
             </div>
 
             <div v-if="createdShare.password" class="text-xs flex items-center justify-between pt-1">
-              <span class="text-muted">提取密码：</span>
-              <span class="font-mono font-bold text-primary">{{ createdShare.password }}</span>
+              <span class="text-slate-400">提取密码：</span>
+              <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">{{ createdShare.password }}</span>
             </div>
 
-            <div class="text-[11px] text-muted flex items-center justify-between pt-1 border-t">
+            <div class="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800/60">
               <span>有效期：{{ createdShare.expires_at ? formatDate(createdShare.expires_at) : '永久有效' }}</span>
-              <span v-if="createdShare.burn_after_reading" class="text-red-500 font-medium">阅后即焚</span>
+              <span v-if="createdShare.burn_after_reading" class="text-amber-600 font-medium">阅后即焚</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 选项卡 2：历史分享列表 -->
-      <div v-else class="space-y-2.5 max-h-72 overflow-y-auto py-1">
-        <div v-if="loadingHistory" class="text-center py-6 text-xs text-muted">
+      <!-- 历史记录 -->
+      <div v-else class="space-y-2 max-h-64 overflow-y-auto py-1">
+        <div v-if="loadingHistory" class="text-center py-6 text-xs text-slate-400">
           <el-icon class="is-loading mr-1"><component is="Loading" /></el-icon> 加载分享历史...
         </div>
-        <div v-else-if="!noteShareHistory.length" class="text-center py-8 text-xs text-muted">
+        <div v-else-if="!noteShareHistory.length" class="text-center py-6 text-xs text-slate-400">
           此笔记暂无历史分享记录
         </div>
         <div
           v-for="item in noteShareHistory"
           v-else
           :key="item.id"
-          class="p-2.5 bg-card border rounded-lg flex items-center justify-between gap-3 text-xs"
+          class="p-2.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-between gap-3 text-xs"
         >
-          <div class="min-w-0 flex-1 space-y-1">
-            <div class="font-mono font-semibold text-primary truncate">
+          <div class="min-w-0 flex-1 space-y-0.5">
+            <div class="font-mono font-semibold text-slate-800 dark:text-slate-200 truncate">
               /share/{{ item.id }}
             </div>
-            <div class="flex items-center gap-2 text-[11px] text-muted flex-wrap">
-              <span>密码: <strong class="text-main">{{ item.password || '免密' }}</strong></span>
+            <div class="flex items-center gap-2 text-[11px] text-slate-400 flex-wrap">
+              <span>密码: <strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ item.password || '免密' }}</strong></span>
               <span>访问: {{ item.views_count }} 次</span>
-              <span v-if="item.burn_after_reading" class="text-red-500 font-medium">阅后即焚</span>
-              <span>{{ item.expires_at ? '至 ' + formatDate(item.expires_at) : '永久有效' }}</span>
+              <span v-if="item.burn_after_reading" class="text-amber-500 font-medium">阅后即焚</span>
             </div>
           </div>
 
           <div class="flex items-center gap-1.5 flex-shrink-0">
             <button
               type="button"
-              class="notes-status-act-btn !h-6 !px-2 !text-[11px]"
+              class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] text-slate-700 dark:text-slate-300 hover:bg-slate-50 cursor-pointer"
               title="复制分享链接"
               @click="copyHistoryShare(item)"
             >
@@ -1950,8 +1839,8 @@ watch(
             </button>
             <button
               type="button"
-              class="notes-status-act-btn danger-hover !h-6 !px-2 !text-[11px]"
-              title="撤销/删除此分享"
+              class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+              title="撤销此分享"
               @click="revokeShare(item)"
             >
               撤销
@@ -1987,22 +1876,21 @@ watch(
       </template>
     </el-dialog>
 
-    <!-- 自定义 AI 写作指令弹窗 (添加 align-center 垂直居中) -->
+    <!-- 自定义 AI 写作指令弹窗 -->
     <el-dialog
       v-model="showAiPromptDialog"
-      title="✨ AI 自定义写作指令"
-      width="440px"
-      class="zenlink-custom-dialog"
+      title="AI 自定义写作指令"
+      width="420px"
       align-center
       append-to-body
     >
-      <div class="space-y-3">
-        <p class="text-xs text-muted">告诉 AI 您想如何处理当前笔记内容（支持扩写、转换为特定格式、风格改写等）：</p>
+      <div class="space-y-2.5">
+        <p class="text-xs text-slate-400 m-0">告诉 AI 如何处理当前选中的笔记内容：</p>
         <el-input
           v-model="customAiPrompt"
           type="textarea"
           :rows="3"
-          placeholder="例如：将上述要点改写为生动易读的小红书/推文风格，并附带吸引人的标签..."
+          placeholder="例如：将要点改写为生动易读的排版风格..."
           autofocus
           @keydown.enter.ctrl="runAiAction('custom', customAiPrompt); showAiPromptDialog = false"
         />
@@ -2019,7 +1907,7 @@ watch(
       </template>
     </el-dialog>
   
-    <!-- 图片全屏灯箱大图预览器 -->
+    <!-- 图片全屏灯箱 -->
     <el-image-viewer
       v-if="showImgViewer"
       :url-list="previewImgUrlList"

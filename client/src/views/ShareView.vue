@@ -101,94 +101,107 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="zenlink-share-page is-note-share">
-    <div class="share-card-container note-card-container">
+  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 selection:bg-indigo-500/10">
+    <div class="w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg shadow-subtle p-5 sm:p-7">
       <!-- 加载中 -->
-      <div v-if="loading" class="share-loading-box">
-        <el-icon class="is-loading text-2xl text-primary"><component is="Loading" /></el-icon>
-        <p class="mt-3 text-sm text-muted">正在检索分享内容...</p>
+      <div v-if="loading" class="py-16 flex flex-col items-center justify-center text-slate-400">
+        <el-icon class="is-loading text-2xl mb-2 text-indigo-500"><component is="Loading" /></el-icon>
+        <p class="text-xs text-slate-500 dark:text-slate-400 m-0">正在检索分享内容...</p>
       </div>
 
       <!-- 错误/已失效提示 -->
-      <div v-else-if="errorMsg" class="share-error-box">
-        <div class="error-icon">⚠️</div>
-        <h3>无法访问此分享</h3>
-        <p>{{ errorMsg }}</p>
-        <button class="share-action-btn primary mt-4" @click="router.push('/')">
+      <div v-else-if="errorMsg" class="py-12 flex flex-col items-center justify-center text-center">
+        <div class="w-10 h-10 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
+          <el-icon class="text-xl"><component is="Warning" /></el-icon>
+        </div>
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0 mb-1">无法访问此分享</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mb-4 max-w-md">{{ errorMsg }}</p>
+        <button
+          type="button"
+          class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer"
+          @click="router.push('/')"
+        >
           前往 ZenLink 主页
         </button>
       </div>
 
       <!-- 密码保护解锁表单 -->
-      <div v-else-if="needPassword" class="share-unlock-box">
-        <div class="lock-icon">🔒</div>
-        <h3>该分享已设置访问密码</h3>
-        <p class="text-xs text-muted mb-4">请输入提取码以解锁内容</p>
+      <div v-else-if="needPassword" class="py-10 flex flex-col items-center justify-center text-center max-w-sm mx-auto">
+        <div class="w-10 h-10 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center mb-3">
+          <el-icon class="text-lg"><component is="Lock" /></el-icon>
+        </div>
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0 mb-1">该分享已设置访问密码</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mb-4">请输入提取码以解锁内容</p>
 
-        <form class="unlock-form" @submit.prevent="handleUnlock">
+        <form class="w-full space-y-3" @submit.prevent="handleUnlock">
           <input
             v-model="password"
             type="password"
             placeholder="请输入提取密码"
-            class="unlock-input"
+            class="w-full h-8 px-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
             autofocus
           />
-          <button type="submit" class="share-action-btn primary w-full mt-3" :disabled="verifying">
-            <el-icon v-if="verifying" class="is-loading mr-1"><component is="Loading" /></el-icon>
+          <button
+            type="submit"
+            class="w-full h-8 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center justify-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+            :disabled="verifying"
+          >
+            <el-icon v-if="verifying" class="is-loading"><component is="Loading" /></el-icon>
             <span>{{ verifying ? '验证中...' : '提取笔记 / 查看内容' }}</span>
           </button>
         </form>
       </div>
 
       <!-- 成功展示内容 -->
-      <div v-else-if="shareItem" class="share-content-box">
+      <div v-else-if="shareItem" class="flex flex-col">
         <!-- 阅后即焚警告条 -->
-        <div v-if="isBurned" class="burn-warning-bar mb-4">
-          <el-icon class="mr-1"><component is="Warning" /></el-icon>
+        <div v-if="isBurned" class="mb-4 p-3 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+          <el-icon class="text-sm flex-shrink-0"><component is="Warning" /></el-icon>
           <span>此为【阅后即焚】分享，页面关闭后将自动销毁无法再次访问！</span>
         </div>
 
-        <!-- 笔记分享视图 (标题 时间 在左，ZenLink 笔记分享 在右，正文在下) -->
-        <div class="share-note-layout">
-          <div class="share-note-header-bar">
-            <div class="note-header-left">
-              <h1 class="note-title-heading">{{ shareItem.title || '未命名笔记' }}</h1>
-              <span class="note-time-sub">{{ formatTime(shareItem.created_at) }}</span>
-            </div>
-            <div class="note-header-right">
-              <div class="brand-right-title">
-                <span class="brand-logo-small">🔗</span>
-                <span class="font-semibold">ZenLink 笔记分享</span>
+        <!-- 笔记分享视图 -->
+        <div class="flex flex-col">
+          <div class="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h1 class="text-base font-semibold text-slate-900 dark:text-slate-100 m-0 leading-snug">
+                {{ shareItem.title || '未命名笔记' }}
+              </h1>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[11px] font-mono text-slate-400 dark:text-slate-500">{{ formatTime(shareItem.created_at) }}</span>
+
+                <!-- 复制全文图标按钮 -->
+                <button
+                  type="button"
+                  class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="复制笔记全文"
+                  @click="copyContent(shareItem.content || '')"
+                >
+                  <el-icon class="text-xs"><component is="CopyDocument" /></el-icon>
+                </button>
+
+                <!-- GitHub 项目链接图标 -->
+                <a
+                  href="https://github.com/akasls/ZenLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  title="GitHub 项目主页"
+                >
+                  <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                  </svg>
+                </a>
               </div>
-              <p class="brand-slogan-small">跨端加密同步 · 安全阅后即焚</p>
             </div>
           </div>
 
           <!-- 文章正文 Markdown 渲染 -->
-          <div class="share-note-article-body">
+          <div class="mt-4">
             <div class="ai-markdown-body" v-html="renderMarkdown(shareItem.content || '')" />
-          </div>
-
-          <!-- 底部操作按钮 -->
-          <div class="share-footer-actions mt-8">
-            <button
-              type="button"
-              class="share-action-btn secondary"
-              @click="copyContent(shareItem.content || '')"
-            >
-              <el-icon class="mr-1"><component is="CopyDocument" /></el-icon> 复制 Markdown 正文
-            </button>
-            <button
-              type="button"
-              class="share-action-btn primary"
-              @click="router.push('/')"
-            >
-              前往 ZenLink
-            </button>
           </div>
         </div>
       </div>
     </div>
   </div>
 </template>
-

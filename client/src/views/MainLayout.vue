@@ -244,7 +244,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+  <div class="min-h-screen w-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 flex relative selection:bg-indigo-500/10">
     <!-- 左侧侧边栏 (包含顶部应用入口与分类导航) -->
     <TheSidebar
       :collapsed="sidebarCollapsed"
@@ -261,8 +261,15 @@ onUnmounted(() => {
       @toggle-collapse="toggleSidebar"
     />
 
-    <main class="main-content">
-      <div v-show="currentView === 'home'">
+    <!-- 主工作区 -->
+    <main
+      class="flex-1 min-w-0 min-h-screen flex flex-col transition-all duration-200 ease-in-out"
+      :class="[
+        sidebarCollapsed ? 'md:ml-14' : 'md:ml-52',
+        'ml-12 md:ml-auto'
+      ]"
+    >
+      <div v-show="currentView === 'home'" class="flex flex-col min-h-screen">
         <SearchBar
           v-model="searchQuery"
           :sidebar-collapsed="sidebarCollapsed"
@@ -270,12 +277,13 @@ onUnmounted(() => {
           @open-login="onOpenLogin()"
         />
 
-        <div class="content-area">
+        <div class="flex-1 p-4 sm:p-5 max-w-[1600px] w-full mx-auto box-border">
           <div v-if="!loading">
             <div v-if="searchQuery.trim()">
-              <p class="text-xs mb-3 font-medium" style="color: var(--zl-text-muted);">
-                搜索结果 ({{ bookmarks.length }})
-              </p>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">搜索结果</span>
+                <span class="text-[11px] font-mono text-slate-400 dark:text-slate-500">({{ bookmarks.length }})</span>
+              </div>
               <BookmarkGrid
                 v-if="bookmarks.length"
                 :bookmarks="bookmarks"
@@ -285,10 +293,12 @@ onUnmounted(() => {
                 @delete="onDelete"
                 @reorder="onReorder"
               />
-              <el-empty v-else description="未找到匹配书签" />
+              <div v-else class="py-12 flex flex-col items-center justify-center text-slate-400">
+                <el-empty description="未找到匹配书签" />
+              </div>
             </div>
 
-            <template v-else>
+            <div v-else class="space-y-6">
               <CategorySection
                 v-for="cat in topCategories"
                 :key="cat.id"
@@ -303,53 +313,71 @@ onUnmounted(() => {
                 @delete="onDelete"
                 @reorder="onReorder"
               />
-            </template>
+            </div>
           </div>
-          <div v-else class="text-center py-16">
-            <el-icon class="is-loading text-xl" style="color: var(--zl-text-muted);"><component is="Loading" /></el-icon>
+
+          <div v-else class="text-center py-20 flex flex-col items-center justify-center text-slate-400">
+            <el-icon class="is-loading text-2xl mb-2 text-slate-500"><component is="Loading" /></el-icon>
+            <span class="text-xs text-slate-400">正在加载数据...</span>
           </div>
         </div>
 
         <!-- 站点底部版权 -->
-        <footer class="site-footer">
-          <div class="footer-inner">
-            <p>Copyright &copy; 2026 <strong>{{ siteStore.siteName || 'ZenLink' }}</strong> · {{ siteStore.siteDesc || '干净简洁的导航！' }}</p>
-          </div>
+        <footer class="mt-auto border-t border-slate-200/80 dark:border-slate-800 py-6 px-4 text-center">
+          <p class="text-xs text-slate-400 dark:text-slate-500 leading-relaxed m-0">
+            Copyright &copy; 2026 <strong class="font-medium text-slate-700 dark:text-slate-300">{{ siteStore.siteName || 'ZenLink' }}</strong> · {{ siteStore.siteDesc || '干净简洁的导航！' }}
+          </p>
         </footer>
       </div>
 
-      <!-- 视图无缝保活切换 (KeepAlive / v-show) -->
+      <!-- 视图无缝保活切换 -->
       <AdminPanel v-if="currentView === 'admin'" :categories="categories" @refresh="loadCategories(); loadBookmarks()" />
-      
       <NotesPanel v-show="currentView === 'notes'" :active="currentView === 'notes'" />
       <AIChatPanel v-show="currentView === 'ai'" :active="currentView === 'ai'" />
     </main>
 
-    <!-- 桌面/移动端浮动操作球 -->
-    <div v-if="currentView === 'home'" class="fab-group">
-      <!-- 回到顶部 (页面下滑超过一页才显示，带平滑渐入渐出动效) -->
-      <transition name="fab-fade">
-        <button v-if="showBackToTop" class="fab-btn" @click="scrollTop" title="返回顶部">
-          <svg viewBox="0 0 24 24" class="fab-svg-icon" fill="currentColor">
+    <!-- 浮动操作按钮 (小巧紧凑) -->
+    <div v-if="currentView === 'home'" class="fixed bottom-5 right-5 flex flex-col items-center gap-2 z-40">
+      <!-- 回到顶部 -->
+      <transition
+        enter-active-class="transition duration-150 ease-out"
+        enter-from-class="opacity-0 translate-y-2 scale-90"
+        enter-to-class="opacity-100 translate-y-0 scale-100"
+        leave-active-class="transition duration-100 ease-in"
+        leave-from-class="opacity-100 translate-y-0 scale-100"
+        leave-to-class="opacity-0 translate-y-2 scale-90"
+      >
+        <button
+          v-if="showBackToTop"
+          class="w-8 h-8 rounded-md bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 flex items-center justify-center transition-all cursor-pointer"
+          @click="scrollTop"
+          title="返回顶部"
+        >
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="currentColor">
             <path d="M12 3.5L4.5 19.8l7.5-3.6 7.5 3.6L12 3.5z"/>
           </svg>
         </button>
       </transition>
 
-      <!-- 添加书签 (高对比清晰矢量加号，日夜模式自动适配) -->
-      <button v-if="authStore.isLoggedIn" class="fab-btn" @click="showAddDialog = true" title="添加书签">
-        <svg viewBox="0 0 24 24" class="fab-svg-icon" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <!-- 添加书签 -->
+      <button
+        v-if="authStore.isLoggedIn"
+        class="w-8 h-8 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm hover:bg-slate-800 dark:hover:bg-white flex items-center justify-center transition-all cursor-pointer"
+        @click="showAddDialog = true"
+        title="添加书签"
+      >
+        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
       </button>
+    </div>
 
-      </div>
-
-    <!-- 弹窗列表 (添加/编辑书签 + 全站统一登录弹窗) -->
+    <!-- 弹窗列表 -->
     <AddBookmarkDialog v-model:visible="showAddDialog" :categories="categories" @saved="onSaved" />
     <EditBookmarkDialog v-model:visible="showEditDialog" :bookmark="editingBookmark" :categories="categories" @saved="onSaved" />
     <LoginDialog v-model:visible="showLoginDialog" :target-view="pendingTargetView" @success="onLoginSuccess" />
   </div>
 </template>
+
 

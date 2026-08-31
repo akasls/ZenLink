@@ -95,18 +95,17 @@ async function handlePasskeyLogin() {
     @update:model-value="emit('update:visible', $event)"
     title="登录后台"
     width="380px"
-    class="zenlink-custom-dialog login-modal-dialog"
     align-center
     :close-on-click-modal="false"
     destroy-on-close
   >
-    <div class="login-dialog-body">
+    <div class="flex flex-col">
       <!-- 提示文案 -->
-      <p class="login-sub-tip">
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">
         {{ targetView ? '该功能需要管理员权限，请先登录' : '登录以管理书签、在线笔记与 AI 助手' }}
       </p>
 
-      <el-form label-position="top" size="default" class="space-y-3 mt-3" @submit.prevent="handleLogin">
+      <el-form label-position="top" class="space-y-3 mt-1" @submit.prevent="handleLogin">
         <!-- 用户名 -->
         <el-form-item label="用户名" :error="errors.username">
           <el-input
@@ -130,7 +129,7 @@ async function handlePasskeyLogin() {
           />
         </el-form-item>
 
-        <!-- 2FA TOTP 动态码 (默认展示，可一次性输入，未开启留空) -->
+        <!-- 2FA TOTP 动态码 -->
         <el-form-item label="两步验证码 (未启用可留空)" :error="errors.totp">
           <el-input
             v-model="form.totpCode"
@@ -142,31 +141,34 @@ async function handlePasskeyLogin() {
         </el-form-item>
 
         <!-- 登录主按钮 -->
-        <div class="pt-2">
-          <el-button
-            type="primary"
-            class="w-full login-submit-btn"
-            :loading="loading"
-            @click="handleLogin"
+        <div class="pt-1">
+          <button
+            type="submit"
+            class="w-full h-8 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-medium text-xs hover:bg-slate-800 dark:hover:bg-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50"
+            :disabled="loading"
+            @click.prevent="handleLogin"
           >
-            {{ loading ? '登录中...' : '立即登录' }}
-          </el-button>
+            <el-icon v-if="loading" class="is-loading mr-1.5"><component is="Loading" /></el-icon>
+            <span>{{ loading ? '登录中...' : '立即登录' }}</span>
+          </button>
         </div>
 
         <!-- 分割线 -->
-        <div class="login-divider">
-          <span>或使用生物识别</span>
+        <div class="relative my-3 text-center after:content-[''] after:absolute after:top-1/2 after:left-0 after:right-0 after:h-px after:bg-slate-200/80 dark:after:bg-slate-800">
+          <span class="relative z-10 bg-white dark:bg-slate-900 px-2 text-[11px] text-slate-400">
+            或使用生物识别
+          </span>
         </div>
 
         <!-- Passkey 登录按钮 -->
         <div>
           <button
             type="button"
-            class="login-passkey-btn"
+            class="w-full h-8 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             :disabled="passkeyLoading"
             @click="handlePasskeyLogin"
           >
-            <el-icon class="mr-1.5 text-base"><component is="Key" /></el-icon>
+            <el-icon class="text-sm"><component :is="passkeyLoading ? 'Loading' : 'Key'" /></el-icon>
             <span>{{ passkeyLoading ? '验证中...' : 'Passkey 免密登录' }}</span>
           </button>
         </div>
@@ -174,3 +176,4 @@ async function handlePasskeyLogin() {
     </div>
   </el-dialog>
 </template>
+

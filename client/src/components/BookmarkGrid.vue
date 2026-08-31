@@ -110,7 +110,7 @@ watch(() => props.bookmarks, () => nextTick(initSort), { deep: true });
 </script>
 
 <template>
-  <div ref="gridRef" class="bookmark-grid">
+  <div ref="gridRef" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
     <BookmarkCard
       v-for="bm in bookmarks"
       :key="bm.id"
@@ -124,10 +124,41 @@ watch(() => props.bookmarks, () => nextTick(initSort), { deep: true });
   </div>
 
   <Teleport to="body">
-    <div v-if="contextMenuVisible" class="fixed ctx-menu" :style="{ ...contextMenuStyle, zIndex: 9999 }" @click.stop>
-      <button class="ctx-item" @click="doCopy"><el-icon class="mr-1"><component is="CopyDocument" /></el-icon> 复制</button>
-      <button class="ctx-item" @click="doEdit"><el-icon class="mr-1"><component is="Edit" /></el-icon> 编辑</button>
-      <button class="ctx-item danger" @click="doDelete"><el-icon class="mr-1"><component is="Delete" /></el-icon> 删除</button>
+    <div
+      v-if="contextMenuVisible"
+      class="fixed bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg shadow-md p-1 flex flex-col gap-0.5 min-w-[120px]"
+      :style="{ ...contextMenuStyle, zIndex: 9999 }"
+      @click.stop
+    >
+      <button
+        type="button"
+        class="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors w-full text-left"
+        @click="doCopy"
+      >
+        <el-icon class="text-xs text-slate-400"><component is="CopyDocument" /></el-icon>
+        <span>复制链接</span>
+      </button>
+
+      <button
+        type="button"
+        class="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors w-full text-left"
+        @click="doEdit"
+      >
+        <el-icon class="text-xs text-slate-400"><component is="Edit" /></el-icon>
+        <span>编辑书签</span>
+      </button>
+
+      <div class="h-px bg-slate-100 dark:bg-slate-800 my-0.5"></div>
+
+      <button
+        type="button"
+        class="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer transition-colors w-full text-left"
+        @click="doDelete"
+      >
+        <el-icon class="text-xs text-red-500"><component is="Delete" /></el-icon>
+        <span>删除书签</span>
+      </button>
     </div>
   </Teleport>
 </template>
+

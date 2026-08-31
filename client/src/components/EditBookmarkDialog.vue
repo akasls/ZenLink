@@ -165,7 +165,6 @@ async function handleSave() {
     @update:model-value="emit('update:visible', $event)"
     title="编辑导航链接"
     width="480px"
-    class="zenlink-custom-dialog"
     align-center
     :close-on-click-modal="false"
     destroy-on-close

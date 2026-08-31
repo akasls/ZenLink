@@ -909,87 +909,111 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="openwebui-ai-panel admin-modern-panel">
+  <div class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
     <!-- 1. 顶栏 -->
-    <div class="openwebui-top-bar admin-top-bar">
-      <div class="top-bar-left">
-        <span class="top-bar-app-title">系统设置</span>
+    <div class="h-12 px-4 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">系统管理中心</span>
       </div>
-      <div class="top-bar-right">
+      <div class="flex items-center gap-2">
         <button
-          class="openwebui-capsule-btn danger-hover"
+          type="button"
+          class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 text-slate-600 dark:text-slate-400 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
           @click="handleLogout()"
           title="退出管理账户"
         >
-          <el-icon class="mr-1"><component is="SwitchButton" /></el-icon>
+          <el-icon class="text-xs"><component is="SwitchButton" /></el-icon>
           <span>退出登录</span>
         </button>
       </div>
     </div>
 
-    <!-- 2. 主体全屏自适应滚动区 -->
-    <div class="admin-scroll-workspace">
-      <!-- 页面内部一级 Tab 菜单栏 (标准 38px 高度) -->
-      <div class="admin-page-tabs-bar">
+    <!-- 2. 主体自适应工作区 -->
+    <div class="flex-1 p-4 sm:p-5 max-w-5xl w-full mx-auto space-y-4">
+      <!-- 页面内部一级 Tab 菜单栏 -->
+      <div class="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-lg border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto scrollbar-none">
         <button
-          class="admin-page-tab-btn"
-          :class="{ active: activeTab === 'bookmarks' }"
+          type="button"
+          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+          :class="[
+            activeTab === 'bookmarks'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+          ]"
           @click="activeTab = 'bookmarks'"
         >
-          <el-icon class="mr-1.5"><component is="Collection" /></el-icon>
+          <el-icon class="text-xs"><component is="Collection" /></el-icon>
           <span>书签管理</span>
         </button>
 
         <button
-          class="admin-page-tab-btn"
-          :class="{ active: activeTab === 'categories' }"
+          type="button"
+          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+          :class="[
+            activeTab === 'categories'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+          ]"
           @click="activeTab = 'categories'"
         >
-          <el-icon class="mr-1.5"><component is="Folder" /></el-icon>
+          <el-icon class="text-xs"><component is="Folder" /></el-icon>
           <span>分类管理</span>
         </button>
 
         <button
-          class="admin-page-tab-btn"
-          :class="{ active: activeTab === 'ai' }"
+          type="button"
+          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+          :class="[
+            activeTab === 'ai'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+          ]"
           @click="activeTab = 'ai'"
         >
-          <el-icon class="mr-1.5"><component is="Cpu" /></el-icon>
-          <span>AI模型</span>
+          <el-icon class="text-xs"><component is="Cpu" /></el-icon>
+          <span>AI 模型</span>
         </button>
 
-
-
         <button
-          class="admin-page-tab-btn"
-          :class="{ active: activeTab === 'security' }"
+          type="button"
+          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+          :class="[
+            activeTab === 'security'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+          ]"
           @click="activeTab = 'security'"
         >
-          <el-icon class="mr-1.5"><component is="Lock" /></el-icon>
+          <el-icon class="text-xs"><component is="Lock" /></el-icon>
           <span>安全中心</span>
         </button>
 
         <button
-          class="admin-page-tab-btn"
-          :class="{ active: activeTab === 'site' }"
+          type="button"
+          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
+          :class="[
+            activeTab === 'site'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+          ]"
           @click="activeTab = 'site'"
         >
-          <el-icon class="mr-1.5"><component is="Setting" /></el-icon>
+          <el-icon class="text-xs"><component is="Setting" /></el-icon>
           <span>站点设置</span>
         </button>
       </div>
 
-      <!-- Tab 1：书签管理 (PC端严格单行：搜索 分类 状态 检查 添加) -->
-      <div v-if="activeTab === 'bookmarks'" class="admin-pane-body">
-        <!-- 统一单行工具栏 (搜索 分类 添加) -->
-        <div class="admin-toolbar-row">
+      <!-- Tab 1：书签管理 -->
+      <div v-if="activeTab === 'bookmarks'" class="space-y-3">
+        <!-- 统一单行工具栏 -->
+        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-subtle">
           <!-- 1. 搜索框 -->
-          <div class="admin-mini-search">
-            <el-icon class="search-icon"><component is="Search" /></el-icon>
+          <div class="flex-1 flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-2.5 py-1 min-w-[180px]">
+            <el-icon class="text-xs text-slate-400 mr-1.5"><component is="Search" /></el-icon>
             <input
               v-model="bookmarkFilter"
               type="text"
-              class="admin-search-input"
+              class="w-full bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none placeholder-slate-400 dark:placeholder-slate-500"
               placeholder="搜索书签标题或网址..."
             />
           </div>
@@ -998,8 +1022,7 @@ onMounted(() => {
           <el-select
             v-model="bookmarkCategoryFilter"
             size="small"
-            class="admin-filter-select cat-select"
-            popper-class="zenlink-custom-select-popper"
+            class="w-36 flex-shrink-0"
             placeholder="所属分类"
           >
             <el-option
@@ -1012,86 +1035,107 @@ onMounted(() => {
 
           <!-- 3. 添加按钮 -->
           <button
-            class="admin-act-btn add-btn"
+            type="button"
+            class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
             @click="openBookmarkDialog()"
           >
-            <el-icon class="mr-1"><component is="Plus" /></el-icon>
+            <el-icon class="text-xs"><component is="Plus" /></el-icon>
             <span>添加书签</span>
           </button>
         </div>
 
         <!-- 链接列表 -->
-        <div v-if="loadingBookmarks" class="admin-loading-box">
+        <div v-if="loadingBookmarks" class="py-12 text-center text-slate-400">
           <el-icon class="is-loading text-xl"><component is="Loading" /></el-icon>
         </div>
-        <div v-else-if="!filteredBookmarks.length" class="admin-empty-box">
+        <div v-else-if="!filteredBookmarks.length" class="py-12 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg">
           <el-empty description="暂无符合条件的导航书签" />
         </div>
-        <div v-else class="space-y-3">
-          <div ref="bookmarkListRef" class="admin-cards-list">
+        <div v-else class="space-y-2">
+          <div ref="bookmarkListRef" class="space-y-1.5">
             <div
               v-for="bm in paginatedBookmarks"
               :key="bm.id"
-              class="admin-card-row single-line"
+              class="group flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-md transition-colors"
             >
-              <!-- 左侧：拖拽 + 图标 + 标题 + 分类 + 私有锁 (单行紧凑排列) -->
-              <div class="card-row-left">
-                <span class="bm-drag-handle bm-drag" title="拖拽排序">
-                  <el-icon><component is="Rank" /></el-icon>
+              <!-- 左侧：拖拽 + 图标 + 标题 + 分类 + 私有锁 -->
+              <div class="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
+                <span class="bm-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
+                  <el-icon class="text-xs"><component is="Rank" /></el-icon>
                 </span>
-                <img
-                  v-if="!rowImgErrors[bm.id]"
-                  :src="getAdminRowFavicon(bm)"
-                  class="row-favicon"
-                  alt=""
-                  @error="rowImgErrors[bm.id] = true"
-                />
-                <div
-                  v-else
-                  class="row-avatar-fallback"
-                  :style="{ backgroundColor: getAvatarColor(bm.title || bm.url) }"
-                >
-                  {{ getAvatarChar(bm.title, bm.url) }}
+                <div class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <img
+                    v-if="!rowImgErrors[bm.id]"
+                    :src="getAdminRowFavicon(bm)"
+                    class="w-full h-full object-contain"
+                    alt=""
+                    @error="rowImgErrors[bm.id] = true"
+                  />
+                  <div
+                    v-else
+                    class="w-full h-full flex items-center justify-center text-white text-[9px] font-bold uppercase"
+                    :style="{ backgroundColor: getAvatarColor(bm.title || bm.url) }"
+                  >
+                    {{ getAvatarChar(bm.title, bm.url) }}
+                  </div>
                 </div>
 
-                <span class="row-title" :title="bm.title">{{ bm.title }}</span>
-                <span class="row-cat-pill">{{ getCategoryName(bm.category_id) }}</span>
-                <el-icon v-if="bm.is_private" class="row-lock-icon" title="私有书签"><component is="Lock" /></el-icon>
+                <span class="text-xs font-medium text-slate-800 dark:text-slate-200 truncate" :title="bm.title">{{ bm.title }}</span>
+                <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex-shrink-0 font-normal">
+                  {{ getCategoryName(bm.category_id) }}
+                </span>
+                <el-icon v-if="bm.is_private" class="text-xs text-amber-500 flex-shrink-0" title="私有书签"><component is="Lock" /></el-icon>
               </div>
 
               <!-- 右侧操作 (编辑 + 删除) -->
-              <div class="card-row-right">
-                <button class="row-btn" @click="openBookmarkDialog(bm)" title="编辑书签">
-                  <el-icon><component is="EditPen" /></el-icon>
+              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  @click="openBookmarkDialog(bm)"
+                  title="编辑书签"
+                >
+                  <el-icon class="text-xs"><component is="EditPen" /></el-icon>
                 </button>
-                <button class="row-btn del" @click="confirmDeleteBookmark(bm)" title="删除书签">
-                  <el-icon><component is="Delete" /></el-icon>
+                <button
+                  type="button"
+                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                  @click="confirmDeleteBookmark(bm)"
+                  title="删除书签"
+                >
+                  <el-icon class="text-xs"><component is="Delete" /></el-icon>
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- 极简主题翻页 (默认每页 30 条) -->
-          <div v-if="filteredBookmarks.length > pageSize" class="admin-custom-pagination-bar">
-            <div class="pagination-info">
-              共 <strong>{{ filteredBookmarks.length }}</strong> 条 · 第 <strong>{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong> 页
+          <!-- 分页栏 -->
+          <div v-if="filteredBookmarks.length > pageSize" class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800 text-xs text-slate-500">
+            <div class="text-[11px] text-slate-400">
+              共 <strong class="font-semibold text-slate-700 dark:text-slate-300">{{ filteredBookmarks.length }}</strong> 条 · 第 <strong class="font-semibold text-slate-700 dark:text-slate-300">{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong> 页
             </div>
-            <div class="pagination-controls">
+            <div class="flex items-center gap-1">
               <button
-                class="pag-btn"
+                type="button"
+                class="w-7 h-7 rounded border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
                 :disabled="currentPage <= 1"
                 @click="currentPage--"
                 title="上一页"
               >
-                <el-icon><component is="ArrowLeft" /></el-icon>
+                <el-icon class="text-[10px]"><component is="ArrowLeft" /></el-icon>
               </button>
 
               <template v-for="(p, idx) in visiblePages" :key="idx">
-                <span v-if="p === '...'" class="pag-ellipsis">...</span>
+                <span v-if="p === '...'" class="px-1 text-slate-400 text-xs">...</span>
                 <button
                   v-else
-                  class="pag-btn-page"
-                  :class="{ active: currentPage === p }"
+                  type="button"
+                  class="w-7 h-7 rounded text-xs font-medium flex items-center justify-center transition-colors cursor-pointer"
+                  :class="[
+                    currentPage === p
+                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold'
+                      : 'border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  ]"
                   @click="currentPage = Number(p)"
                 >
                   {{ p }}
@@ -1099,86 +1143,126 @@ onMounted(() => {
               </template>
 
               <button
-                class="pag-btn"
+                type="button"
+                class="w-7 h-7 rounded border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
                 :disabled="currentPage >= totalPages"
                 @click="currentPage++"
                 title="下一页"
               >
-                <el-icon><component is="ArrowRight" /></el-icon>
+                <el-icon class="text-[10px]"><component is="ArrowRight" /></el-icon>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Tab 2：分类管理 (一键展开/收起 + 新建分类右上角对齐 + 一级二级拖拽排序) -->
-      <div v-if="activeTab === 'categories'" class="admin-pane-body">
-        <div class="admin-toolbar-row cat-toolbar-row">
-          <button class="admin-act-btn" @click="toggleExpandAll">
-            <el-icon class="mr-1"><component :is="isAllExpanded ? 'Fold' : 'Expand'" /></el-icon>
+      <!-- Tab 2：分类管理 -->
+      <div v-if="activeTab === 'categories'" class="space-y-3">
+        <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-subtle">
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            @click="toggleExpandAll"
+          >
+            <el-icon class="text-xs"><component :is="isAllExpanded ? 'Fold' : 'Expand'" /></el-icon>
             <span>{{ isAllExpanded ? '收起所有分类' : '一键展开所有分类' }}</span>
           </button>
 
-          <button class="admin-act-btn" @click="openCategoryDialog()">
-            <el-icon class="mr-1"><component is="Plus" /></el-icon>新建一级分类
+          <button
+            type="button"
+            class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer"
+            @click="openCategoryDialog()"
+          >
+            <el-icon class="text-xs"><component is="Plus" /></el-icon>
+            <span>新建一级分类</span>
           </button>
         </div>
 
-        <div ref="categoryListRef" class="admin-cat-tree-container">
-          <div v-for="cat in categoryTree" :key="cat.id" class="admin-cat-card">
-            <!-- 一级分类行 (支持拖拽) -->
-            <div class="cat-card-header">
-              <span class="bm-drag-handle cat-drag" title="拖拽调整一级分类排序">
-                <el-icon><component is="Rank" /></el-icon>
-              </span>
-              <button class="cat-toggle-btn" @click.stop="toggleExpand(cat.id)">
-                <el-icon><component :is="expandedCategories.includes(cat.id) ? 'ArrowDown' : 'ArrowRight'" /></el-icon>
-              </button>
-              <el-icon class="cat-main-icon"><component :is="mapIcon(cat.icon)" /></el-icon>
-              <span class="cat-main-title">{{ cat.name }}</span>
-              <span v-if="cat.is_private" class="cat-priv-badge">私有</span>
-              <span class="cat-children-badge">{{ cat.children.length }} 个子分类</span>
+        <div ref="categoryListRef" class="space-y-2">
+          <div v-for="cat in categoryTree" :key="cat.id" class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-subtle overflow-hidden">
+            <!-- 一级分类行 -->
+            <div class="group flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                <span class="cat-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
+                  <el-icon class="text-xs"><component is="Rank" /></el-icon>
+                </span>
+                <button type="button" class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer" @click.stop="toggleExpand(cat.id)">
+                  <el-icon class="text-xs"><component :is="expandedCategories.includes(cat.id) ? 'ArrowDown' : 'ArrowRight'" /></el-icon>
+                </button>
+                <el-icon class="text-xs text-slate-500 flex-shrink-0"><component :is="mapIcon(cat.icon)" /></el-icon>
+                <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{{ cat.name }}</span>
+                <span v-if="cat.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
+                <span class="text-[11px] text-slate-400 dark:text-slate-500 font-normal">({{ cat.children.length }} 个子分类)</span>
+              </div>
 
-              <div class="cat-row-actions">
-                <button class="row-btn" @click.stop="openCategoryDialog(undefined, cat.id)" title="添加子分类">
-                  <el-icon><component is="Plus" /></el-icon>
+              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  @click.stop="openCategoryDialog(undefined, cat.id)"
+                  title="添加子分类"
+                >
+                  <el-icon class="text-xs"><component is="Plus" /></el-icon>
                 </button>
-                <button class="row-btn" @click.stop="openCategoryDialog(cat)" title="编辑分类">
-                  <el-icon><component is="EditPen" /></el-icon>
+                <button
+                  type="button"
+                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  @click.stop="openCategoryDialog(cat)"
+                  title="编辑分类"
+                >
+                  <el-icon class="text-xs"><component is="EditPen" /></el-icon>
                 </button>
-                <button class="row-btn del" @click.stop="confirmDeleteCategory(cat)" title="删除分类">
-                  <el-icon><component is="Delete" /></el-icon>
+                <button
+                  type="button"
+                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                  @click.stop="confirmDeleteCategory(cat)"
+                  title="删除分类"
+                >
+                  <el-icon class="text-xs"><component is="Delete" /></el-icon>
                 </button>
               </div>
             </div>
 
-            <!-- 二级子分类列表 (支持独立拖拽排序) -->
-            <div v-show="expandedCategories.includes(cat.id)" class="cat-sub-wrapper">
-              <div
-                class="cat-sub-sortable-container"
-                :data-parent-id="cat.id"
-              >
-                <div v-for="sub in cat.children" :key="sub.id" class="cat-sub-row">
-                  <span class="bm-drag-handle sub-drag" title="拖拽调整二级子分类排序">
-                    <el-icon><component is="Rank" /></el-icon>
-                  </span>
-                  <span class="sub-prefix-symbol">└</span>
-                  <el-icon class="cat-sub-icon"><component :is="mapIcon(sub.icon)" /></el-icon>
-                  <span class="cat-sub-title">{{ sub.name }}</span>
-                  <span v-if="sub.is_private" class="cat-priv-badge">私有</span>
+            <!-- 二级子分类列表 -->
+            <div v-show="expandedCategories.includes(cat.id)" class="border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/30 p-2 space-y-1">
+              <div class="cat-sub-sortable-container space-y-1" :data-parent-id="cat.id">
+                <div
+                  v-for="sub in cat.children"
+                  :key="sub.id"
+                  class="group flex items-center justify-between px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                    <span class="sub-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
+                      <el-icon class="text-xs"><component is="Rank" /></el-icon>
+                    </span>
+                    <span class="text-slate-400 text-xs font-mono">└</span>
+                    <el-icon class="text-xs text-slate-500 flex-shrink-0"><component :is="mapIcon(sub.icon)" /></el-icon>
+                    <span class="text-xs text-slate-700 dark:text-slate-300 truncate">{{ sub.name }}</span>
+                    <span v-if="sub.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
+                  </div>
 
-                  <div class="cat-row-actions">
-                    <button class="row-btn" @click="openCategoryDialog(sub)" title="编辑子分类">
-                      <el-icon><component is="EditPen" /></el-icon>
+                  <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      @click="openCategoryDialog(sub)"
+                      title="编辑子分类"
+                    >
+                      <el-icon class="text-xs"><component is="EditPen" /></el-icon>
                     </button>
-                    <button class="row-btn del" @click="confirmDeleteCategory(sub)" title="删除子分类">
-                      <el-icon><component is="Delete" /></el-icon>
+                    <button
+                      type="button"
+                      class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                      @click="confirmDeleteCategory(sub)"
+                      title="删除子分类"
+                    >
+                      <el-icon class="text-xs"><component is="Delete" /></el-icon>
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div v-if="!cat.children.length" class="cat-no-sub-hint">
+              <div v-if="!cat.children.length" class="text-center py-2 text-[11px] text-slate-400 dark:text-slate-500">
                 暂无二级子分类
               </div>
             </div>
@@ -1186,16 +1270,16 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Tab 3：AI 模型与推理参数设置 (完整配置：API + 模型 + 推理参数 + 提示词) -->
-      <div v-if="activeTab === 'ai'" class="admin-pane-body">
-        <div class="admin-surface-box">
+      <!-- Tab 3：AI 模型与推理参数 -->
+      <div v-if="activeTab === 'ai'" class="space-y-3">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
           <el-form label-position="top" size="small" class="space-y-3.5">
-            <!-- 1. API Base URL (在上面) -->
+            <!-- 1. API Base URL -->
             <el-form-item label="API Base URL">
               <el-input v-model="aiSettings.base_url" placeholder="https://api.deepseek.com/v1" />
             </el-form-item>
 
-            <!-- 2. API Key (在下面) -->
+            <!-- 2. API Key -->
             <el-form-item label="API Key">
               <el-input
                 v-model="aiSettings.api_key"
@@ -1205,165 +1289,166 @@ onMounted(() => {
               />
             </el-form-item>
 
-            <!-- 3. 启用模型 (带获取按钮与星标默认模型) -->
-            <div class="ai-models-selection-section">
-              <div class="models-sec-header">
-                <span class="font-semibold text-xs text-main">启用模型列表</span>
-                <div class="flex items-center gap-2">
+            <!-- 3. 启用模型 -->
+            <div class="space-y-2 p-3 rounded-md bg-slate-50 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-xs text-slate-800 dark:text-slate-200">启用模型列表</span>
+                <div class="flex items-center gap-1.5">
                   <button
                     type="button"
-                    class="admin-act-btn"
+                    class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                     :disabled="fetchingModels"
                     @click="fetchOnlineModels"
                   >
                     <el-icon class="mr-1" :class="{ 'is-loading': fetchingModels }"><component :is="fetchingModels ? 'Loading' : 'Refresh'" /></el-icon>
                     <span>{{ fetchingModels ? '获取中...' : '获取' }}</span>
                   </button>
-                  <button type="button" class="admin-act-btn" @click="selectAllModels">全选</button>
-                  <button type="button" class="admin-act-btn" @click="clearAllModels">清空</button>
+                  <button type="button" class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" @click="selectAllModels">全选</button>
+                  <button type="button" class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" @click="clearAllModels">清空</button>
                 </div>
               </div>
 
-              <!-- 模型勾选与星标默认芯片网格 -->
-              <div class="models-chips-grid">
-                <div v-if="allFetchedModels.length === 0" class="text-xs text-muted py-2 w-full text-center">
+              <!-- 模型芯片网格 -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto p-1">
+                <div v-if="allFetchedModels.length === 0" class="text-xs text-slate-400 py-2 col-span-full text-center">
                   暂无模型，可点击上方「获取」或在下方输入名称添加
                 </div>
                 <div
                   v-for="m in allFetchedModels"
                   :key="m"
-                  class="model-select-chip"
-                  :class="{ selected: (aiSettings.available_models || []).includes(m) }"
+                  class="flex items-center justify-between px-2.5 py-1.5 rounded border transition-colors cursor-pointer"
+                  :class="[
+                    (aiSettings.available_models || []).includes(m)
+                      ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 font-medium'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300'
+                  ]"
                   @click="toggleModelCheck(m)"
                 >
-                  <el-icon class="mr-1.5"><component :is="(aiSettings.available_models || []).includes(m) ? 'CircleCheckFilled' : 'CircleCheck'" /></el-icon>
-                  <span class="model-name-text">{{ m }}</span>
+                  <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
+                    <el-icon class="text-xs"><component :is="(aiSettings.available_models || []).includes(m) ? 'CircleCheckFilled' : 'CircleCheck'" /></el-icon>
+                    <span class="text-xs truncate">{{ m }}</span>
+                  </div>
 
-                  <!-- 星标设置默认模型按钮 -->
-                  <button
-                    type="button"
-                    class="model-star-btn"
-                    :class="{ 'is-default': aiSettings.model === m }"
-                    @click.stop="setDefaultModel(m)"
-                    :title="aiSettings.model === m ? '当前默认模型' : '点击设为默认模型'"
-                  >
-                    <el-icon><component :is="aiSettings.model === m ? 'StarFilled' : 'Star'" /></el-icon>
-                  </button>
-
-                  <!-- 单独删除模型按钮 (支持删除自带与自定义模型) -->
-                  <button
-                    type="button"
-                    class="model-star-btn model-del-btn"
-                    @click.stop="removeModel(m)"
-                    title="删除此模型"
-                  >
-                    <el-icon><component is="Close" /></el-icon>
-                  </button>
+                  <div class="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      class="w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer"
+                      :class="aiSettings.model === m ? 'text-amber-500' : 'text-slate-400 hover:text-slate-600'"
+                      @click.stop="setDefaultModel(m)"
+                      :title="aiSettings.model === m ? '当前默认模型' : '点击设为默认模型'"
+                    >
+                      <el-icon class="text-xs"><component :is="aiSettings.model === m ? 'StarFilled' : 'Star'" /></el-icon>
+                    </button>
+                    <button
+                      type="button"
+                      class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                      @click.stop="removeModel(m)"
+                      title="删除此模型"
+                    >
+                      <el-icon class="text-[10px]"><component is="Close" /></el-icon>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <!-- 框内+添加模型输入框 -->
-              <div class="admin-inline-input-group mt-1">
+              <!-- 手动添加模型 -->
+              <div class="flex items-center gap-2 mt-1">
                 <input
                   v-model="customModelName"
                   type="text"
-                  class="admin-inline-input"
+                  class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2.5 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none"
                   placeholder="手动添加模型名称 (如 qwen-plus)"
                   @keyup.enter="addCustomModel"
                 />
                 <button
                   type="button"
-                  class="admin-inline-input-btn"
+                  class="h-7 px-2.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
                   @click="addCustomModel"
                   title="添加模型"
                 >
-                  <el-icon><component is="Plus" /></el-icon>
+                  <el-icon class="text-xs"><component is="Plus" /></el-icon>
+                  <span>添加</span>
                 </button>
               </div>
             </div>
 
-            <!-- 3.1 笔记写作助手专属模型 (与 AI 对话助手使用不同模型) -->
-            <el-form-item label="在线笔记写作专属模型 (Note Writing Assistant Model)">
-              <el-select
-                v-model="aiSettings.writing_model"
-                class="w-full"
-                placeholder="选择或输入笔记写作专享模型"
-                filterable
-                allow-create
-                default-first-option
-              >
-                <el-option
-                  v-for="m in allFetchedModels"
-                  :key="m"
-                  :label="m"
-                  :value="m"
-                />
-              </el-select>
-              <div class="text-[11px] text-muted mt-1">
-                在线笔记的 AI 润色、续写、提炼大纲、翻译、打标签将优先使用此模型（支持与 AI 对话助手解耦使用不同大模型）
-              </div>
-            </el-form-item>
+            <!-- 专属模型 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <el-form-item label="在线笔记写作专属模型">
+                <el-select
+                  v-model="aiSettings.writing_model"
+                  class="w-full"
+                  placeholder="选择或输入笔记写作专属模型"
+                  filterable
+                  allow-create
+                  default-first-option
+                >
+                  <el-option
+                    v-for="m in allFetchedModels"
+                    :key="m"
+                    :label="m"
+                    :value="m"
+                  />
+                </el-select>
+              </el-form-item>
 
-            <!-- 3.2 导航书签解析专属模型 (Bookmark AI Parsing Model) -->
-            <el-form-item label="导航书签解析专属模型 (Bookmark AI Parsing Model)">
-              <el-select
-                v-model="aiSettings.bookmark_model"
-                class="w-full"
-                placeholder="选择或输入导航书签解析专享模型"
-                filterable
-                allow-create
-                default-first-option
-              >
-                <el-option
-                  v-for="m in allFetchedModels"
-                  :key="m"
-                  :label="m"
-                  :value="m"
-                />
-              </el-select>
-              <div class="text-[11px] text-muted mt-1">
-                添加与编辑导航书签时的「AI 解析」将优先使用此模型（如响应极速的 gpt-5.5 / Claude-4.5Haiku / DeepSeek）
-              </div>
-            </el-form-item>
+              <el-form-item label="导航书签解析专属模型">
+                <el-select
+                  v-model="aiSettings.bookmark_model"
+                  class="w-full"
+                  placeholder="选择或输入导航书签解析专属模型"
+                  filterable
+                  allow-create
+                  default-first-option
+                >
+                  <el-option
+                    v-for="m in allFetchedModels"
+                    :key="m"
+                    :label="m"
+                    :value="m"
+                  />
+                </el-select>
+              </el-form-item>
+            </div>
 
-            <!-- 4. 深度思考 / CoT 推理开关 -->
-            <div class="flex items-center justify-between p-3 rounded-lg border border-border bg-main">
+            <!-- 深度思考开关 -->
+            <div class="flex items-center justify-between p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
               <div>
-                <div class="text-xs font-semibold text-main">深度思考 (Reasoning CoT)</div>
-                <div class="text-[11px] text-muted">开启后大模型将展开深入步骤思考（配合推理模型效果更佳）</div>
+                <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">深度思考 (Reasoning CoT)</div>
+                <div class="text-[11px] text-slate-400">开启后大模型将展开深入步骤思考</div>
               </div>
               <el-switch v-model="aiSettings.reasoning_mode" />
             </div>
 
-            <!-- 5. 采样温度 Temperature -->
+            <!-- 采样温度 -->
             <div>
               <div class="flex items-center justify-between mb-1">
-                <label class="text-xs font-semibold text-muted">
-                  采样温度 (Temperature): <span class="text-main font-mono font-medium">{{ aiSettings.temperature }}</span>
+                <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
+                  采样温度 (Temperature): <span class="font-mono font-semibold text-slate-900 dark:text-slate-100">{{ aiSettings.temperature }}</span>
                 </label>
-                <span class="text-[11px] text-muted font-medium">
+                <span class="text-[11px] text-slate-400">
                   {{ aiSettings.temperature < 0.4 ? '严谨精准' : aiSettings.temperature > 1.0 ? '创意发散' : '通用平衡' }}
                 </span>
               </div>
               <el-slider v-model="aiSettings.temperature" :min="0" :max="2" :step="0.05" />
             </div>
 
-            <!-- 6. Top-P 核采样 -->
+            <!-- Top-P -->
             <div>
               <div class="flex items-center justify-between mb-1">
-                <label class="text-xs font-semibold text-muted">
-                  核采样 (Top-P): <span class="text-main font-mono font-medium">{{ aiSettings.top_p }}</span>
+                <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
+                  核采样 (Top-P): <span class="font-mono font-semibold text-slate-900 dark:text-slate-100">{{ aiSettings.top_p }}</span>
                 </label>
               </div>
               <el-slider v-model="aiSettings.top_p" :min="0.1" :max="1" :step="0.05" />
             </div>
 
-            <!-- 7. 单次最大 Token 数 -->
+            <!-- Max Tokens -->
             <el-form-item label="单次最大生成 Token 数 (Max Tokens)">
               <el-input-number v-model="aiSettings.max_tokens" :min="256" :max="16384" :step="512" class="w-full" />
             </el-form-item>
 
-            <!-- 8. 全局系统提示词 -->
+            <!-- 全局系统提示词 -->
             <el-form-item label="全局系统提示词 (System Prompt)">
               <el-input
                 v-model="aiSettings.system_prompt"
@@ -1374,116 +1459,131 @@ onMounted(() => {
             </el-form-item>
           </el-form>
 
-          <div class="surface-box-footer">
-            <span class="footer-hint">当前默认模型：<strong>{{ aiSettings.model || '未设定' }}</strong></span>
+          <div class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800">
+            <span class="text-xs text-slate-400">当前默认模型：<strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ aiSettings.model || '未设定' }}</strong></span>
             <button
-              class="admin-act-btn primary"
+              type="button"
+              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer disabled:opacity-50"
               :disabled="savingAiSettings"
               @click="saveAdminAiSettings"
             >
-              <el-icon class="mr-1"><component is="Check" /></el-icon>
+              <el-icon v-if="savingAiSettings" class="is-loading mr-1"><component is="Loading" /></el-icon>
               <span>{{ savingAiSettings ? '保存中...' : '保存配置' }}</span>
             </button>
           </div>
         </div>
       </div>
 
-      
-      <!-- Tab 4：安全中心 (合并账户弹窗 + 统一2FA卡片且按钮置顶右上角) -->
-      <div v-if="activeTab === 'security'" class="admin-pane-body space-y-3">
-        <!-- 1. 账户与密码卡片 (单卡片 + 单弹窗) -->
-        <div class="admin-surface-box">
-          <div class="flex justify-between items-center">
-            <div>
-              <h3 class="text-sm font-semibold text-main m-0">账户与登录密码</h3>
-              <p class="text-xs text-muted m-0 mt-0.5">当前账户: <strong>{{ authStore.user?.username }}</strong></p>
-            </div>
-            <button class="admin-act-btn" @click="openAccountDialog">
-              <el-icon class="mr-1"><component is="EditPen" /></el-icon>修改用户名与密码
-            </button>
+      <!-- Tab 4：安全中心 -->
+      <div v-if="activeTab === 'security'" class="space-y-3">
+        <!-- 1. 账户卡片 -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle flex justify-between items-center">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">账户与登录密码</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mt-0.5">当前账户: <strong class="text-slate-800 dark:text-slate-200 font-semibold">{{ authStore.user?.username }}</strong></p>
           </div>
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            @click="openAccountDialog"
+          >
+            <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+            <span>修改用户名与密码</span>
+          </button>
         </div>
 
-        <!-- 2. 多重身份认证卡片 (TOTP 2FA + Passkey 免密 合并卡片) -->
-        <div class="admin-surface-box">
-          <div class="security-unified-section">
-            <!-- 上部：两步验证 (TOTP) -->
-            <div class="flex justify-between items-center pb-3 border-b border-[var(--zl-border-light)]">
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-semibold text-main m-0">两步验证 (TOTP)</h3>
-                  <span class="admin-status-badge" :class="authStore.user?.totp_enabled ? 'success' : 'warning'">
-                    {{ authStore.user?.totp_enabled ? '已启用' : '未启用' }}
-                  </span>
-                </div>
-                <p class="text-xs text-muted m-0 mt-0.5">基于 Authenticator 动态验证码</p>
+        <!-- 2. 多重身份认证卡片 -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
+          <!-- 上部：两步验证 (TOTP) -->
+          <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">两步验证 (TOTP)</h3>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                  :class="authStore.user?.totp_enabled ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'"
+                >
+                  {{ authStore.user?.totp_enabled ? '已启用' : '未启用' }}
+                </span>
               </div>
-              <button
-                v-if="!authStore.user?.totp_enabled"
-                class="admin-act-btn primary"
-                :disabled="settingUpTotp"
-                @click="startTotpSetup"
-              >
-                <el-icon class="mr-1"><component is="Lock" /></el-icon>配置 2FA
-              </button>
+              <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mt-0.5">基于 Authenticator 动态验证码</p>
             </div>
+            <button
+              v-if="!authStore.user?.totp_enabled"
+              type="button"
+              class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer"
+              :disabled="settingUpTotp"
+              @click="startTotpSetup"
+            >
+              <el-icon class="text-xs"><component is="Lock" /></el-icon>
+              <span>配置 2FA</span>
+            </button>
+          </div>
 
-            <!-- TOTP 配置中区域 -->
-            <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3 border-b border-[var(--zl-border-light)]">
-              <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md" /></div>
-              <p class="text-[11px] text-muted text-center break-all font-mono">{{ totpSetup.secret }}</p>
-              <div class="flex gap-2 max-w-sm mx-auto">
-                <el-input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" size="small" class="flex-1" />
-                <button class="admin-act-btn primary" @click="confirmTotp">确认绑定</button>
-              </div>
+          <!-- TOTP 配置中区域 -->
+          <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md" /></div>
+            <p class="text-[11px] text-slate-400 text-center break-all font-mono">{{ totpSetup.secret }}</p>
+            <div class="flex gap-2 max-w-sm mx-auto">
+              <el-input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" size="small" class="flex-1" />
+              <button type="button" class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium" @click="confirmTotp">确认绑定</button>
             </div>
+          </div>
 
-            <!-- 下部：Passkey 免密登录 -->
-            <div class="flex justify-between items-center pt-3">
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-semibold text-main m-0">Passkey 免密登录</h3>
-                  <span class="admin-status-badge" :class="authStore.user?.webauthn_enabled ? 'success' : 'warning'">
-                    {{ authStore.user?.webauthn_enabled ? '已绑定' : '未绑定' }}
-                  </span>
-                </div>
-                <p class="text-xs text-muted m-0 mt-0.5">指纹 / Face ID / Windows Hello 硬件免密</p>
+          <!-- 下部：Passkey 免密登录 -->
+          <div class="flex justify-between items-center">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">Passkey 免密登录</h3>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                  :class="authStore.user?.webauthn_enabled ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'"
+                >
+                  {{ authStore.user?.webauthn_enabled ? '已绑定' : '未绑定' }}
+                </span>
               </div>
-              <button class="admin-act-btn" :disabled="registeringPasskey" @click="registerPasskey">
-                <el-icon class="mr-1"><component is="Key" /></el-icon>绑定 Passkey
-              </button>
+              <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mt-0.5">指纹 / Face ID / Windows Hello 硬件免密</p>
             </div>
+            <button
+              type="button"
+              class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              :disabled="registeringPasskey"
+              @click="registerPasskey"
+            >
+              <el-icon class="text-xs"><component is="Key" /></el-icon>
+              <span>绑定 Passkey</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Tab 5：站点设置 (精简版 + 实时生效) -->
-      <div v-if="activeTab === 'site'" class="admin-pane-body space-y-3">
-        <div class="admin-surface-box">
+      <!-- Tab 5：站点设置 -->
+      <div v-if="activeTab === 'site'" class="space-y-3">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
           <el-form label-position="top" size="small" class="space-y-3">
             <!-- 1. 外观深浅模式 -->
             <el-form-item label="外观主题">
-              <el-radio-group :model-value="themeStore.mode" @change="themeStore.setMode($event as any)" class="theme-mode-radios">
+              <el-radio-group :model-value="themeStore.mode" @change="themeStore.setMode($event as any)">
                 <el-radio-button value="system">跟随系统</el-radio-button>
                 <el-radio-button value="light">日间浅色</el-radio-button>
                 <el-radio-button value="dark">夜间深色</el-radio-button>
               </el-radio-group>
             </el-form-item>
 
-            <!-- 2. 系统品牌主题色选择 (支持预设色块 + 自定义色盘) -->
+            <!-- 2. 主品牌色 -->
             <el-form-item label="系统主品牌色 (实时生效)">
-              <div class="flex items-center gap-2.5 flex-wrap">
+              <div class="flex items-center gap-2 flex-wrap">
                 <button
                   v-for="p in colorPresets"
                   :key="p.color"
                   type="button"
-                  class="theme-color-swatch"
-                  :class="{ active: siteForm.themePrimaryColor === p.color }"
+                  class="w-6 h-6 rounded-md flex items-center justify-center transition-transform cursor-pointer"
+                  :class="{ 'ring-2 ring-offset-2 ring-slate-400 scale-105': siteForm.themePrimaryColor === p.color }"
                   :style="{ backgroundColor: p.color }"
                   :title="p.name"
                   @click="selectThemeColor(p.color)"
                 >
-                  <el-icon v-if="siteForm.themePrimaryColor === p.color" class="text-white"><component is="Check" /></el-icon>
+                  <el-icon v-if="siteForm.themePrimaryColor === p.color" class="text-white text-xs"><component is="Check" /></el-icon>
                 </button>
 
                 <div class="flex items-center gap-2 ml-1">
@@ -1492,84 +1592,74 @@ onMounted(() => {
                     size="small"
                     @change="siteStore.setThemePrimaryColor($event as any)"
                   />
-                  <span class="text-xs font-mono text-muted">{{ siteForm.themePrimaryColor }}</span>
+                  <span class="text-xs font-mono text-slate-400">{{ siteForm.themePrimaryColor }}</span>
                 </div>
               </div>
             </el-form-item>
 
-            <!-- 3. 导航搜索组件背景图设置 -->
-            <el-form-item label="导航主页搜索组件背景">
-              <div class="space-y-3 p-3 rounded-lg border border-border bg-main w-full">
-                <el-radio-group v-model="siteForm.searchBgMode" class="w-full">
-                  <el-radio-button value="dynamic">3D 动态波浪特效 (默认)</el-radio-button>
-                  <el-radio-button value="custom_image">自定义背景图片</el-radio-button>
-                </el-radio-group>
+            <!-- 3. 搜索背景图 -->
+            <el-form-item label="导航主页搜索组件背景图">
+              <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
+                <div class="flex items-center gap-2">
+                  <el-input
+                    v-model="siteForm.searchBgImage"
+                    placeholder="输入背景图片 URL 或点击右侧上传..."
+                    clearable
+                    @input="siteStore.searchBgImage = siteForm.searchBgImage"
+                  />
+                  <button
+                    type="button"
+                    class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+                    :disabled="uploadingBg"
+                    @click="bgUploadInputRef?.click()"
+                  >
+                    <el-icon class="text-xs" :class="{ 'is-loading': uploadingBg }"><component :is="uploadingBg ? 'Loading' : 'Upload'" /></el-icon>
+                    <span>{{ uploadingBg ? '上传中...' : '上传图片' }}</span>
+                  </button>
+                  <input ref="bgUploadInputRef" type="file" accept="image/*" hidden @change="handleBgUpload" />
+                </div>
 
-                <!-- 自定义图片上传与预览区 -->
-                <div v-if="siteForm.searchBgMode === 'custom_image'" class="space-y-2.5 pt-1">
-                  <div class="flex items-center gap-2">
-                    <el-input
-                      v-model="siteForm.searchBgImage"
-                      placeholder="输入背景图片 URL 或点击右侧上传..."
-                      clearable
-                      @input="siteStore.searchBgImage = siteForm.searchBgImage"
-                    />
-                    <button
-                      type="button"
-                      class="admin-act-btn flex-shrink-0"
-                      :disabled="uploadingBg"
-                      @click="bgUploadInputRef?.click()"
-                    >
-                      <el-icon class="mr-1" :class="{ 'is-loading': uploadingBg }"><component :is="uploadingBg ? 'Loading' : 'Upload'" /></el-icon>
-                      <span>{{ uploadingBg ? '上传中...' : '上传图片' }}</span>
-                    </button>
-                    <input ref="bgUploadInputRef" type="file" accept="image/*" hidden @change="handleBgUpload" />
-                  </div>
-
-                  <!-- 预览框 -->
-                  <div v-if="siteForm.searchBgImage" class="relative rounded-lg overflow-hidden border border-border h-28 bg-subtle flex items-center justify-center">
-                    <img :src="siteForm.searchBgImage" alt="搜索背景图" class="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      class="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white text-xs hover:bg-black/80 transition-all cursor-pointer"
-                      title="清除并重置背景"
-                      @click="clearCustomBg"
-                    >
-                      <el-icon><component is="Close" /></el-icon>
-                    </button>
-                  </div>
+                <div v-if="siteForm.searchBgImage" class="relative rounded-md overflow-hidden border border-slate-200 dark:border-slate-800 h-24 flex items-center justify-center">
+                  <img :src="siteForm.searchBgImage" alt="搜索背景图" class="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    class="absolute top-1.5 right-1.5 p-1 rounded-full bg-slate-900/70 text-white text-xs hover:bg-slate-900 transition-colors cursor-pointer"
+                    title="清除背景图"
+                    @click="clearCustomBg"
+                  >
+                    <el-icon><component is="Close" /></el-icon>
+                  </button>
                 </div>
               </div>
             </el-form-item>
 
             <el-form-item label="站点名称">
-              <el-input v-model="siteForm.siteName" placeholder="不凡导航" />
+              <el-input v-model="siteForm.siteName" placeholder="ZenLink" />
             </el-form-item>
 
             <el-form-item label="站点描述">
               <el-input v-model="siteForm.siteDesc" placeholder="干净简洁的导航！" />
             </el-form-item>
 
-            <!-- 网站 Logo / 浏览器 Favicon 上传与设置 -->
+            <!-- 网站 Logo -->
             <el-form-item label="网站图标与站标 (Logo / Favicon)">
-              <div class="space-y-2.5 p-3 rounded-lg border border-border bg-main w-full">
+              <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
                 <div class="flex items-center gap-3">
-                  <!-- 预览框 (圆角方形) -->
-                  <div class="w-12 h-12 rounded-xl bg-subtle border border-border flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm relative group">
+                  <div class="w-10 h-10 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
                     <img v-if="siteForm.siteLogo" :src="siteForm.siteLogo" alt="Logo" class="w-full h-full object-cover" />
-                    <span v-else class="font-bold text-base text-main">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
+                    <span v-else class="font-bold text-sm text-slate-800 dark:text-slate-200">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
                     <button
                       v-if="siteForm.siteLogo"
                       type="button"
-                      class="absolute inset-0 bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer"
-                      title="清除并恢复默认"
+                      class="absolute inset-0 bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                      title="清除"
                       @click="clearCustomLogo"
                     >
                       <el-icon><component is="Delete" /></el-icon>
                     </button>
                   </div>
 
-                  <div class="flex-1 space-y-1.5 min-w-0">
+                  <div class="flex-1 space-y-1 min-w-0">
                     <div class="flex items-center gap-2">
                       <el-input
                         v-model="siteForm.siteLogo"
@@ -1579,16 +1669,16 @@ onMounted(() => {
                       />
                       <button
                         type="button"
-                        class="admin-act-btn flex-shrink-0"
+                        class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
                         :disabled="uploadingLogo"
                         @click="logoUploadInputRef?.click()"
                       >
-                        <el-icon class="mr-1" :class="{ 'is-loading': uploadingLogo }"><component :is="uploadingLogo ? 'Loading' : 'Upload'" /></el-icon>
-                        <span>{{ uploadingLogo ? '上传中...' : '上传图标' }}</span>
+                        <el-icon class="text-xs" :class="{ 'is-loading': uploadingLogo }"><component :is="uploadingLogo ? 'Loading' : 'Upload'" /></el-icon>
+                        <span>{{ uploadingLogo ? '上传中...' : '上传' }}</span>
                       </button>
                       <input ref="logoUploadInputRef" type="file" accept="image/*" hidden @change="handleLogoUpload" />
                     </div>
-                    <p class="text-xs text-muted">支持上传 PNG/SVG/ICO/JPG 格式，将自动设为侧边栏圆角微标与浏览器标签页 Favicon 站标</p>
+                    <p class="text-[11px] text-slate-400 m-0">支持 PNG/SVG/ICO/JPG 格式</p>
                   </div>
                 </div>
               </div>
@@ -1601,66 +1691,88 @@ onMounted(() => {
                 <el-option label="DuckDuckGo" value="duckduckgo" />
               </el-select>
             </el-form-item>
+
+            <!-- 功能模块开关 -->
+            <el-form-item label="功能模块开关">
+              <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">开启 AI 助手</div>
+                    <div class="text-[11px] text-slate-400">开启后可在侧边栏使用 AI 助手</div>
+                  </div>
+                  <el-switch v-model="siteForm.enableAi" />
+                </div>
+
+                <div class="border-t border-slate-200/60 dark:border-slate-800/60 pt-2 flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">开启在线笔记</div>
+                    <div class="text-[11px] text-slate-400">开启后可在侧边栏使用在线笔记</div>
+                  </div>
+                  <el-switch v-model="siteForm.enableNotes" />
+                </div>
+              </div>
+            </el-form-item>
           </el-form>
 
-          <div class="surface-box-footer">
-            <button class="admin-act-btn primary" @click="saveSiteSettings">
-              <el-icon class="mr-1"><component is="Check" /></el-icon>保存设置
+          <div class="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex justify-end">
+            <button
+              type="button"
+              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer"
+              @click="saveSiteSettings"
+            >
+              <el-icon class="mr-1"><component is="Check" /></el-icon>
+              <span>保存设置</span>
             </button>
           </div>
         </div>
 
-        <!-- 附件存储驱动与 Cloudflare R2 设置 (供笔记与全站附件复用) -->
-        <div class="admin-surface-box">
-          <h3 class="text-sm font-semibold text-main m-0 mb-3 flex items-center justify-between">
-            <span>附件存储驱动设置 (图片与文件)</span>
-            <span class="text-xs font-normal text-muted">供在线笔记及全站附件上传复用</span>
-          </h3>
+        <!-- 存储驱动 -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-3">
+          <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">附件存储驱动设置</h3>
 
-          <el-form label-position="top" size="small" class="space-y-4">
-            <!-- 存储驱动选择 -->
+          <el-form label-position="top" size="small" class="space-y-3">
             <div>
-              <label class="block text-xs font-semibold text-main mb-1.5">当前存储位置</label>
-              <div class="grid grid-cols-2 gap-3">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">当前存储位置</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div
-                  class="p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between"
-                  :class="storageSettings.storage_type === 'local' ? 'border-primary bg-primary-light font-semibold' : 'border-border bg-main'"
+                  class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
+                  :class="storageSettings.storage_type === 'local' ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30'"
                   @click="storageSettings.storage_type = 'local'"
                 >
                   <div class="flex items-center gap-2">
-                    <el-icon class="text-base text-primary"><component is="FolderOpened" /></el-icon>
+                    <el-icon class="text-base text-indigo-500"><component is="FolderOpened" /></el-icon>
                     <div>
-                      <div class="text-xs text-main">本地服务器存储 (Local)</div>
-                      <div class="text-[11px] text-muted">文件保存在服务端 data/uploads 目录</div>
+                      <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">本地服务器存储 (Local)</div>
+                      <div class="text-[11px] text-slate-400">文件保存在 data/uploads 目录</div>
                     </div>
                   </div>
-                  <el-icon v-if="storageSettings.storage_type === 'local'" class="text-primary"><component is="Check" /></el-icon>
+                  <el-icon v-if="storageSettings.storage_type === 'local'" class="text-indigo-500"><component is="Check" /></el-icon>
                 </div>
 
                 <div
-                  class="p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between"
-                  :class="storageSettings.storage_type === 'r2' ? 'border-primary bg-primary-light font-semibold' : 'border-border bg-main'"
+                  class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
+                  :class="storageSettings.storage_type === 'r2' ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30'"
                   @click="storageSettings.storage_type = 'r2'"
                 >
                   <div class="flex items-center gap-2">
-                    <el-icon class="text-base text-primary"><component is="Cloudy" /></el-icon>
+                    <el-icon class="text-base text-indigo-500"><component is="Cloudy" /></el-icon>
                     <div>
-                      <div class="text-xs text-main">Cloudflare R2 对象存储</div>
-                      <div class="text-[11px] text-muted">免费高速对象存储，全球 CDN 直链加速</div>
+                      <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Cloudflare R2 对象存储</div>
+                      <div class="text-[11px] text-slate-400">全球 CDN 直链加速</div>
                     </div>
                   </div>
-                  <el-icon v-if="storageSettings.storage_type === 'r2'" class="text-primary"><component is="Check" /></el-icon>
+                  <el-icon v-if="storageSettings.storage_type === 'r2'" class="text-indigo-500"><component is="Check" /></el-icon>
                 </div>
               </div>
             </div>
 
-            <!-- Cloudflare R2 详细参数 (当选择 R2 时显示) -->
-            <div v-if="storageSettings.storage_type === 'r2'" class="space-y-3 p-3.5 rounded-lg border border-border bg-main">
-              <div class="flex items-center justify-between pb-2 border-b border-border-light">
-                <span class="text-xs font-semibold text-main">Cloudflare R2 凭据配置</span>
+            <!-- R2 参数 -->
+            <div v-if="storageSettings.storage_type === 'r2'" class="space-y-3 p-3.5 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+                <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Cloudflare R2 凭据配置</span>
                 <button
                   type="button"
-                  class="admin-act-btn"
+                  class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   :disabled="testingR2"
                   @click="testR2"
                 >
@@ -1670,24 +1782,15 @@ onMounted(() => {
               </div>
 
               <el-form-item label="Cloudflare Account ID">
-                <el-input
-                  v-model="storageSettings.r2_account_id"
-                  placeholder="例如：a1b2c3d4e5f6..."
-                />
+                <el-input v-model="storageSettings.r2_account_id" placeholder="例如：a1b2c3d4e5f6..." />
               </el-form-item>
 
               <el-form-item label="R2 存储桶名称 (Bucket Name)">
-                <el-input
-                  v-model="storageSettings.r2_bucket_name"
-                  placeholder="例如：zenlink-notes"
-                />
+                <el-input v-model="storageSettings.r2_bucket_name" placeholder="例如：zenlink-notes" />
               </el-form-item>
 
               <el-form-item label="Access Key ID">
-                <el-input
-                  v-model="storageSettings.r2_access_key_id"
-                  placeholder="R2 API 令牌 Access Key ID"
-                />
+                <el-input v-model="storageSettings.r2_access_key_id" placeholder="R2 Access Key ID" />
               </el-form-item>
 
               <el-form-item label="Secret Access Key">
@@ -1700,21 +1803,16 @@ onMounted(() => {
               </el-form-item>
 
               <el-form-item label="公开访问域名 / 自定义 CDN 域名 (可选)">
-                <el-input
-                  v-model="storageSettings.r2_public_domain"
-                  placeholder="例如：https://pub-xxxx.r2.dev 或 https://cdn.yourdomain.com"
-                />
-                <div class="text-[11px] text-muted mt-1">
-                  在 Cloudflare R2 存储桶设置中绑定公共域名后填入此处，笔记中的图片与附件将直接通过该 CDN 域名直连加载。
-                </div>
+                <el-input v-model="storageSettings.r2_public_domain" placeholder="https://pub-xxxx.r2.dev 或 https://cdn.yourdomain.com" />
               </el-form-item>
             </div>
           </el-form>
 
-          <div class="surface-box-footer">
-            <span class="footer-hint">当前存储驱动：<strong>{{ storageSettings.storage_type === 'r2' ? 'Cloudflare R2' : '本地服务器' }}</strong></span>
+          <div class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800">
+            <span class="text-xs text-slate-400">当前存储驱动：<strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ storageSettings.storage_type === 'r2' ? 'Cloudflare R2' : '本地服务器' }}</strong></span>
             <button
-              class="admin-act-btn primary"
+              type="button"
+              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer"
               :disabled="savingStorage"
               @click="saveStorage"
             >
@@ -1725,14 +1823,24 @@ onMounted(() => {
         </div>
 
         <!-- 数据备份 -->
-        <div class="admin-surface-box">
-          <h3 class="text-sm font-semibold text-main m-0 mb-2">数据备份与导入</h3>
+        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle">
+          <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0 mb-3">数据备份与导入</h3>
           <div class="flex gap-2 flex-wrap">
-            <button class="admin-act-btn" @click="exportBookmarks">
-              <el-icon class="mr-1"><component is="Download" /></el-icon>导出 JSON
+            <button
+              type="button"
+              class="h-7 px-3 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              @click="exportBookmarks"
+            >
+              <el-icon class="text-xs"><component is="Download" /></el-icon>
+              <span>导出 JSON</span>
             </button>
-            <button class="admin-act-btn" @click="importInputRef?.click()">
-              <el-icon class="mr-1"><component is="Upload" /></el-icon>导入 (HTML / JSON)
+            <button
+              type="button"
+              class="h-7 px-3 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              @click="importInputRef?.click()"
+            >
+              <el-icon class="text-xs"><component is="Upload" /></el-icon>
+              <span>导入 (HTML / JSON)</span>
             </button>
             <input ref="importInputRef" type="file" accept=".json,.html,.htm" hidden @change="handleImportBookmarks" />
           </div>
@@ -1740,12 +1848,12 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 对话框：账户安全合并设置 (用户名 + 密码) -->
+    <!-- 对话框：账户安全 -->
     <el-dialog
       v-model="showAccountDialog"
       title="账户安全设置"
       :width="isMobile ? '92%' : '420px'"
-      class="zenlink-custom-dialog"
+      align-center
       :close-on-click-modal="false"
       destroy-on-close
     >
@@ -1754,8 +1862,8 @@ onMounted(() => {
           <el-input v-model="accountForm.username" placeholder="管理员用户名" />
         </el-form-item>
 
-        <div class="pt-2 border-t border-[var(--zl-border-light)]">
-          <p class="text-xs text-muted mb-2">如无需修改密码，以下密码项留空即可：</p>
+        <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+          <p class="text-xs text-slate-400 mb-2">如无需修改密码，以下密码项留空即可：</p>
           <el-form-item label="当前密码">
             <el-input v-model="accountForm.currentPassword" type="password" show-password placeholder="修改密码时需验证当前密码" />
           </el-form-item>
@@ -1780,7 +1888,7 @@ onMounted(() => {
       v-model="showBookmarkDialog"
       :title="editingBookmark.id ? '编辑书签' : '添加书签'"
       :width="isMobile ? '92%' : '460px'"
-      class="zenlink-custom-dialog"
+      align-center
       :close-on-click-modal="false"
       destroy-on-close
     >
@@ -1852,7 +1960,7 @@ onMounted(() => {
       v-model="showCategoryDialog"
       :title="editingCategory.id ? '编辑分类' : '新建分类'"
       :width="isMobile ? '92%' : '400px'"
-      class="zenlink-custom-dialog"
+      align-center
       :close-on-click-modal="false"
       destroy-on-close
     >

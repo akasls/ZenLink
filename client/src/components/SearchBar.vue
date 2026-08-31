@@ -186,39 +186,84 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="search-section"
-    :class="{ 'has-custom-bg': isCustomBg }"
+    class="w-full py-7 md:py-10 px-4 flex flex-col items-center justify-center border-b border-slate-200/80 dark:border-slate-800 relative transition-colors"
+    :class="[
+      isCustomBg
+        ? 'bg-slate-900/90 text-white'
+        : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200'
+    ]"
     :style="customBgStyle"
   >
-    <!-- FX 15 3D 海洋动态 Canvas (仅在非自定义背景图时生效) -->
-    <canvas v-if="!isCustomBg" ref="fxCanvasRef" class="search-fx-canvas"></canvas>
-    <div class="search-bg-overlay" :class="{ 'with-custom-img': isCustomBg }"></div>
+    <!-- 背景遮罩 (仅在自定义背景图时启用) -->
+    <div v-if="isCustomBg" class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"></div>
 
-    <div class="search-section-inner">
-      <!-- 搜索引擎切换 Pills (仅保留谷歌、必应、DuckDuckGo) -->
-      <div class="search-engine-pills">
+    <div class="relative z-10 w-full max-w-xl flex flex-col items-center gap-3">
+      <!-- 搜索引擎切换 Tabs (精简小型圆角) -->
+      <div
+        class="flex items-center gap-1 p-0.5 rounded-md border"
+        :class="[
+          isCustomBg
+            ? 'bg-slate-900/70 border-white/15'
+            : 'bg-slate-100 dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60'
+        ]"
+      >
         <button
           v-for="eng in searchEngines"
           :key="eng.id"
-          class="search-engine-pill"
-          :class="{ active: selectedEngine.id === eng.id }"
+          type="button"
+          class="px-3 py-1 text-xs font-medium rounded transition-colors cursor-pointer"
+          :class="[
+            selectedEngine.id === eng.id
+              ? (isCustomBg
+                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
+                  : 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs')
+              : (isCustomBg
+                  ? 'text-slate-300 hover:text-white hover:bg-white/10'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100')
+          ]"
           @click="selectEngine(eng)"
         >
           {{ eng.name }}
         </button>
       </div>
 
-      <!-- 搜索框 (圆角大药丸) -->
-      <div class="search-box">
+      <!-- 搜索框 (克制 8px 圆角 + 4px 网格) -->
+      <div
+        class="w-full flex items-center rounded-lg border shadow-subtle transition-all duration-150 p-1"
+        :class="[
+          isCustomBg
+            ? 'bg-white/15 border-white/25 focus-within:border-white/50 focus-within:bg-white/20'
+            : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 focus-within:border-indigo-500/80 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-indigo-500/10'
+        ]"
+      >
+        <div class="pl-2.5 pr-1 text-slate-400 dark:text-slate-500 flex items-center">
+          <el-icon class="text-sm"><component is="Search" /></el-icon>
+        </div>
         <input
           v-model="modelValue"
           type="text"
+          class="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none min-w-0"
+          :class="[
+            isCustomBg
+              ? 'text-white placeholder-slate-300'
+              : 'text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500'
+          ]"
           :placeholder="selectedEngine.placeholder || `在 ${selectedEngine.name} 中搜索...`"
           @keyup.enter="handleSearch"
           autocomplete="off"
         />
-        <button class="search-btn" @click="handleSearch" title="搜索 (Enter)">
-          <el-icon><component is="Search" /></el-icon>
+        <button
+          type="button"
+          class="h-7 px-3 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+          :class="[
+            isCustomBg
+              ? 'bg-white text-slate-900 hover:bg-slate-100 font-semibold'
+              : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white'
+          ]"
+          @click="handleSearch"
+          title="搜索 (Enter)"
+        >
+          <span>搜索</span>
         </button>
       </div>
     </div>

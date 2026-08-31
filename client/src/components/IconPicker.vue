@@ -56,14 +56,18 @@ function getIconLabel(icon: string): string {
 <template>
   <div>
     <div class="flex items-center gap-2">
-      <el-button @click="showPicker = true">
-        <el-icon class="mr-2 text-gray-600"><component :is="mapIcon(modelValue)" /></el-icon>
-        <span class="text-xs text-gray-500">选择图标</span>
-        <el-icon class="ml-1"><component is="ArrowDown" /></el-icon>
-      </el-button>
+      <button
+        type="button"
+        class="h-7 px-2.5 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+        @click="showPicker = true"
+      >
+        <el-icon class="text-xs text-slate-500"><component :is="mapIcon(modelValue)" /></el-icon>
+        <span class="text-xs">{{ getIconLabel(modelValue) || '选择图标' }}</span>
+        <el-icon class="text-[10px] text-slate-400"><component is="ArrowDown" /></el-icon>
+      </button>
     </div>
 
-    <el-dialog v-model="showPicker" title="选择图标" width="420px" destroy-on-close>
+    <el-dialog v-model="showPicker" title="选择分类图标" width="400px" align-center destroy-on-close>
       <div class="mb-3">
         <el-input v-model="search" placeholder="搜索图标名称..." clearable size="small">
           <template #prefix>
@@ -71,25 +75,30 @@ function getIconLabel(icon: string): string {
           </template>
         </el-input>
       </div>
-      <div class="grid grid-cols-8 gap-1 max-h-[300px] overflow-y-auto">
+      <div class="grid grid-cols-7 gap-1.5 max-h-[260px] overflow-y-auto p-1">
         <el-tooltip
           v-for="icon in filteredIcons"
           :key="icon"
           :content="getIconLabel(icon)"
           placement="top"
-          :show-after="400"
+          :show-after="300"
         >
           <button
             type="button"
-            class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-indigo-50 transition-colors"
-            :class="modelValue === icon ? 'bg-indigo-100 ring-2 ring-indigo-300' : 'bg-gray-50'"
+            class="w-9 h-9 flex items-center justify-center rounded-md border transition-all cursor-pointer"
+            :class="[
+              modelValue === icon
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900 dark:border-slate-100 font-bold shadow-xs'
+                : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+            ]"
             @click="selectIcon(icon)"
           >
-            <el-icon class="text-base text-gray-700"><component :is="mapIcon(icon)" /></el-icon>
+            <el-icon class="text-sm"><component :is="mapIcon(icon)" /></el-icon>
           </button>
         </el-tooltip>
       </div>
-      <el-empty v-if="filteredIcons.length === 0" description="未找到匹配图标" />
+      <el-empty v-if="filteredIcons.length === 0" description="未找到匹配图标" class="py-6" />
     </el-dialog>
   </div>
 </template>
+
