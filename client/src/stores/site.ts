@@ -65,6 +65,8 @@ export const useSiteStore = defineStore('site', () => {
   const defaultEngine = ref(localStorage.getItem('zl_default_engine') || 'google');
   const searchBgMode = ref<'dynamic' | 'custom_image'>((localStorage.getItem('zl_search_bg_mode') as any) || 'dynamic');
   const searchBgImage = ref(localStorage.getItem('zl_search_bg_image') || '');
+  const enableAi = ref(true);
+  const enableNotes = ref(true);
   const themePrimaryColor = ref(localStorage.getItem('zl_theme_primary_color') || '#f1404b');
 
   // 初始化应用主题色与 Favicon
@@ -174,6 +176,8 @@ export const useSiteStore = defineStore('site', () => {
   }
 
   return {
+    enableAi,
+    enableNotes,
     siteName,
     siteDesc,
     siteLogo,

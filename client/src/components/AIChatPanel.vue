@@ -93,6 +93,16 @@ const defaultRoles: RolePreset[] = [
 
 const roles = ref<RolePreset[]>([...defaultRoles]);
 const selectedRoleId = ref<string>('default');
+const mobileChapterPopoverVisible = ref(false);
+const roleSearchQuery = ref('');
+const filteredRoles = computed(() => {
+  if (!roleSearchQuery.value.trim()) return roles.value;
+  const q = roleSearchQuery.value.trim().toLowerCase();
+  return roles.value.filter(r => r.name.toLowerCase().includes(q) || r.prompt.toLowerCase().includes(q));
+});
+function deleteRole(id: string, e?: Event) {
+  deleteCustomRole(id, e);
+}
 
 function getRoleIcon(roleId?: string): string {
   if (!roleId || roleId === 'default') return '🤖';

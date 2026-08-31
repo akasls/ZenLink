@@ -85,6 +85,14 @@ const editContent = ref('');
 const editTags = ref<string[]>([]);
 const newTagInput = ref('');
 const isTagInputVisible = ref(false);
+const isTagPopoverVisible = ref(false);
+function setEditMode() {
+  viewMode.value = isMobile.value ? 'edit' : 'split';
+}
+function setPreviewMode() {
+  viewMode.value = 'preview';
+}
+function setScrollSource(_src: 'editor' | 'preview') {}
 const isAiWorking = ref(false);
 
 const saveStatus = ref<'saved' | 'saving' | 'unsaved'>('saved');
@@ -1126,6 +1134,11 @@ function copyNoteContent(content?: string, e?: Event) {
     ElMessage.success('笔记 Markdown 内容已复制至剪贴板');
   });
 }
+
+defineExpose({
+  exportMarkdownFile,
+  exportHtmlFile,
+});
 
 function exportMarkdownFile() {
   if (!selectedNote.value) return;

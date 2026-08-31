@@ -729,9 +729,11 @@ const siteForm = ref({
   searchBgMode: siteStore.searchBgMode || 'dynamic',
   searchBgImage: siteStore.searchBgImage || '',
   themePrimaryColor: siteStore.themePrimaryColor || '#f1404b',
+  enableAi: (siteStore as any).enableAi ?? true,
+  enableNotes: (siteStore as any).enableNotes ?? true,
 });
 
-watch(() => [siteStore.siteName, siteStore.siteDesc, siteStore.siteLogo, siteStore.defaultEngine, siteStore.searchBgMode, siteStore.searchBgImage, siteStore.themePrimaryColor], () => {
+watch(() => [siteStore.siteName, siteStore.siteDesc, siteStore.siteLogo, siteStore.defaultEngine, siteStore.searchBgMode, siteStore.searchBgImage, siteStore.themePrimaryColor, (siteStore as any).enableAi, (siteStore as any).enableNotes], () => {
   siteForm.value.siteName = siteStore.siteName;
   siteForm.value.siteDesc = siteStore.siteDesc;
   siteForm.value.siteLogo = siteStore.siteLogo || '';
@@ -739,6 +741,8 @@ watch(() => [siteStore.siteName, siteStore.siteDesc, siteStore.siteLogo, siteSto
   siteForm.value.searchBgMode = siteStore.searchBgMode || 'dynamic';
   siteForm.value.searchBgImage = siteStore.searchBgImage || '';
   siteForm.value.themePrimaryColor = siteStore.themePrimaryColor || '#f1404b';
+  siteForm.value.enableAi = (siteStore as any).enableAi ?? true;
+  siteForm.value.enableNotes = (siteStore as any).enableNotes ?? true;
 }, { immediate: true });
 
 async function handleLogoUpload(e: Event) {
