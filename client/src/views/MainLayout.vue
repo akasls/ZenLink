@@ -264,10 +264,7 @@ onUnmounted(() => {
     <!-- 主工作区 -->
     <main
       class="flex-1 min-w-0 min-h-screen flex flex-col transition-all duration-200 ease-in-out"
-      :class="[
-        sidebarCollapsed ? 'md:ml-14' : 'md:ml-52',
-        'ml-12 md:ml-auto'
-      ]"
+      :class="sidebarCollapsed ? 'ml-12 md:ml-14' : 'ml-12 md:ml-52'"
     >
       <div v-show="currentView === 'home'" class="flex flex-col min-h-screen">
         <SearchBar
