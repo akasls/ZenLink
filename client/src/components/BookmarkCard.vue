@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import { getAvatarChar, getAvatarColor } from '@/utils/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Lock } from 'lucide-vue-next';
 
 export interface Bookmark {
   id: number;
@@ -63,15 +64,15 @@ const tooltipText = computed(() => {
   <Tooltip :delay-duration="300">
     <TooltipTrigger as-child>
       <div
-        class="group relative flex items-center gap-3 p-3 bg-card rounded-lg border border-border/70 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-border hover:shadow-sm transition-all duration-150 cursor-pointer select-none overflow-hidden"
+        class="group relative flex items-center gap-3 p-2.5 sm:p-3 bg-card rounded-xl border border-border/70 hover:border-primary/40 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer select-none overflow-hidden"
         @click="emit('click', bookmark)"
         @contextmenu="emit('contextmenu', $event, bookmark)"
         @touchstart="emit('touchstart', $event, bookmark)"
         @touchmove="emit('touchmove')"
         @touchend="emit('touchend')"
       >
-        <!-- 图标 (克制圆角，高品质渲染) -->
-        <div class="w-8 h-8 rounded-md bg-muted/60 border border-border/50 flex items-center justify-center overflow-hidden shrink-0 p-1">
+        <!-- 图标 (优雅微圆角，Hover微放大) -->
+        <div class="w-8.5 h-8.5 rounded-lg bg-muted/60 border border-border/60 flex items-center justify-center overflow-hidden shrink-0 p-1.5 group-hover:scale-105 transition-transform duration-200">
           <img
             v-if="!imgFailed"
             :src="getFaviconSrc(bookmark)"
@@ -91,8 +92,11 @@ const tooltipText = computed(() => {
 
         <!-- 文本信息 -->
         <div class="flex-1 min-w-0 flex flex-col justify-center">
-          <div class="text-xs font-semibold text-foreground/90 truncate group-hover:text-foreground transition-colors leading-tight">
-            {{ bookmark.title }}
+          <div class="flex items-center justify-between gap-1">
+            <span class="text-xs font-semibold text-foreground/90 truncate group-hover:text-primary transition-colors leading-tight">
+              {{ bookmark.title }}
+            </span>
+            <Lock v-if="bookmark.is_private" class="h-3 w-3 text-muted-foreground/60 shrink-0" title="私有书签" />
           </div>
           <div class="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
             {{ bookmark.description || bookmark.url }}

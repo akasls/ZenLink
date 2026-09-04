@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
-import { useSiteStore } from '@/stores/site';
+import { useSiteStore, THEME_PRESETS } from '@/stores/site';
 import { authApi, bookmarkApi, categoryApi, aiApi, storageApi, noteApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
 import { confirmBox } from '@/utils/confirm';
@@ -752,14 +752,7 @@ const uploadingLogo = ref(false);
 const bgUploadInputRef = ref<HTMLInputElement | null>(null);
 const uploadingBg = ref(false);
 
-const colorPresets = [
-  { name: '经典不凡红', color: '#f1404b' },
-  { name: '科技极光蓝', color: '#3b82f6' },
-  { name: '灵动翡翠绿', color: '#10b981' },
-  { name: '幻影极客紫', color: '#8b5cf6' },
-  { name: '暖阳琥珀橙', color: '#f59e0b' },
-  { name: '曜石暗夜黑', color: '#18181b' },
-];
+const colorPresets = THEME_PRESETS;
 
 const siteForm = ref({
   siteName: siteStore.siteName,
@@ -768,7 +761,7 @@ const siteForm = ref({
   defaultEngine: siteStore.defaultEngine,
   searchBgMode: siteStore.searchBgMode || 'dynamic',
   searchBgImage: siteStore.searchBgImage || '',
-  themePrimaryColor: siteStore.themePrimaryColor || '#f1404b',
+  themePrimaryColor: siteStore.themePrimaryColor || '#6366f1',
   enableAi: (siteStore as any).enableAi ?? true,
   enableNotes: (siteStore as any).enableNotes ?? true,
 });
@@ -953,16 +946,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
+  <div class="flex flex-col min-h-screen bg-background text-foreground">
     <!-- 1. 顶栏 -->
-    <div class="h-12 px-4 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
+    <div class="h-12 px-4 border-b border-border bg-card flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
       <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">系统管理中心</span>
+        <span class="text-xs font-semibold text-foreground">系统管理中心</span>
       </div>
       <div class="flex items-center gap-2">
         <button
           type="button"
-          class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 text-slate-600 dark:text-slate-400 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+          class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-destructive/10 hover:text-destructive text-muted-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
           @click="handleLogout()"
           title="退出管理账户"
         >
@@ -975,14 +968,14 @@ onMounted(() => {
     <!-- 2. 主体自适应工作区 -->
     <div class="flex-1 p-4 sm:p-5 max-w-5xl w-full mx-auto space-y-4">
       <!-- 页面内部一级 Tab 菜单栏 -->
-      <div class="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-lg border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto scrollbar-none">
+      <div class="flex items-center gap-1 p-1 bg-muted rounded-lg border border-border/60 overflow-x-auto scrollbar-none">
         <button
           type="button"
           class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
           :class="[
             activeTab === 'bookmarks'
-              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              ? 'bg-background text-foreground font-semibold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
           ]"
           @click="activeTab = 'bookmarks'"
         >
@@ -995,8 +988,8 @@ onMounted(() => {
           class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
           :class="[
             activeTab === 'categories'
-              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              ? 'bg-background text-foreground font-semibold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
           ]"
           @click="activeTab = 'categories'"
         >
@@ -1009,8 +1002,8 @@ onMounted(() => {
           class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
           :class="[
             activeTab === 'ai'
-              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              ? 'bg-background text-foreground font-semibold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
           ]"
           @click="activeTab = 'ai'"
         >
@@ -1023,8 +1016,8 @@ onMounted(() => {
           class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
           :class="[
             activeTab === 'security'
-              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              ? 'bg-background text-foreground font-semibold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
           ]"
           @click="activeTab = 'security'"
         >
@@ -1037,8 +1030,8 @@ onMounted(() => {
           class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
           :class="[
             activeTab === 'site'
-              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              ? 'bg-background text-foreground font-semibold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
           ]"
           @click="activeTab = 'site'"
         >
@@ -1050,14 +1043,14 @@ onMounted(() => {
       <!-- Tab 1：书签管理 -->
       <div v-if="activeTab === 'bookmarks'" class="space-y-3">
         <!-- 统一单行工具栏 -->
-        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-subtle">
+        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap bg-card p-2.5 rounded-lg border border-border shadow-subtle">
           <!-- 1. 搜索框 -->
-          <div class="flex-1 flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-2.5 py-1 min-w-[180px]">
-            <Search class="h-3.5 w-3.5 text-slate-400 mr-1.5 flex-shrink-0" />
+          <div class="flex-1 flex items-center bg-background border border-border rounded-md px-2.5 py-1 min-w-[180px]">
+            <Search class="h-3.5 w-3.5 text-muted-foreground mr-1.5 flex-shrink-0" />
             <input
               v-model="bookmarkFilter"
               type="text"
-              class="w-full bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+              class="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
               placeholder="搜索书签标题或网址..."
             />
           </div>
@@ -1065,7 +1058,7 @@ onMounted(() => {
           <!-- 2. 分类下拉 -->
           <select
             v-model="bookmarkCategoryFilter"
-            class="h-7 w-36 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 text-xs text-slate-700 dark:text-slate-300 outline-none flex-shrink-0"
+            class="h-7 w-36 rounded-md border border-border bg-card px-2 text-xs text-foreground/90 outline-none flex-shrink-0"
           >
             <option
               v-for="opt in categoryFilterOptions"
@@ -1079,7 +1072,7 @@ onMounted(() => {
           <!-- 3. 添加按钮 -->
           <button
             type="button"
-            class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+            class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
             @click="openBookmarkDialog()"
           >
             <Plus class="h-3.5 w-3.5" />
@@ -1088,25 +1081,25 @@ onMounted(() => {
         </div>
 
         <!-- 链接列表 -->
-        <div v-if="loadingBookmarks" class="py-12 text-center text-slate-400">
-          <Loader2 class="h-6 w-6 animate-spin mx-auto text-slate-400" />
+        <div v-if="loadingBookmarks" class="py-12 text-center text-muted-foreground">
+          <Loader2 class="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
         </div>
-        <div v-else-if="!filteredBookmarks.length" class="py-12 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg">
-          <div class="text-center text-xs text-slate-400">暂无符合条件的导航书签</div>
+        <div v-else-if="!filteredBookmarks.length" class="py-12 bg-card border border-border rounded-lg">
+          <div class="text-center text-xs text-muted-foreground">暂无符合条件的导航书签</div>
         </div>
         <div v-else class="space-y-2">
           <div ref="bookmarkListRef" class="space-y-1.5">
             <div
               v-for="bm in paginatedBookmarks"
               :key="bm.id"
-              class="group flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-md transition-colors"
+              class="group flex items-center justify-between px-3 py-2 bg-card hover:bg-accent/60 border border-border rounded-md transition-colors"
             >
               <!-- 左侧：拖拽 + 图标 + 标题 + 分类 + 私有锁 -->
               <div class="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
-                <span class="bm-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
+                <span class="bm-drag text-muted-foreground hover:text-foreground cursor-grab flex items-center" title="拖拽排序">
                   <GripVertical class="h-3.5 w-3.5" />
                 </span>
-                <div class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div class="w-5 h-5 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                   <img
                     v-if="!rowImgErrors[bm.id]"
                     :src="getAdminRowFavicon(bm)"
@@ -1123,8 +1116,8 @@ onMounted(() => {
                   </div>
                 </div>
 
-                <span class="text-xs font-medium text-slate-800 dark:text-slate-200 truncate" :title="bm.title">{{ bm.title }}</span>
-                <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex-shrink-0 font-normal">
+                <span class="text-xs font-medium text-foreground truncate" :title="bm.title">{{ bm.title }}</span>
+                <span class="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex-shrink-0 font-normal">
                   {{ getCategoryName(bm.category_id) }}
                 </span>
                 <Lock v-if="bm.is_private" class="h-3 w-3 text-amber-500 flex-shrink-0" title="私有书签" />
@@ -1134,7 +1127,7 @@ onMounted(() => {
               <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                   @click="openBookmarkDialog(bm)"
                   title="编辑书签"
                 >
@@ -1142,7 +1135,7 @@ onMounted(() => {
                 </button>
                 <button
                   type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                   @click="confirmDeleteBookmark(bm)"
                   title="删除书签"
                 >
@@ -1153,14 +1146,14 @@ onMounted(() => {
           </div>
 
           <!-- 分页栏 -->
-          <div v-if="filteredBookmarks.length > pageSize" class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800 text-xs text-slate-500">
-            <div class="text-[11px] text-slate-400">
-              共 <strong class="font-semibold text-slate-700 dark:text-slate-300">{{ filteredBookmarks.length }}</strong> 条 · 第 <strong class="font-semibold text-slate-700 dark:text-slate-300">{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong> 页
+          <div v-if="filteredBookmarks.length > pageSize" class="flex items-center justify-between pt-3 border-t border-border text-xs text-muted-foreground">
+            <div class="text-[11px] text-muted-foreground">
+              共 <strong class="font-semibold text-foreground/90">{{ filteredBookmarks.length }}</strong> 条 · 第 <strong class="font-semibold text-foreground/90">{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong> 页
             </div>
             <div class="flex items-center gap-1">
               <button
                 type="button"
-                class="w-7 h-7 rounded border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
+                class="w-7 h-7 rounded border border-border bg-card flex items-center justify-center text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 cursor-pointer"
                 :disabled="currentPage <= 1"
                 @click="currentPage--"
                 title="上一页"
@@ -1169,15 +1162,15 @@ onMounted(() => {
               </button>
 
               <template v-for="(p, idx) in visiblePages" :key="idx">
-                <span v-if="p === '...'" class="px-1 text-slate-400 text-xs">...</span>
+                <span v-if="p === '...'" class="px-1 text-muted-foreground text-xs">...</span>
                 <button
                   v-else
                   type="button"
                   class="w-7 h-7 rounded text-xs font-medium flex items-center justify-center transition-colors cursor-pointer"
                   :class="[
                     currentPage === p
-                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold'
-                      : 'border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                      : 'border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground'
                   ]"
                   @click="currentPage = Number(p)"
                 >
@@ -1187,7 +1180,7 @@ onMounted(() => {
 
               <button
                 type="button"
-                class="w-7 h-7 rounded border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
+                class="w-7 h-7 rounded border border-border bg-card flex items-center justify-center text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 cursor-pointer"
                 :disabled="currentPage >= totalPages"
                 @click="currentPage++"
                 title="下一页"
@@ -1201,10 +1194,10 @@ onMounted(() => {
 
       <!-- Tab 2：分类管理 -->
       <div v-if="activeTab === 'categories'" class="space-y-3">
-        <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-subtle">
+        <div class="flex items-center justify-between bg-card p-2.5 rounded-lg border border-border shadow-subtle">
           <button
             type="button"
-            class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             @click="toggleExpandAll"
           >
             <ChevronsUpDown class="h-3.5 w-3.5" />
@@ -1213,7 +1206,7 @@ onMounted(() => {
 
           <button
             type="button"
-            class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer"
+            class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs flex items-center gap-1 transition-colors cursor-pointer"
             @click="openCategoryDialog()"
           >
             <Plus class="h-3.5 w-3.5" />
@@ -1222,27 +1215,27 @@ onMounted(() => {
         </div>
 
         <div ref="categoryListRef" class="space-y-2">
-          <div v-for="cat in categoryTree" :key="cat.id" class="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-subtle overflow-hidden">
+          <div v-for="cat in categoryTree" :key="cat.id" class="bg-card rounded-lg border border-border shadow-subtle overflow-hidden">
             <!-- 一级分类行 -->
-            <div class="group flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+            <div class="group flex items-center justify-between px-3 py-2.5 hover:bg-accent/50 transition-colors">
               <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                <span class="cat-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
+                <span class="cat-drag text-muted-foreground hover:text-foreground cursor-grab flex items-center" title="拖拽排序">
                   <GripVertical class="h-3.5 w-3.5" />
                 </span>
-                <button type="button" class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer" @click.stop="toggleExpand(cat.id)">
+                <button type="button" class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer" @click.stop="toggleExpand(cat.id)">
                   <ChevronDown v-if="expandedCategories.includes(cat.id)" class="h-3.5 w-3.5" />
                   <ChevronRight v-else class="h-3.5 w-3.5" />
                 </button>
-                <component :is="mapIcon(cat.icon)" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{{ cat.name }}</span>
+                <component :is="mapIcon(cat.icon)" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span class="text-xs font-semibold text-foreground truncate">{{ cat.name }}</span>
                 <span v-if="cat.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
-                <span class="text-[11px] text-slate-400 dark:text-slate-500 font-normal">({{ cat.children.length }} 个子分类)</span>
+                <span class="text-[11px] text-muted-foreground font-normal">({{ cat.children.length }} 个子分类)</span>
               </div>
 
               <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                   @click.stop="openCategoryDialog(undefined, cat.id)"
                   title="添加子分类"
                 >
@@ -1250,7 +1243,7 @@ onMounted(() => {
                 </button>
                 <button
                   type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                   @click.stop="openCategoryDialog(cat)"
                   title="编辑分类"
                 >
@@ -1258,7 +1251,7 @@ onMounted(() => {
                 </button>
                 <button
                   type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                   @click.stop="confirmDeleteCategory(cat)"
                   title="删除分类"
                 >
@@ -1268,27 +1261,27 @@ onMounted(() => {
             </div>
 
             <!-- 二级子分类列表 -->
-            <div v-show="expandedCategories.includes(cat.id)" class="border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/30 p-2 space-y-1">
+            <div v-show="expandedCategories.includes(cat.id)" class="border-t border-border/60 bg-muted/30 p-2 space-y-1">
               <div class="cat-sub-sortable-container space-y-1" :data-parent-id="cat.id">
                 <div
                   v-for="sub in cat.children"
                   :key="sub.id"
-                  class="group flex items-center justify-between px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  class="group flex items-center justify-between px-3 py-1.5 rounded-md bg-card border border-border/60 hover:bg-accent transition-colors"
                 >
                   <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                    <span class="sub-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
+                    <span class="sub-drag text-muted-foreground hover:text-foreground cursor-grab flex items-center" title="拖拽排序">
                       <GripVertical class="h-3.5 w-3.5" />
                     </span>
-                    <span class="text-slate-400 text-xs font-mono">└</span>
-                    <component :is="mapIcon(sub.icon)" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                    <span class="text-xs text-slate-700 dark:text-slate-300 truncate">{{ sub.name }}</span>
+                    <span class="text-muted-foreground text-xs font-mono">└</span>
+                    <component :is="mapIcon(sub.icon)" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span class="text-xs text-foreground/90 truncate">{{ sub.name }}</span>
                     <span v-if="sub.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
                   </div>
 
                   <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
-                      class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                       @click="openCategoryDialog(sub)"
                       title="编辑子分类"
                     >
@@ -1296,7 +1289,7 @@ onMounted(() => {
                     </button>
                     <button
                       type="button"
-                      class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                       @click="confirmDeleteCategory(sub)"
                       title="删除子分类"
                     >
@@ -1306,7 +1299,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div v-if="!cat.children.length" class="text-center py-2 text-[11px] text-slate-400 dark:text-slate-500">
+              <div v-if="!cat.children.length" class="text-center py-2 text-[11px] text-muted-foreground">
                 暂无二级子分类
               </div>
             </div>
@@ -1316,17 +1309,17 @@ onMounted(() => {
 
       <!-- Tab 3：AI 模型与推理参数 -->
       <div v-if="activeTab === 'ai'" class="space-y-3">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
+        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
           <div class="space-y-3.5">
             <!-- 1. API Base URL -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">API Base URL</label>
+              <label class="block text-xs font-medium text-foreground/90">API Base URL</label>
               <Input v-model="aiSettings.base_url" placeholder="https://api.deepseek.com/v1" />
             </div>
 
             <!-- 2. API Key -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">API Key</label>
+              <label class="block text-xs font-medium text-foreground/90">API Key</label>
               <Input
                 v-model="aiSettings.api_key"
                 type="password"
@@ -1335,28 +1328,28 @@ onMounted(() => {
             </div>
 
             <!-- 3. 启用模型 -->
-            <div class="space-y-2 p-3 rounded-md bg-slate-50 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70">
+            <div class="space-y-2 p-3 rounded-md bg-background/60 border border-border/70">
               <div class="flex items-center justify-between">
-                <span class="font-semibold text-xs text-slate-800 dark:text-slate-200">启用模型列表</span>
+                <span class="font-semibold text-xs text-foreground">启用模型列表</span>
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
-                    class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1"
+                    class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer flex items-center gap-1"
                     :disabled="fetchingModels"
                     @click="fetchOnlineModels"
                   >
                     <Loader2 v-if="fetchingModels" class="h-3 w-3 animate-spin text-primary" />
-                    <RotateCw v-else class="h-3 w-3 text-slate-500" />
+                    <RotateCw v-else class="h-3 w-3 text-muted-foreground" />
                     <span>{{ fetchingModels ? '获取中...' : '获取' }}</span>
                   </button>
-                  <button type="button" class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" @click="selectAllModels">全选</button>
-                  <button type="button" class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" @click="clearAllModels">清空</button>
+                  <button type="button" class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer" @click="selectAllModels">全选</button>
+                  <button type="button" class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer" @click="clearAllModels">清空</button>
                 </div>
               </div>
 
               <!-- 模型芯片网格 -->
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto p-1">
-                <div v-if="allFetchedModels.length === 0" class="text-xs text-slate-400 py-2 col-span-full text-center">
+                <div v-if="allFetchedModels.length === 0" class="text-xs text-muted-foreground py-2 col-span-full text-center">
                   暂无模型，可点击上方「获取」或在下方输入名称添加
                 </div>
                 <div
@@ -1365,14 +1358,14 @@ onMounted(() => {
                   class="flex items-center justify-between px-2.5 py-1.5 rounded border transition-colors cursor-pointer"
                   :class="[
                     (aiSettings.available_models || []).includes(m)
-                      ? 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 font-medium'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300'
+                      ? 'bg-muted border-border text-foreground font-medium'
+                      : 'bg-card border-border text-muted-foreground hover:border-border/80'
                   ]"
                   @click="toggleModelCheck(m)"
                 >
                   <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
                     <CheckCircle2 v-if="(aiSettings.available_models || []).includes(m)" class="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                    <Circle v-else class="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                    <Circle v-else class="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                     <span class="text-xs truncate">{{ m }}</span>
                   </div>
 
@@ -1380,7 +1373,7 @@ onMounted(() => {
                     <button
                       type="button"
                       class="w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer"
-                      :class="aiSettings.model === m ? 'text-amber-500' : 'text-slate-400 hover:text-slate-600'"
+                      :class="aiSettings.model === m ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground'"
                       @click.stop="setDefaultModel(m)"
                       :title="aiSettings.model === m ? '当前默认模型' : '点击设为默认模型'"
                     >
@@ -1388,7 +1381,7 @@ onMounted(() => {
                     </button>
                     <button
                       type="button"
-                      class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                      class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
                       @click.stop="removeModel(m)"
                       title="删除此模型"
                     >
@@ -1407,7 +1400,7 @@ onMounted(() => {
                 />
                 <button
                   type="button"
-                  class="h-7 px-2.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                  class="h-7 px-2.5 rounded bg-muted hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
                   @click="addCustomModel"
                   title="添加模型"
                 >
@@ -1420,7 +1413,7 @@ onMounted(() => {
             <!-- 专属模型 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">在线笔记写作专属模型</label>
+                <label class="block text-xs font-medium text-foreground/90">在线笔记写作专属模型</label>
                 <select
                   v-model="aiSettings.writing_model"
                   class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -1431,7 +1424,7 @@ onMounted(() => {
               </div>
 
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">导航书签解析专属模型</label>
+                <label class="block text-xs font-medium text-foreground/90">导航书签解析专属模型</label>
                 <select
                   v-model="aiSettings.bookmark_model"
                   class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -1443,10 +1436,10 @@ onMounted(() => {
             </div>
 
             <!-- 深度思考开关 -->
-            <div class="flex items-center justify-between p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
+            <div class="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30">
               <div>
-                <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">深度思考 (Reasoning CoT)</div>
-                <div class="text-[11px] text-slate-400">开启后大模型将展开深入步骤思考</div>
+                <div class="text-xs font-semibold text-foreground">深度思考 (Reasoning CoT)</div>
+                <div class="text-[11px] text-muted-foreground">开启后大模型将展开深入步骤思考</div>
               </div>
               <Switch :checked="aiSettings.reasoning_mode" @update:checked="aiSettings.reasoning_mode = $event" />
             </div>
@@ -1454,10 +1447,10 @@ onMounted(() => {
             <!-- 采样温度 -->
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
-                  采样温度 (Temperature): <span class="font-mono font-semibold text-slate-900 dark:text-slate-100">{{ aiSettings.temperature }}</span>
+                <label class="text-xs font-medium text-muted-foreground">
+                  采样温度 (Temperature): <span class="font-mono font-semibold text-foreground">{{ aiSettings.temperature }}</span>
                 </label>
-                <span class="text-[11px] text-slate-400">
+                <span class="text-[11px] text-muted-foreground">
                   {{ aiSettings.temperature < 0.4 ? '严谨精准' : aiSettings.temperature > 1.0 ? '创意发散' : '通用平衡' }}
                 </span>
               </div>
@@ -1473,8 +1466,8 @@ onMounted(() => {
             <!-- Top-P -->
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
-                  核采样 (Top-P): <span class="font-mono font-semibold text-slate-900 dark:text-slate-100">{{ aiSettings.top_p }}</span>
+                <label class="text-xs font-medium text-muted-foreground">
+                  核采样 (Top-P): <span class="font-mono font-semibold text-foreground">{{ aiSettings.top_p }}</span>
                 </label>
               </div>
               <Slider
@@ -1488,13 +1481,13 @@ onMounted(() => {
 
             <!-- Max Tokens -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">单次最大生成 Token 数 (Max Tokens)</label>
+              <label class="block text-xs font-medium text-foreground/90">单次最大生成 Token 数 (Max Tokens)</label>
               <Input v-model.number="aiSettings.max_tokens" type="number" :min="256" :max="16384" :step="512" class="w-full" />
             </div>
 
             <!-- 全局系统提示词 -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">全局系统提示词 (System Prompt)</label>
+              <label class="block text-xs font-medium text-foreground/90">全局系统提示词 (System Prompt)</label>
               <Textarea
                 v-model="aiSettings.system_prompt"
                 :rows="3"
@@ -1503,11 +1496,11 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800">
-            <span class="text-xs text-slate-400">当前默认模型：<strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ aiSettings.model || '未设定' }}</strong></span>
+          <div class="flex items-center justify-between pt-3 border-t border-border">
+            <span class="text-xs text-muted-foreground">当前默认模型：<strong class="text-foreground/90 font-semibold">{{ aiSettings.model || '未设定' }}</strong></span>
             <button
               type="button"
-              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              class="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
               :disabled="savingAiSettings"
               @click="saveAdminAiSettings"
             >
@@ -1521,14 +1514,14 @@ onMounted(() => {
       <!-- Tab 4：安全中心 -->
       <div v-if="activeTab === 'security'" class="space-y-3">
         <!-- 1. 账户卡片 -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle flex justify-between items-center">
+        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle flex justify-between items-center">
           <div>
-            <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">账户与登录密码</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mt-0.5">当前账户: <strong class="text-slate-800 dark:text-slate-200 font-semibold">{{ authStore.user?.username }}</strong></p>
+            <h3 class="text-sm font-semibold text-foreground m-0">账户与登录密码</h3>
+            <p class="text-xs text-muted-foreground m-0 mt-0.5">当前账户: <strong class="text-foreground font-semibold">{{ authStore.user?.username }}</strong></p>
           </div>
           <button
             type="button"
-            class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             @click="openAccountDialog"
           >
             <Pencil class="h-3.5 w-3.5" />
@@ -1537,12 +1530,12 @@ onMounted(() => {
         </div>
 
         <!-- 2. 多重身份认证卡片 -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
+        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
           <!-- 上部：两步验证 (TOTP) -->
-          <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex justify-between items-center pb-3 border-b border-border/60">
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">两步验证 (TOTP)</h3>
+                <h3 class="text-sm font-semibold text-foreground m-0">两步验证 (TOTP)</h3>
                 <span
                   class="text-[10px] px-1.5 py-0.5 rounded font-medium"
                   :class="authStore.user?.totp_enabled ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'"
@@ -1550,12 +1543,12 @@ onMounted(() => {
                   {{ authStore.user?.totp_enabled ? '已启用' : '未启用' }}
                 </span>
               </div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mt-0.5">基于 Authenticator 动态验证码</p>
+              <p class="text-xs text-muted-foreground m-0 mt-0.5">基于 Authenticator 动态验证码</p>
             </div>
             <button
               v-if="!authStore.user?.totp_enabled"
               type="button"
-              class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer"
+              class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs flex items-center gap-1 transition-colors cursor-pointer"
               :disabled="settingUpTotp"
               @click="startTotpSetup"
             >
@@ -1565,12 +1558,12 @@ onMounted(() => {
           </div>
 
           <!-- TOTP 配置中区域 -->
-          <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3 border-b border-slate-100 dark:border-slate-800">
+          <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3 border-b border-border/60">
             <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md" /></div>
-            <p class="text-[11px] text-slate-400 text-center break-all font-mono">{{ totpSetup.secret }}</p>
+            <p class="text-[11px] text-muted-foreground text-center break-all font-mono">{{ totpSetup.secret }}</p>
             <div class="flex gap-2 max-w-sm mx-auto">
               <Input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" class="flex-1 h-7 text-xs" />
-              <button type="button" class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium" @click="confirmTotp">确认绑定</button>
+              <button type="button" class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs" @click="confirmTotp">确认绑定</button>
             </div>
           </div>
 
@@ -1578,7 +1571,7 @@ onMounted(() => {
           <div class="flex justify-between items-center">
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">Passkey 免密登录</h3>
+                <h3 class="text-sm font-semibold text-foreground m-0">Passkey 免密登录</h3>
                 <span
                   class="text-[10px] px-1.5 py-0.5 rounded font-medium"
                   :class="authStore.user?.webauthn_enabled ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'"
@@ -1586,11 +1579,11 @@ onMounted(() => {
                   {{ authStore.user?.webauthn_enabled ? '已绑定' : '未绑定' }}
                 </span>
               </div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mt-0.5">指纹 / Face ID / Windows Hello 硬件免密</p>
+              <p class="text-xs text-muted-foreground m-0 mt-0.5">指纹 / Face ID / Windows Hello 硬件免密</p>
             </div>
             <button
               type="button"
-              class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
               :disabled="registeringPasskey"
               @click="registerPasskey"
             >
@@ -1603,16 +1596,16 @@ onMounted(() => {
 
       <!-- Tab 5：站点设置 -->
       <div v-if="activeTab === 'site'" class="space-y-3">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
+        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
           <div class="space-y-3.5">
             <!-- 1. 外观深浅模式 -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">外观主题</label>
-              <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800/80 p-1">
+              <label class="block text-xs font-medium text-foreground/90">外观主题</label>
+              <div class="inline-flex rounded-lg border border-border bg-muted/80 p-1">
                 <button
                   type="button"
                   class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                  :class="themeStore.mode === 'system' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'"
+                  :class="themeStore.mode === 'system' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
                   @click="themeStore.setMode('system')"
                 >
                   跟随系统
@@ -1620,7 +1613,7 @@ onMounted(() => {
                 <button
                   type="button"
                   class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                  :class="themeStore.mode === 'light' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'"
+                  :class="themeStore.mode === 'light' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
                   @click="themeStore.setMode('light')"
                 >
                   日间浅色
@@ -1628,7 +1621,7 @@ onMounted(() => {
                 <button
                   type="button"
                   class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                  :class="themeStore.mode === 'dark' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'"
+                  :class="themeStore.mode === 'dark' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
                   @click="themeStore.setMode('dark')"
                 >
                   夜间深色
@@ -1638,37 +1631,37 @@ onMounted(() => {
 
             <!-- 2. 主品牌色 -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">系统主品牌色 (实时生效)</label>
+              <label class="block text-xs font-medium text-foreground/90">系统主品牌色 (实时生效)</label>
               <div class="flex items-center gap-2 flex-wrap">
                 <button
                   v-for="p in colorPresets"
                   :key="p.color"
                   type="button"
-                  class="w-6 h-6 rounded-md flex items-center justify-center transition-transform cursor-pointer"
-                  :class="{ 'ring-2 ring-offset-2 ring-slate-400 scale-105': siteForm.themePrimaryColor === p.color }"
-                  :style="{ backgroundColor: p.color }"
-                  :title="p.name"
+                  class="group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/80 bg-card hover:bg-accent/60 transition-all cursor-pointer text-xs"
+                  :class="{ 'border-primary ring-2 ring-primary/20 font-semibold text-foreground': siteForm.themePrimaryColor === p.color }"
                   @click="selectThemeColor(p.color)"
                 >
-                  <Check v-if="siteForm.themePrimaryColor === p.color" class="text-white h-3.5 w-3.5" />
+                  <span class="w-3 h-3 rounded-full shrink-0 shadow-xs" :style="{ backgroundColor: p.color }"></span>
+                  <span class="text-[11px]">{{ p.name }}</span>
+                  <Check v-if="siteForm.themePrimaryColor === p.color" class="h-3 w-3 text-primary shrink-0" />
                 </button>
 
                 <div class="flex items-center gap-2 ml-1">
                   <input
                     type="color"
                     :value="siteForm.themePrimaryColor"
-                    class="w-7 h-7 rounded border border-slate-200 dark:border-slate-800 cursor-pointer bg-transparent"
+                    class="w-7 h-7 rounded border border-border cursor-pointer bg-transparent"
                     @input="siteStore.setThemePrimaryColor(($event.target as HTMLInputElement).value)"
                   />
-                  <span class="text-xs font-mono text-slate-400">{{ siteForm.themePrimaryColor }}</span>
+                  <span class="text-xs font-mono text-muted-foreground">{{ siteForm.themePrimaryColor }}</span>
                 </div>
               </div>
             </div>
 
             <!-- 3. 搜索背景图 -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">导航主页搜索组件背景图</label>
-              <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
+              <label class="block text-xs font-medium text-foreground/90">导航主页搜索组件背景图</label>
+              <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
                 <div class="flex items-center gap-2">
                   <Input
                     v-model="siteForm.searchBgImage"
@@ -1678,22 +1671,22 @@ onMounted(() => {
                   />
                   <button
                     type="button"
-                    class="h-9 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+                    class="h-9 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
                     :disabled="uploadingBg"
                     @click="bgUploadInputRef?.click()"
                   >
                     <Loader2 v-if="uploadingBg" class="h-3 w-3 animate-spin text-primary" />
-                    <Upload v-else class="h-3 w-3 text-slate-500" />
+                    <Upload v-else class="h-3 w-3 text-muted-foreground" />
                     <span>{{ uploadingBg ? '上传中...' : '上传图片' }}</span>
                   </button>
                   <input ref="bgUploadInputRef" type="file" accept="image/*" hidden @change="handleBgUpload" />
                 </div>
 
-                <div v-if="siteForm.searchBgImage" class="relative rounded-md overflow-hidden border border-slate-200 dark:border-slate-800 h-24 flex items-center justify-center">
+                <div v-if="siteForm.searchBgImage" class="relative rounded-md overflow-hidden border border-border h-24 flex items-center justify-center">
                   <img :src="siteForm.searchBgImage" alt="搜索背景图" class="w-full h-full object-cover" />
                   <button
                     type="button"
-                    class="absolute top-1.5 right-1.5 p-1 rounded-full bg-slate-900/70 text-white text-xs hover:bg-slate-900 transition-colors cursor-pointer"
+                    class="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white text-xs hover:bg-black/80 transition-colors cursor-pointer"
                     title="清除背景图"
                     @click="clearCustomBg"
                   >
@@ -1704,23 +1697,23 @@ onMounted(() => {
             </div>
 
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">站点名称</label>
+              <label class="block text-xs font-medium text-foreground/90">站点名称</label>
               <Input v-model="siteForm.siteName" placeholder="ZenLink" />
             </div>
 
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">站点描述</label>
+              <label class="block text-xs font-medium text-foreground/90">站点描述</label>
               <Input v-model="siteForm.siteDesc" placeholder="干净简洁的导航！" />
             </div>
 
             <!-- 网站 Logo -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">网站图标与站标 (Logo / Favicon)</label>
-              <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
+              <label class="block text-xs font-medium text-foreground/90">网站图标与站标 (Logo / Favicon)</label>
+              <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
+                  <div class="w-10 h-10 rounded-md bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
                     <img v-if="siteForm.siteLogo" :src="siteForm.siteLogo" alt="Logo" class="w-full h-full object-cover" />
-                    <span v-else class="font-bold text-sm text-slate-800 dark:text-slate-200">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
+                    <span v-else class="font-bold text-sm text-foreground">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
                     <button
                       v-if="siteForm.siteLogo"
                       type="button"
@@ -1742,24 +1735,24 @@ onMounted(() => {
                       />
                       <button
                         type="button"
-                        class="h-9 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+                        class="h-9 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
                         :disabled="uploadingLogo"
                         @click="logoUploadInputRef?.click()"
                       >
                         <Loader2 v-if="uploadingLogo" class="h-3 w-3 animate-spin text-primary" />
-                        <Upload v-else class="h-3 w-3 text-slate-500" />
+                        <Upload v-else class="h-3 w-3 text-muted-foreground" />
                         <span>{{ uploadingLogo ? '上传中...' : '上传' }}</span>
                       </button>
                       <input ref="logoUploadInputRef" type="file" accept="image/*" hidden @change="handleLogoUpload" />
                     </div>
-                    <p class="text-[11px] text-slate-400 m-0">支持 PNG/SVG/ICO/JPG 格式</p>
+                    <p class="text-[11px] text-muted-foreground m-0">支持 PNG/SVG/ICO/JPG 格式</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">默认搜索引擎</label>
+              <label class="block text-xs font-medium text-foreground/90">默认搜索引擎</label>
               <select
                 v-model="siteForm.defaultEngine"
                 class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -1772,20 +1765,20 @@ onMounted(() => {
 
             <!-- 功能模块开关 -->
             <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">功能模块开关</label>
-              <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
+              <label class="block text-xs font-medium text-foreground/90">功能模块开关</label>
+              <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
                 <div class="flex items-center justify-between">
                   <div>
-                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">开启 AI 助手</div>
-                    <div class="text-[11px] text-slate-400">开启后可在侧边栏使用 AI 助手</div>
+                    <div class="text-xs font-semibold text-foreground">开启 AI 助手</div>
+                    <div class="text-[11px] text-muted-foreground">开启后可在侧边栏使用 AI 助手</div>
                   </div>
                   <Switch :checked="siteForm.enableAi" @update:checked="siteForm.enableAi = $event" />
                 </div>
 
-                <div class="border-t border-slate-200/60 dark:border-slate-800/60 pt-2 flex items-center justify-between">
+                <div class="border-t border-border/60 pt-2 flex items-center justify-between">
                   <div>
-                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">开启在线笔记</div>
-                    <div class="text-[11px] text-slate-400">开启后可在侧边栏使用在线笔记</div>
+                    <div class="text-xs font-semibold text-foreground">开启在线笔记</div>
+                    <div class="text-[11px] text-muted-foreground">开启后可在侧边栏使用在线笔记</div>
                   </div>
                   <Switch :checked="siteForm.enableNotes" @update:checked="siteForm.enableNotes = $event" />
                 </div>
@@ -1793,10 +1786,10 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex justify-end">
+          <div class="pt-3 border-t border-border flex justify-end">
             <button
               type="button"
-              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
+              class="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs transition-colors cursor-pointer flex items-center gap-1"
               @click="saveSiteSettings"
             >
               <Check class="h-3.5 w-3.5" />
@@ -1806,95 +1799,95 @@ onMounted(() => {
         </div>
 
         <!-- 存储驱动 -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-3">
-          <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">附件存储驱动设置</h3>
+        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-3">
+          <h3 class="text-sm font-semibold text-foreground m-0">附件存储驱动设置</h3>
 
           <div class="space-y-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">当前存储位置</label>
+              <label class="block text-xs font-semibold text-foreground/90 mb-1.5">当前存储位置</label>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div
                   class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
-                  :class="storageSettings.storage_type === 'local' ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30'"
+                  :class="storageSettings.storage_type === 'local' ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'"
                   @click="storageSettings.storage_type = 'local'"
                 >
                   <div class="flex items-center gap-2">
-                    <FolderOpen class="h-5 w-5 text-indigo-500" />
+                    <FolderOpen class="h-5 w-5 text-primary" />
                     <div>
-                      <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">本地服务器存储 (Local)</div>
-                      <div class="text-[11px] text-slate-400">文件保存在 data/uploads 目录</div>
+                      <div class="text-xs font-semibold text-foreground">本地服务器存储 (Local)</div>
+                      <div class="text-[11px] text-muted-foreground">文件保存在 data/uploads 目录</div>
                     </div>
                   </div>
-                  <Check v-if="storageSettings.storage_type === 'local'" class="h-4 w-4 text-indigo-500" />
+                  <Check v-if="storageSettings.storage_type === 'local'" class="h-4 w-4 text-primary" />
                 </div>
 
                 <div
                   class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
-                  :class="storageSettings.storage_type === 'r2' ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20' : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30'"
+                  :class="storageSettings.storage_type === 'r2' ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'"
                   @click="storageSettings.storage_type = 'r2'"
                 >
                   <div class="flex items-center gap-2">
-                    <Cloud class="h-5 w-5 text-indigo-500" />
+                    <Cloud class="h-5 w-5 text-primary" />
                     <div>
-                      <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Cloudflare R2 对象存储</div>
-                      <div class="text-[11px] text-slate-400">全球 CDN 直链加速</div>
+                      <div class="text-xs font-semibold text-foreground">Cloudflare R2 对象存储</div>
+                      <div class="text-[11px] text-muted-foreground">全球 CDN 直链加速</div>
                     </div>
                   </div>
-                  <Check v-if="storageSettings.storage_type === 'r2'" class="h-4 w-4 text-indigo-500" />
+                  <Check v-if="storageSettings.storage_type === 'r2'" class="h-4 w-4 text-primary" />
                 </div>
               </div>
             </div>
 
             <!-- R2 参数 -->
-            <div v-if="storageSettings.storage_type === 'r2'" class="space-y-3 p-3.5 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30">
-              <div class="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
-                <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Cloudflare R2 凭据配置</span>
+            <div v-if="storageSettings.storage_type === 'r2'" class="space-y-3 p-3.5 rounded-md border border-border bg-muted/30">
+              <div class="flex items-center justify-between pb-2 border-b border-border/60">
+                <span class="text-xs font-semibold text-foreground">Cloudflare R2 凭据配置</span>
                 <button
                   type="button"
-                  class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1"
+                  class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer flex items-center gap-1"
                   :disabled="testingR2"
                   @click="testR2"
                 >
                   <Loader2 v-if="testingR2" class="h-3 w-3 animate-spin text-primary" />
-                  <Network v-else class="h-3 w-3 text-slate-500" />
+                  <Network v-else class="h-3 w-3 text-muted-foreground" />
                   <span>{{ testingR2 ? '测试中...' : '测试连接' }}</span>
                 </button>
               </div>
 
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Cloudflare Account ID</label>
+                <label class="block text-xs font-medium text-foreground/90">Cloudflare Account ID</label>
                 <Input v-model="storageSettings.r2_account_id" placeholder="例如：a1b2c3d4e5f6..." />
               </div>
 
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">R2 存储桶名称 (Bucket Name)</label>
+                <label class="block text-xs font-medium text-foreground/90">R2 存储桶名称 (Bucket Name)</label>
                 <Input v-model="storageSettings.r2_bucket_name" placeholder="例如：zenlink-notes" />
               </div>
 
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Access Key ID</label>
+                <label class="block text-xs font-medium text-foreground/90">Access Key ID</label>
                 <Input v-model="storageSettings.r2_access_key_id" placeholder="R2 Access Key ID" />
               </div>
 
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Secret Access Key</label>
+                <label class="block text-xs font-medium text-foreground/90">Secret Access Key</label>
                 <Input
                   v-model="storageSettings.r2_secret_access_key"
                   type="password"
                   :placeholder="storageSettings.r2_secret_access_key_masked ? `已配置 (${storageSettings.r2_secret_access_key_masked})，输入新密钥可覆盖` : 'R2 Secret Access Key'"
                 />
               <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">公开访问域名 / 自定义 CDN 域名 (可选)</label>
+                <label class="block text-xs font-medium text-foreground/90">公开访问域名 / 自定义 CDN 域名 (可选)</label>
                 <Input v-model="storageSettings.r2_public_domain" placeholder="https://pub-xxxx.r2.dev 或 https://cdn.yourdomain.com" />
               </div>
             </div>
           </div>
 
-          <div class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800">
-            <span class="text-xs text-slate-400">当前存储驱动：<strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ storageSettings.storage_type === 'r2' ? 'Cloudflare R2' : '本地服务器' }}</strong></span>
+          <div class="flex items-center justify-between pt-3 border-t border-border">
+            <span class="text-xs text-muted-foreground">当前存储驱动：<strong class="text-foreground/90 font-semibold">{{ storageSettings.storage_type === 'r2' ? 'Cloudflare R2' : '本地服务器' }}</strong></span>
             <button
               type="button"
-              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
+              class="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs transition-colors cursor-pointer flex items-center gap-1"
               :disabled="savingStorage"
               @click="saveStorage"
             >
@@ -1906,12 +1899,12 @@ onMounted(() => {
         </div>
 
         <!-- 数据备份 -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle">
-          <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0 mb-3">数据备份与导入</h3>
+        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle">
+          <h3 class="text-sm font-semibold text-foreground m-0 mb-3">数据备份与导入</h3>
           <div class="flex gap-2 flex-wrap">
             <button
               type="button"
-              class="h-7 px-3 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              class="h-7 px-3 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
               @click="exportBookmarks"
             >
               <Download class="h-3.5 w-3.5" />
@@ -1919,7 +1912,7 @@ onMounted(() => {
             </button>
             <button
               type="button"
-              class="h-7 px-3 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              class="h-7 px-3 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
               @click="importInputRef?.click()"
             >
               <Upload class="h-3.5 w-3.5" />
@@ -1939,22 +1932,22 @@ onMounted(() => {
         </DialogHeader>
         <div class="space-y-3 py-2 text-xs">
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">用户名</label>
+            <label class="font-medium text-foreground/90">用户名</label>
             <Input v-model="accountForm.username" placeholder="管理员用户名" class="h-8 text-xs" />
           </div>
 
-          <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+          <div class="pt-2 border-t border-border/60 space-y-3">
             <p class="text-xs text-muted-foreground">如无需修改密码，以下密码项留空即可：</p>
             <div class="space-y-1.5">
-              <label class="font-medium text-slate-700 dark:text-slate-300">当前密码</label>
+              <label class="font-medium text-foreground/90">当前密码</label>
               <Input v-model="accountForm.currentPassword" type="password" placeholder="修改密码时需验证当前密码" class="h-8 text-xs" />
             </div>
             <div class="space-y-1.5">
-              <label class="font-medium text-slate-700 dark:text-slate-300">新密码</label>
+              <label class="font-medium text-foreground/90">新密码</label>
               <Input v-model="accountForm.newPassword" type="password" placeholder="输入新密码" class="h-8 text-xs" />
             </div>
             <div class="space-y-1.5">
-              <label class="font-medium text-slate-700 dark:text-slate-300">确认新密码</label>
+              <label class="font-medium text-foreground/90">确认新密码</label>
               <Input v-model="accountForm.confirmPassword" type="password" placeholder="再次输入新密码" class="h-8 text-xs" />
             </div>
           </div>
@@ -1977,7 +1970,7 @@ onMounted(() => {
         </DialogHeader>
         <div class="space-y-3 py-2 text-xs">
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">网址链接 <span class="text-red-500">*</span></label>
+            <label class="font-medium text-foreground/90">网址链接 <span class="text-red-500">*</span></label>
             <div class="flex gap-2 w-full">
               <Input v-model="editingBookmark.url" placeholder="https://..." class="flex-1 h-8 text-xs" />
               <Button variant="outline" size="sm" class="h-8 text-xs shrink-0" @click="fetchBookmarkMeta">
@@ -1987,16 +1980,16 @@ onMounted(() => {
             </div>
           </div>
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">标题 <span class="text-red-500">*</span></label>
+            <label class="font-medium text-foreground/90">标题 <span class="text-red-500">*</span></label>
             <Input v-model="editingBookmark.title" placeholder="书签标题" class="h-8 text-xs" />
           </div>
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">描述</label>
+            <label class="font-medium text-foreground/90">描述</label>
             <Textarea v-model="editingBookmark.description" placeholder="书签描述..." class="text-xs resize-none h-16" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <label class="font-medium text-slate-700 dark:text-slate-300">图标 URL</label>
+              <label class="font-medium text-foreground/90">图标 URL</label>
               <div class="flex items-center gap-2 w-full">
                 <Input v-model="editingBookmark.favicon" placeholder="留空自动抓取" class="flex-1 h-8 text-xs" />
                 <div class="w-5 h-5 flex items-center justify-center rounded-full overflow-hidden flex-shrink-0">
@@ -2018,12 +2011,12 @@ onMounted(() => {
               </div>
             </div>
             <div class="space-y-1.5">
-              <label class="font-medium text-slate-700 dark:text-slate-300">备用链接</label>
+              <label class="font-medium text-foreground/90">备用链接</label>
               <Input v-model="editingBookmark.backup_url" placeholder="备用链接" class="h-8 text-xs" />
             </div>
           </div>
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">所属分类</label>
+            <label class="font-medium text-foreground/90">所属分类</label>
             <select
               :value="editingBookmark.category_id ?? ''"
               class="w-full h-8 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -2064,15 +2057,15 @@ onMounted(() => {
         </DialogHeader>
         <div class="space-y-3 py-2 text-xs">
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">分类名称 <span class="text-red-500">*</span></label>
+            <label class="font-medium text-foreground/90">分类名称 <span class="text-red-500">*</span></label>
             <Input v-model="editingCategory.name" placeholder="分类名称" class="h-8 text-xs" />
           </div>
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">图标</label>
+            <label class="font-medium text-foreground/90">图标</label>
             <IconPicker v-model="editingCategory.icon" />
           </div>
           <div class="space-y-1.5">
-            <label class="font-medium text-slate-700 dark:text-slate-300">上级分类</label>
+            <label class="font-medium text-foreground/90">上级分类</label>
             <select
               :value="editingCategory.parent_id ?? ''"
               class="w-full h-8 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"

@@ -1,7 +1,7 @@
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-12345678901234567890';
 
-import { fastify } from '../index.js';
+const { fastify } = await import('../index.js');
 import dbHelper, { saveDatabase } from '../db/index.js';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';

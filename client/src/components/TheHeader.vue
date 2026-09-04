@@ -82,16 +82,16 @@ onMounted(() => {
       </div>
 
       <!-- 中间：核心应用切换器 (桌面端) -->
-      <div class="hidden md:flex items-center gap-1 p-0.5 rounded-md bg-muted/60 border border-border/60">
+      <div class="hidden md:flex items-center gap-1 p-0.5 rounded-lg bg-muted/70 border border-border/70">
         <button
           v-for="tab in appTabs"
           :key="tab.id"
           type="button"
-          class="px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1.5 cursor-pointer"
+          class="px-2.5 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
           :class="[
             currentView === tab.id
-              ? 'bg-card text-foreground font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-background text-primary font-semibold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           ]"
           @click="switchApp(tab)"
         >
@@ -102,15 +102,15 @@ onMounted(() => {
 
       <!-- 右侧：每日一言 + 主题 + 系统设置/登录 -->
       <div class="flex items-center gap-2">
-        <div v-if="dailyQuote" class="hidden lg:flex items-center gap-1.5 max-w-[220px] text-xs text-muted-foreground">
-          <MessageSquareQuote class="h-3.5 w-3.5 shrink-0" />
+        <div v-if="dailyQuote" class="hidden lg:flex items-center gap-1.5 max-w-[220px] text-xs text-muted-foreground/80">
+          <MessageSquareQuote class="h-3.5 w-3.5 shrink-0 text-primary/60" />
           <span class="truncate text-[11px]">{{ dailyQuote }}</span>
         </div>
 
         <div class="flex items-center gap-1">
           <button
             type="button"
-            class="w-7 h-7 rounded border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            class="w-7 h-7 rounded-md border border-border/80 bg-card/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:border-border transition-colors cursor-pointer"
             @click="themeStore.toggle()"
             :title="themeStore.isDark ? '浅色模式' : '深色模式'"
           >
@@ -121,7 +121,7 @@ onMounted(() => {
           <button
             v-if="authStore.isLoggedIn"
             type="button"
-            class="w-7 h-7 rounded border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            class="w-7 h-7 rounded-md border border-border/80 bg-card/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:border-border transition-colors cursor-pointer"
             @click="router.push('/admin')"
             title="系统设置"
           >
@@ -131,7 +131,7 @@ onMounted(() => {
           <button
             v-else
             type="button"
-            class="w-7 h-7 rounded border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            class="w-7 h-7 rounded-md border border-border/80 bg-card/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:border-border transition-colors cursor-pointer"
             @click="router.push('/login')"
             title="登录"
           >

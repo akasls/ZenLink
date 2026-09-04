@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { settingsApi } from '@/api';
 
-// 混合颜色函数，用于生成 Element Plus 规范的 light-3 / light-5 / light-7 / light-8 / light-9 / dark-2 阶梯色
+// 混合颜色函数
 function mixColor(color1: string, color2: string, weight: number): string {
   const c1 = color1.replace('#', '');
   const c2 = color2.replace('#', '');
@@ -21,41 +21,83 @@ function mixColor(color1: string, color2: string, weight: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+function hexToRgb(hex: string): [number, number, number] | null {
+  let c = hex.replace('#', '');
+  if (c.length === 3) c = c.split('').map(x => x + x).join('');
+  if (c.length !== 6) return null;
+  const num = parseInt(c, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [Math.round(h * 360), Math.round(s * 100 * 10) / 10, Math.round(l * 100 * 10) / 10];
+}
+
+export interface ThemePreset {
+  id: string;
+  name: string;
+  color: string;
+  desc: string;
+}
+
+export const THEME_PRESETS: ThemePreset[] = [
+  { id: 'iris', name: '极光蓝紫 (Iris)', color: '#6366f1', desc: 'Linear 经典主色，极简优雅' },
+  { id: 'blue', name: '蔚蓝宝石 (Sapphire)', color: '#2563eb', desc: '科技专业感，清爽专注' },
+  { id: 'emerald', name: '翠波竹青 (Emerald)', color: '#059669', desc: '自然温润，护眼舒适' },
+  { id: 'amber', name: '琥珀日暮 (Amber)', color: '#d97706', desc: '温暖明快，活力充沛' },
+  { id: 'rose', name: '绯红月季 (Rose)', color: '#e11d48', desc: '时尚现代，高对比度' },
+  { id: 'obsidian', name: '曜石炭黑 (Obsidian)', color: '#18181b', desc: '纯粹黑白灰度，沉浸克制' },
+];
+
 export function applyThemeColor(hex: string) {
   if (!hex || typeof document === 'undefined') return;
   const root = document.documentElement;
 
-  let c = hex.replace('#', '');
-  if (c.length === 3) c = c.split('').map(x => x + x).join('');
-  if (c.length !== 6) return;
-
-  const num = parseInt(c, 16);
-  const r = (num >> 16) & 255;
-  const g = (num >> 8) & 255;
-  const b = num & 255;
+  const rgb = hexToRgb(hex);
+  if (!rgb) return;
+  const [r, g, b] = rgb;
+  const [h, s, l] = rgbToHsl(r, g, b);
 
   const rgbStr = `${r}, ${g}, ${b}`;
   const hoverHex = mixColor(hex, '#000000', 0.15);
 
-  // 1. ZenLink 自定义全局变量
+  // 1. 同步注入 Shadcn / Tailwind 核心变量
+  root.style.setProperty('--primary', `${h} ${s}% ${l}%`);
+  root.style.setProperty('--ring', `${h} ${s}% ${l}%`);
+
+  // 计算明度前景色 (Luminance 对比度自适应)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const fg = luminance > 0.65 ? '240 10% 3.9%' : '0 0% 100%';
+  root.style.setProperty('--primary-foreground', fg);
+
+  // 2. ZenLink 全局辅助变量
   root.style.setProperty('--zl-primary', hex);
   root.style.setProperty('--zl-primary-rgb', rgbStr);
   root.style.setProperty('--zl-primary-hover', hoverHex);
-  root.style.setProperty('--zl-primary-light', `rgba(${rgbStr}, 0.12)`);
-  root.style.setProperty('--zl-primary-glow', `rgba(${rgbStr}, 0.28)`);
+  root.style.setProperty('--zl-primary-light', `rgba(${rgbStr}, 0.10)`);
+  root.style.setProperty('--zl-primary-glow', `rgba(${rgbStr}, 0.25)`);
   root.style.setProperty('--zl-sidebar-active', hex);
   root.style.setProperty('--zl-accent', hex);
   root.style.setProperty('--zl-accent-text', hex);
-
-  // 2. Element Plus 官方全局色阶梯变量覆盖 (确保所有 el-button, el-switch, el-input, el-slider 实时变色)
-  root.style.setProperty('--el-color-primary', hex);
-  root.style.setProperty('--el-color-primary-rgb', rgbStr);
-  root.style.setProperty('--el-color-primary-light-3', mixColor(hex, '#ffffff', 0.3));
-  root.style.setProperty('--el-color-primary-light-5', mixColor(hex, '#ffffff', 0.5));
-  root.style.setProperty('--el-color-primary-light-7', mixColor(hex, '#ffffff', 0.7));
-  root.style.setProperty('--el-color-primary-light-8', mixColor(hex, '#ffffff', 0.8));
-  root.style.setProperty('--el-color-primary-light-9', mixColor(hex, '#ffffff', 0.9));
-  root.style.setProperty('--el-color-primary-dark-2', mixColor(hex, '#000000', 0.2));
 }
 
 export const useSiteStore = defineStore('site', () => {
@@ -67,7 +109,11 @@ export const useSiteStore = defineStore('site', () => {
   const searchBgImage = ref(localStorage.getItem('zl_search_bg_image') || '');
   const enableAi = ref(true);
   const enableNotes = ref(true);
-  const themePrimaryColor = ref(localStorage.getItem('zl_theme_primary_color') || '#f1404b');
+
+  // 默认使用高品质的 Linear Iris (#6366f1)
+  const savedPrimary = localStorage.getItem('zl_theme_primary_color');
+  const initialPrimary = (!savedPrimary || savedPrimary === '#f1404b') ? '#6366f1' : savedPrimary;
+  const themePrimaryColor = ref(initialPrimary);
 
   // 初始化应用主题色与 Favicon
   applyThemeColor(themePrimaryColor.value);

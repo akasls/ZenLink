@@ -929,7 +929,7 @@ onUnmounted(() => {
             <!-- 用户消息 -->
             <template v-if="msg.role === 'user'">
               <div class="group flex flex-col items-end max-w-[85%]">
-                <div class="px-3.5 py-2.5 bg-muted/80 text-foreground text-xs leading-relaxed rounded-xl border border-border break-words shadow-xs">
+                <div class="px-3.5 py-2.5 bg-primary/10 text-foreground text-xs leading-relaxed rounded-2xl rounded-tr-xs border border-primary/20 break-words shadow-xs">
                   <div :class="{ 'line-clamp-6': isLongMessage(msg.content) && !expandedMsgMap[index] }">
                     {{ msg.content }}
                   </div>

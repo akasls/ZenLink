@@ -212,11 +212,11 @@ function handleToggleCollapse() {
         <Popover v-if="collapsed && !isMobile && getSubCats(cat.id).length > 0">
           <PopoverTrigger as-child>
             <button
-              class="w-full h-8 rounded-md flex items-center justify-center transition-colors group relative"
+              class="w-full h-8 rounded-md flex items-center justify-center transition-all group relative cursor-pointer"
               :class="[
                 selectedCategoryId === cat.id && currentView === 'home'
-                  ? 'bg-accent text-accent-foreground font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                  ? 'bg-primary/10 text-primary font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
               ]"
               @click="handleSelectCategory(cat.id)"
             >
@@ -227,7 +227,8 @@ function handleToggleCollapse() {
           <PopoverContent side="right" align="start" class="w-40 p-1.5 shadow-lg">
             <div class="flex flex-col gap-0.5">
               <div
-                class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-semibold text-foreground hover:bg-accent cursor-pointer transition-colors"
+                class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-semibold hover:bg-accent cursor-pointer transition-colors"
+                :class="selectedCategoryId === cat.id && currentView === 'home' ? 'text-primary' : 'text-foreground'"
                 @click="handleSelectCategory(cat.id)"
                 title="跳转至该分类"
               >
@@ -258,16 +259,20 @@ function handleToggleCollapse() {
         >
           <TooltipTrigger as-child>
             <button
-              class="w-full h-8 rounded-md flex items-center transition-colors group"
+              class="w-full h-8 rounded-md flex items-center transition-all group cursor-pointer"
               :class="[
                 isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center',
                 selectedCategoryId === cat.id && currentView === 'home'
-                  ? 'bg-accent text-accent-foreground font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                  ? 'bg-primary/10 text-primary font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
               ]"
               @click="handleSelectCategory(cat.id)"
             >
-              <component :is="mapIcon(cat?.icon)" class="h-4 w-4 shrink-0" />
+              <component
+                :is="mapIcon(cat?.icon)"
+                class="h-4 w-4 shrink-0 transition-colors"
+                :class="selectedCategoryId === cat.id && currentView === 'home' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
+              />
               <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">{{ cat.name }}</span>
               <ChevronRight
                 v-if="isExpanded"
@@ -287,16 +292,19 @@ function handleToggleCollapse() {
       <Tooltip v-if="siteStore.enableAi" :delay-duration="300" :disabled="isExpanded">
         <TooltipTrigger as-child>
           <button
-            class="w-full h-8 rounded-md flex items-center transition-colors group"
+            class="w-full h-8 rounded-md flex items-center transition-all group cursor-pointer"
             :class="[
               isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center',
               currentView === 'ai'
-                ? 'bg-accent text-accent-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                ? 'bg-primary/10 text-primary font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
             ]"
             @click="handleChangeView('ai')"
           >
-            <Bot class="h-4 w-4 shrink-0" />
+            <Bot
+              class="h-4 w-4 shrink-0 transition-colors"
+              :class="currentView === 'ai' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
+            />
             <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">AI 助手</span>
           </button>
         </TooltipTrigger>
@@ -306,16 +314,19 @@ function handleToggleCollapse() {
       <Tooltip v-if="siteStore.enableNotes" :delay-duration="300" :disabled="isExpanded">
         <TooltipTrigger as-child>
           <button
-            class="w-full h-8 rounded-md flex items-center transition-colors group"
+            class="w-full h-8 rounded-md flex items-center transition-all group cursor-pointer"
             :class="[
               isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center',
               currentView === 'notes'
-                ? 'bg-accent text-accent-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                ? 'bg-primary/10 text-primary font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
             ]"
             @click="handleChangeView('notes')"
           >
-            <FileText class="h-4 w-4 shrink-0" />
+            <FileText
+              class="h-4 w-4 shrink-0 transition-colors"
+              :class="currentView === 'notes' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
+            />
             <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">在线笔记</span>
           </button>
         </TooltipTrigger>
@@ -327,21 +338,24 @@ function handleToggleCollapse() {
     <div class="p-1.5 border-t border-border shrink-0">
       <div v-if="isExpanded" class="flex items-center gap-1">
         <button
-          class="flex-1 h-8 rounded-md px-2.5 flex items-center gap-2 text-xs font-medium transition-colors"
+          class="flex-1 h-8 rounded-md px-2.5 flex items-center gap-2 text-xs font-medium transition-all cursor-pointer"
           :class="[
             currentView === 'admin'
-              ? 'bg-accent text-accent-foreground font-semibold'
-              : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+              ? 'bg-primary/10 text-primary font-semibold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
           ]"
           @click="handleSettings"
           title="系统设置"
         >
-          <Settings class="h-4 w-4 shrink-0" />
+          <Settings
+            class="h-4 w-4 shrink-0 transition-colors"
+            :class="currentView === 'admin' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
+          />
           <span class="truncate">系统设置</span>
         </button>
 
         <button
-          class="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+          class="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0 cursor-pointer"
           @click="themeStore.toggle($event)"
           :title="themeStore.isDark ? '切换至浅色模式' : '切换至暗黑模式'"
         >
@@ -354,11 +368,11 @@ function handleToggleCollapse() {
         <Tooltip :delay-duration="300">
           <TooltipTrigger as-child>
             <button
-              class="w-full h-8 rounded-md flex items-center justify-center transition-colors"
+              class="w-full h-8 rounded-md flex items-center justify-center transition-all cursor-pointer"
               :class="[
                 currentView === 'admin'
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                  ? 'bg-primary/10 text-primary font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
               ]"
               @click="handleSettings"
             >

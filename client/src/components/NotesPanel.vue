@@ -1500,7 +1500,7 @@ watch(
           <div
             v-for="(n, idx) in filteredNotes"
             :key="n.id"
-            class="group relative flex flex-col justify-between p-3.5 bg-card border border-border rounded-xl shadow-xs hover:border-border hover:shadow-sm transition-all duration-150 cursor-pointer h-40 select-none overflow-hidden"
+            class="group relative flex flex-col justify-between p-3.5 bg-card border border-border/80 rounded-xl shadow-xs hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-40 select-none overflow-hidden"
             :class="{
               'opacity-50 scale-95': draggedNoteIndex === idx,
               'ring-2 ring-primary': dragOverNoteIndex === idx
@@ -1514,7 +1514,7 @@ watch(
           >
             <!-- 卡片头部 -->
             <div class="flex items-start justify-between gap-2">
-              <span class="text-xs font-semibold text-foreground/90 truncate flex-1 group-hover:text-foreground transition-colors">
+              <span class="text-xs font-semibold text-foreground/90 truncate flex-1 group-hover:text-primary transition-colors">
                 {{ n.title || '未命名笔记' }}
               </span>
 

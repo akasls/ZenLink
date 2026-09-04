@@ -25,16 +25,16 @@ function handleClick(subId: number) {
 
 <template>
   <div v-if="subCategories.length" class="w-full overflow-x-auto scrollbar-none pb-1 -mt-1">
-    <div class="inline-flex items-center gap-1 p-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+    <div class="inline-flex items-center gap-1 p-0.5 rounded-lg bg-muted/80 border border-border/60">
       <button
         v-for="sub in subCategories"
         :key="sub.id"
         type="button"
-        class="px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer whitespace-nowrap"
+        class="px-2.5 py-1 text-xs font-medium rounded-md transition-all cursor-pointer whitespace-nowrap"
         :class="[
           modelValue === sub.id
-            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
+            ? 'bg-background text-primary font-semibold shadow-xs'
+            : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
         ]"
         @click="handleClick(sub.id)"
       >

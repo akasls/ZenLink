@@ -4,85 +4,85 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 5% 98%;
+    --foreground: 240 10% 3.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 240 10% 3.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 10% 3.9%;
 
-    --primary: 238.7 83.5% 58.8%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 4.8% 95%;
+    --secondary-foreground: 240 5.9% 10%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 4.8% 95%;
+    --muted-foreground: 240 3.8% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 240 4.8% 95%;
+    --accent-foreground: 240 5.9% 10%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 238.7 83.5% 58.8%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 239 84% 67%;
 
     --radius: 0.5rem;
 
     --zl-bg: #f8fafc;
     --zl-card: #ffffff;
-    --zl-text-main: #0f172a;
-    --zl-text-secondary: #475569;
-    --zl-text-muted: #94a3b8;
-    --zl-border: rgba(226, 232, 240, 0.8);
-    --zl-border-hover: #cbd5e1;
-    --zl-primary: #4f46e5;
-    --zl-primary-light: rgba(79, 70, 229, 0.08);
+    --zl-text-main: #09090b;
+    --zl-text-secondary: #52525b;
+    --zl-text-muted: #71717a;
+    --zl-border: rgba(228, 228, 231, 0.8);
+    --zl-border-hover: #d4d4d8;
+    --zl-primary: #6366f1;
+    --zl-primary-light: rgba(99, 102, 241, 0.10);
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 210 40% 98%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 10% 6.5%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 10% 6.5%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 238.7 83.5% 66.7%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 12%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 217.2 32.6% 12%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 240 3.7% 14%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 217.2 32.6% 12%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 238.7 83.5% 66.7%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 239 84% 67%;
 
-    --zl-bg: #020617;
-    --zl-card: #0f172a;
-    --zl-text-main: #f8fafc;
-    --zl-text-secondary: #94a3b8;
-    --zl-text-muted: #64748b;
-    --zl-border: rgba(30, 41, 59, 0.8);
-    --zl-border-hover: #334155;
+    --zl-bg: #09090b;
+    --zl-card: #111113;
+    --zl-text-main: #fafafa;
+    --zl-text-secondary: #a1a1aa;
+    --zl-text-muted: #71717a;
+    --zl-border: rgba(39, 39, 42, 0.8);
+    --zl-border-hover: #3f3f46;
     --zl-primary: #6366f1;
-    --zl-primary-light: rgba(99, 102, 241, 0.12);
+    --zl-primary-light: rgba(99, 102, 241, 0.15);
   }
 }
 

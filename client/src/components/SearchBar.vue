@@ -187,40 +187,40 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="w-full py-7 md:py-10 px-4 flex flex-col items-center justify-center border-b border-slate-200/80 dark:border-slate-800 relative transition-colors"
+    class="w-full py-8 md:py-12 px-4 flex flex-col items-center justify-center border-b border-border relative transition-colors"
     :class="[
       isCustomBg
         ? 'bg-slate-900/90 text-white'
-        : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200'
+        : 'bg-gradient-to-b from-muted/30 via-background to-background text-foreground'
     ]"
     :style="customBgStyle"
   >
     <!-- 背景遮罩 (仅在自定义背景图时启用) -->
     <div v-if="isCustomBg" class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"></div>
 
-    <div class="relative z-10 w-full max-w-xl flex flex-col items-center gap-3">
-      <!-- 搜索引擎切换 Tabs (精简小型圆角) -->
+    <div class="relative z-10 w-full max-w-xl flex flex-col items-center gap-3.5">
+      <!-- 搜索引擎切换 Tabs -->
       <div
-        class="flex items-center gap-1 p-0.5 rounded-md border"
+        class="flex items-center gap-1 p-0.5 rounded-lg border shadow-xs"
         :class="[
           isCustomBg
             ? 'bg-slate-900/70 border-white/15'
-            : 'bg-slate-100 dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60'
+            : 'bg-muted/70 border-border/70 backdrop-blur-sm'
         ]"
       >
         <button
           v-for="eng in searchEngines"
           :key="eng.id"
           type="button"
-          class="px-3 py-1 text-xs font-medium rounded transition-colors cursor-pointer"
+          class="px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer"
           :class="[
             selectedEngine.id === eng.id
               ? (isCustomBg
                   ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 font-semibold shadow-xs')
+                  : 'bg-card text-foreground font-semibold shadow-xs')
               : (isCustomBg
                   ? 'text-slate-300 hover:text-white hover:bg-white/10'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100')
+                  : 'text-muted-foreground hover:text-foreground')
           ]"
           @click="selectEngine(eng)"
         >
@@ -228,13 +228,13 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <!-- 搜索框 (克制 8px 圆角 + 4px 网格) -->
+      <!-- 搜索框 (现代简约高质感) -->
       <div
-        class="w-full flex items-center rounded-lg border shadow-subtle transition-all duration-150 p-1"
+        class="w-full flex items-center rounded-xl border shadow-xs transition-all duration-200 p-1.5"
         :class="[
           isCustomBg
-            ? 'bg-white/15 border-white/25 focus-within:border-white/50 focus-within:bg-white/20'
-            : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 focus-within:border-indigo-500/80 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-indigo-500/10'
+            ? 'bg-white/15 border-white/25 focus-within:border-white/60 focus-within:bg-white/20'
+            : 'bg-card/90 backdrop-blur border-border/80 hover:border-border focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 shadow-[0_1px_3px_rgba(0,0,0,0.02)]'
         ]"
       >
         <div class="pl-2.5 pr-1 flex items-center">
@@ -243,11 +243,11 @@ onUnmounted(() => {
         <input
           v-model="modelValue"
           type="text"
-          class="flex-1 bg-transparent px-2 py-1.5 text-xs outline-none min-w-0"
+          class="flex-1 bg-transparent px-2.5 py-1.5 text-xs outline-none min-w-0"
           :class="[
             isCustomBg
               ? 'text-white placeholder-slate-300'
-              : 'text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500'
+              : 'text-foreground placeholder:text-muted-foreground'
           ]"
           :placeholder="selectedEngine.placeholder || `在 ${selectedEngine.name} 中搜索...`"
           @keyup.enter="handleSearch"
@@ -255,11 +255,11 @@ onUnmounted(() => {
         />
         <button
           type="button"
-          class="h-7 px-3 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+          class="h-7.5 px-3.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer flex-shrink-0 shadow-xs active:scale-[0.98]"
           :class="[
             isCustomBg
               ? 'bg-white text-slate-900 hover:bg-slate-100 font-semibold'
-              : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90 font-semibold'
           ]"
           @click="handleSearch"
           title="搜索 (Enter)"
