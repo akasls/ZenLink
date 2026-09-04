@@ -4,6 +4,7 @@ import dbHelper, { saveDatabase } from '../db/index.js';
 interface ShareAttempt {
   count: number;
   lockedUntil: number;
+  lastAttempt: number;
 }
 const shareVerifyAttempts = new Map<string, ShareAttempt>();
 
@@ -11,7 +12,7 @@ const shareVerifyAttempts = new Map<string, ShareAttempt>();
 setInterval(() => {
   const now = Date.now();
   for (const [key, val] of shareVerifyAttempts.entries()) {
-    if (val.lockedUntil < now && val.count === 0) {
+    if (val.lockedUntil < now && now - val.lastAttempt > 15 * 60 * 1000) {
       shareVerifyAttempts.delete(key);
     }
   }
@@ -119,8 +120,9 @@ export default async function shareRoutes(fastify: FastifyInstance) {
     }
 
     if (noteShare.password && noteShare.password.trim() !== String(password).trim()) {
-      const rec = shareVerifyAttempts.get(rateLimitKey) || { count: 0, lockedUntil: 0 };
+      const rec = shareVerifyAttempts.get(rateLimitKey) || { count: 0, lockedUntil: 0, lastAttempt: nowTime };
       rec.count += 1;
+      rec.lastAttempt = nowTime;
       if (rec.count >= 5) {
         rec.lockedUntil = nowTime + 15 * 60 * 1000;
       }

@@ -4,7 +4,52 @@ import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
 import { useSiteStore } from '@/stores/site';
 import { authApi, bookmarkApi, categoryApi, aiApi, storageApi, noteApi } from '@/api';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { toast } from '@/components/ui/sonner';
+import { confirmBox } from '@/utils/confirm';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  LogOut,
+  Bookmark,
+  Folder,
+  Cpu,
+  ShieldCheck,
+  Settings,
+  Search,
+  Plus,
+  Loader2,
+  GripVertical,
+  Lock,
+  Pencil,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsUpDown,
+  ChevronDown,
+  RotateCw,
+  CheckCircle2,
+  Circle,
+  Star,
+  X,
+  Key,
+  Check,
+  Upload,
+  FolderOpen,
+  Cloud,
+  Network,
+  Download,
+  Sparkles,
+} from 'lucide-vue-next';
 import { startRegistration } from '@simplewebauthn/browser';
 import Sortable from 'sortablejs';
 import IconPicker from '@/components/IconPicker.vue';
@@ -120,7 +165,7 @@ function initBookmarkSortable() {
 
         try {
           await bookmarkApi.reorder(fullItems.map(b => b.id));
-          ElMessage.success('排序已更新');
+          toast.success('排序已更新');
           loadBookmarks();
           emit('refresh');
         } catch {}
@@ -149,7 +194,7 @@ function openBookmarkDialog(bm?: any) {
 
 async function saveBookmark() {
   const bm = editingBookmark.value;
-  if (!bm.title || !bm.url) { ElMessage.warning('请填写标题和链接'); return; }
+  if (!bm.title || !bm.url) { toast.warning('请填写标题和链接'); return; }
   let finalFavicon = bm.favicon ? bm.favicon.trim() : '';
   if (!finalFavicon && bm.url) {
     finalFavicon = `/api/favicon?url=${encodeURIComponent(bm.url.trim())}`;
@@ -166,9 +211,9 @@ async function saveBookmark() {
     };
     if (bm.id) await bookmarkApi.update(bm.id, p); else await bookmarkApi.create(p);
     showBookmarkDialog.value = false;
-    ElMessage.success('已保存');
+    toast.success('已保存');
     loadBookmarks(); emit('refresh');
-  } catch { ElMessage.error('保存失败'); }
+  } catch { toast.error('保存失败'); }
 }
 
 async function fetchBookmarkMeta() {
@@ -196,27 +241,25 @@ async function fetchBookmarkMeta() {
     if (meta.favicon) editingBookmark.value.favicon = meta.favicon;
 
     if (aiUsed && (hasTitle || hasDesc)) {
-      ElMessage.success('AI 已智能解析并提炼标题与简介');
+      toast.success('AI 已智能解析并提炼标题与简介');
     } else if (scraped && (hasTitle || hasDesc)) {
-      ElMessage.success('已自动抓取网站元数据并清洗');
+      toast.success('已自动抓取网站元数据并清洗');
     } else {
-      ElMessage.info('受目标站点网络或防爬限制未能抓取到详情，已根据网址生成推测标题');
+      toast.info('受目标站点网络或防爬限制未能抓取到详情，已根据网址生成推测标题');
     }
   } catch {
-    ElMessage.warning('未能获取到该网址信息，请手动填写');
+    toast.warning('未能获取到该网址信息，请手动填写');
   }
 }
 
-function confirmDeleteBookmark(bm: any) {
-  ElMessageBox.confirm(`确定删除「${bm.title}」？`, '确认删除', {
-    type: 'warning',
-    customClass: 'zenlink-custom-msgbox',
-    confirmButtonText: '确定删除',
-    cancelButtonText: '取消',
-    confirmButtonClass: 'el-button--danger',
-  })
-    .then(async () => { await bookmarkApi.delete(bm.id); ElMessage.success('已删除'); loadBookmarks(); emit('refresh'); })
-    .catch(() => {});
+async function confirmDeleteBookmark(bm: any) {
+  try {
+    await confirmBox(`确定删除「${bm.title}」？`, '确认删除');
+    await bookmarkApi.delete(bm.id);
+    toast.success('已删除');
+    loadBookmarks();
+    emit('refresh');
+  } catch {}
 }
 
 function getCategoryName(id: number | null) {
@@ -299,26 +342,23 @@ function openCategoryDialog(cat?: any, parentId?: number) {
 
 async function saveCategory() {
   const cat = editingCategory.value;
-  if (!cat.name) { ElMessage.warning('请填写分类名称'); return; }
+  if (!cat.name) { toast.warning('请填写分类名称'); return; }
   try {
     const p = { name: cat.name, icon: cat.icon || 'Folder', parentId: cat.parent_id || null, isPrivate: !!cat.is_private };
     if (cat.id) await categoryApi.update(cat.id, p); else await categoryApi.create(p);
     showCategoryDialog.value = false;
-    ElMessage.success('已保存');
+    toast.success('已保存');
     emit('refresh');
-  } catch { ElMessage.error('保存失败'); }
+  } catch { toast.error('保存失败'); }
 }
 
-function confirmDeleteCategory(cat: any) {
-  ElMessageBox.confirm(`确定删除分类「${cat.name}」？其下书签将变为未分类。`, '确认删除', {
-    type: 'warning',
-    customClass: 'zenlink-custom-msgbox',
-    confirmButtonText: '确定删除',
-    cancelButtonText: '取消',
-    confirmButtonClass: 'el-button--danger',
-  })
-    .then(async () => { await categoryApi.delete(cat.id); ElMessage.success('已删除'); emit('refresh'); })
-    .catch(() => {});
+async function confirmDeleteCategory(cat: any) {
+  try {
+    await confirmBox(`确定删除分类「${cat.name}」？其下书签将变为未分类。`, '确认删除');
+    await categoryApi.delete(cat.id);
+    toast.success('已删除');
+    emit('refresh');
+  } catch {}
 }
 
 function initCategorySortable() {
@@ -336,7 +376,7 @@ function initCategorySortable() {
         for (let i = 0; i < tops.length; i++) {
           await categoryApi.update(tops[i].id, { sortOrder: i + 1 });
         }
-        ElMessage.success('分类排序已更新');
+        toast.success('分类排序已更新');
         emit('refresh');
       },
     });
@@ -364,7 +404,7 @@ function initSubCategorySortables() {
         for (let i = 0; i < subs.length; i++) {
           await categoryApi.update(subs[i].id, { sortOrder: i + 1 });
         }
-        ElMessage.success('子分类排序已更新');
+        toast.success('子分类排序已更新');
         emit('refresh');
       },
     });
@@ -436,7 +476,7 @@ function removeModel(modelId: string) {
   if (aiSettings.value.model === modelId) {
     aiSettings.value.model = aiSettings.value.available_models[0] || allFetchedModels.value[0] || '';
   }
-  ElMessage.success(`已删除模型「${modelId}」`);
+  toast.success(`已删除模型「${modelId}」`);
   saveAdminAiSettings();
 }
 
@@ -455,12 +495,12 @@ async function fetchOnlineModels() {
       if (!aiSettings.value.available_models || aiSettings.value.available_models.length === 0) {
         aiSettings.value.available_models = [...data.models];
       }
-      ElMessage.success(`成功读取到 ${data.models.length} 个模型`);
+      toast.success(`成功读取到 ${data.models.length} 个模型`);
     } else {
-      ElMessage.warning('未能读取到模型列表');
+      toast.warning('未能读取到模型列表');
     }
   } catch (err: any) {
-    ElMessage.error(err?.response?.data?.error || '读取模型失败，请检查 Base URL 与 API Key');
+    toast.error(err?.response?.data?.error || '读取模型失败，请检查 Base URL 与 API Key');
   } finally {
     fetchingModels.value = false;
   }
@@ -484,7 +524,7 @@ function setDefaultModel(modelId: string) {
   if (!aiSettings.value.available_models.includes(modelId)) {
     aiSettings.value.available_models.push(modelId);
   }
-  ElMessage.success(`已将「${modelId}」设为默认模型`);
+  toast.success(`已将「${modelId}」设为默认模型`);
 }
 
 function selectAllModels() {
@@ -495,7 +535,7 @@ function clearAllModels() {
   allFetchedModels.value = [];
   aiSettings.value.available_models = [];
   aiSettings.value.model = '';
-  ElMessage.success('已清空模型列表');
+  toast.success('已清空模型列表');
   saveAdminAiSettings();
 }
 
@@ -509,7 +549,7 @@ function addCustomModel() {
     aiSettings.value.available_models.push(m);
   }
   customModelName.value = '';
-  ElMessage.success(`已添加: ${m}`);
+  toast.success(`已添加: ${m}`);
 }
 
 async function saveAdminAiSettings() {
@@ -529,11 +569,11 @@ async function saveAdminAiSettings() {
       max_tokens: aiSettings.value.max_tokens,
       reasoning_mode: aiSettings.value.reasoning_mode,
     });
-    ElMessage.success('AI 模型配置已保存');
+    toast.success('AI 模型配置已保存');
     loadAiSettings();
   loadStorageSettings();
   } catch {
-    ElMessage.error('保存失败');
+    toast.error('保存失败');
   } finally {
     savingAiSettings.value = false;
   }
@@ -576,9 +616,9 @@ async function testR2() {
       r2_secret_access_key: storageSettings.value.r2_secret_access_key || undefined,
       r2_bucket_name: storageSettings.value.r2_bucket_name,
     });
-    ElMessage.success(data.message || 'Cloudflare R2 存储桶连通成功！');
+    toast.success(data.message || 'Cloudflare R2 存储桶连通成功！');
   } catch (err: any) {
-    ElMessage.error(err.response?.data?.error || '连接 Cloudflare R2 失败，请检查配置');
+    toast.error(err.response?.data?.error || '连接 Cloudflare R2 失败，请检查配置');
   } finally {
     testingR2.value = false;
   }
@@ -595,10 +635,10 @@ async function saveStorage() {
       r2_bucket_name: storageSettings.value.r2_bucket_name,
       r2_public_domain: storageSettings.value.r2_public_domain,
     });
-    ElMessage.success('附件存储配置已保存');
+    toast.success('附件存储配置已保存');
     loadStorageSettings();
   } catch {
-    ElMessage.error('保存存储配置失败');
+    toast.error('保存存储配置失败');
   } finally {
     savingStorage.value = false;
   }
@@ -642,11 +682,11 @@ async function saveAccountSettings() {
 
   if (passwordChanged) {
     if (!f.currentPassword) {
-      ElMessage.warning('修改密码需填写当前密码');
+      toast.warning('修改密码需填写当前密码');
       return;
     }
     if (f.newPassword !== f.confirmPassword) {
-      ElMessage.warning('两次新密码输入不一致');
+      toast.warning('两次新密码输入不一致');
       return;
     }
   }
@@ -659,11 +699,11 @@ async function saveAccountSettings() {
     if (passwordChanged) {
       await authApi.changePassword({ currentPassword: f.currentPassword, newPassword: f.newPassword });
     }
-    ElMessage.success('账户安全信息更新成功');
+    toast.success('账户安全信息更新成功');
     showAccountDialog.value = false;
     authStore.fetchUser();
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.message || '更新失败');
+    toast.error(e?.response?.data?.message || '更新失败');
   } finally {
     savingAccount.value = false;
   }
@@ -674,19 +714,19 @@ async function startTotpSetup() {
   try {
     const { data } = await authApi.setupTotp();
     totpSetup.value = { secret: data.secret, qrCodeUrl: data.qrCodeUrl };
-  } catch { ElMessage.error('获取 2FA 配置失败'); }
+  } catch { toast.error('获取 2FA 配置失败'); }
   finally { settingUpTotp.value = false; }
 }
 
 async function confirmTotp() {
-  if (!totpCode.value || totpCode.value.length !== 6) { ElMessage.warning('请输入 6 位验证码'); return; }
+  if (!totpCode.value || totpCode.value.length !== 6) { toast.warning('请输入 6 位验证码'); return; }
   try {
     await authApi.verifyTotp(totpCode.value);
-    ElMessage.success('TOTP 两步验证已启用');
+    toast.success('TOTP 两步验证已启用');
     totpSetup.value = null;
     totpCode.value = '';
     authStore.fetchUser();
-  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '验证码错误'); }
+  } catch (e: any) { toast.error(e?.response?.data?.message || '验证码错误'); }
 }
 
 async function registerPasskey() {
@@ -695,11 +735,11 @@ async function registerPasskey() {
     const { data: options } = await authApi.getWebAuthnRegisterOptions();
     const regResult = await startRegistration(options);
     await authApi.verifyWebAuthnRegister(regResult);
-    ElMessage.success('Passkey 绑定成功');
+    toast.success('Passkey 绑定成功');
     authStore.fetchUser();
   } catch (e: any) {
     if (e.name !== 'NotAllowedError') {
-      ElMessage.error(e?.response?.data?.message || 'Passkey 注册失败');
+      toast.error(e?.response?.data?.message || 'Passkey 注册失败');
     }
   } finally { registeringPasskey.value = false; }
 }
@@ -756,9 +796,9 @@ async function handleLogoUpload(e: Event) {
     const url = data.file?.url || ('/api/notes/raw/' + data.file?.path);
     siteForm.value.siteLogo = url;
     siteStore.setSiteLogo(url);
-    ElMessage.success('网站图标上传成功并已即时生效');
+    toast.success('网站图标上传成功并已即时生效');
   } catch {
-    ElMessage.error('网站图标上传失败');
+    toast.error('网站图标上传失败');
   } finally {
     uploadingLogo.value = false;
     target.value = '';
@@ -768,7 +808,7 @@ async function handleLogoUpload(e: Event) {
 function clearCustomLogo() {
   siteForm.value.siteLogo = '';
   siteStore.setSiteLogo('');
-  ElMessage.success('已恢复为默认首字母图标');
+  toast.success('已恢复为默认首字母图标');
 }
 
 function selectThemeColor(color: string) {
@@ -789,9 +829,9 @@ async function handleBgUpload(e: Event) {
     siteForm.value.searchBgMode = 'custom_image';
     siteStore.searchBgImage = url;
     siteStore.searchBgMode = 'custom_image';
-    ElMessage.success('背景图片上传成功并已实时预览');
+    toast.success('背景图片上传成功并已实时预览');
   } catch {
-    ElMessage.error('背景图片上传失败');
+    toast.error('背景图片上传失败');
   } finally {
     uploadingBg.value = false;
     target.value = '';
@@ -803,7 +843,7 @@ function clearCustomBg() {
   siteForm.value.searchBgMode = 'dynamic';
   siteStore.searchBgImage = '';
   siteStore.searchBgMode = 'dynamic';
-  ElMessage.success('已重置为默认动态海洋背景');
+  toast.success('已重置为默认动态海洋背景');
 }
 
 async function saveSiteSettings() {
@@ -817,9 +857,9 @@ async function saveSiteSettings() {
       search_bg_image: siteForm.value.searchBgImage,
       theme_primary_color: siteForm.value.themePrimaryColor,
     });
-    ElMessage.success('站点设置已保存并即时生效');
+    toast.success('站点设置已保存并即时生效');
   } catch {
-    ElMessage.error('保存失败');
+    toast.error('保存失败');
   }
 }
 
@@ -833,8 +873,8 @@ async function exportBookmarks() {
     a.download = `zenlink-bookmarks-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    ElMessage.success('导出成功');
-  } catch { ElMessage.error('导出失败'); }
+    toast.success('导出成功');
+  } catch { toast.error('导出失败'); }
 }
 
 async function handleImportBookmarks(e: Event) {
@@ -859,7 +899,7 @@ async function handleImportBookmarks(e: Event) {
             count++;
           }
         }
-        ElMessage.success(`成功导入 ${count} 个书签`);
+        toast.success(`成功导入 ${count} 个书签`);
         loadBookmarks(); emit('refresh');
       }
     } else {
@@ -882,11 +922,11 @@ async function handleImportBookmarks(e: Event) {
           count++;
         }
       }
-      ElMessage.success(`成功导入 ${count} 个 HTML 书签`);
+      toast.success(`成功导入 ${count} 个 HTML 书签`);
       loadBookmarks(); emit('refresh');
     }
   } catch (err) {
-    ElMessage.error('导入解析失败，请检查文件格式');
+    toast.error('导入解析失败，请检查文件格式');
   } finally {
     target.value = '';
   }
@@ -900,7 +940,7 @@ watch(activeTab, (t) => {
 
 function handleLogout() {
   authStore.logout();
-  ElMessage.success('已退出管理登录');
+  toast.success('已退出管理登录');
   emit('refresh');
 }
 
@@ -926,7 +966,7 @@ onMounted(() => {
           @click="handleLogout()"
           title="退出管理账户"
         >
-          <el-icon class="text-xs"><component is="SwitchButton" /></el-icon>
+          <LogOut class="h-3.5 w-3.5" />
           <span>退出登录</span>
         </button>
       </div>
@@ -946,7 +986,7 @@ onMounted(() => {
           ]"
           @click="activeTab = 'bookmarks'"
         >
-          <el-icon class="text-xs"><component is="Collection" /></el-icon>
+          <Bookmark class="h-3.5 w-3.5" />
           <span>书签管理</span>
         </button>
 
@@ -960,7 +1000,7 @@ onMounted(() => {
           ]"
           @click="activeTab = 'categories'"
         >
-          <el-icon class="text-xs"><component is="Folder" /></el-icon>
+          <Folder class="h-3.5 w-3.5" />
           <span>分类管理</span>
         </button>
 
@@ -974,7 +1014,7 @@ onMounted(() => {
           ]"
           @click="activeTab = 'ai'"
         >
-          <el-icon class="text-xs"><component is="Cpu" /></el-icon>
+          <Cpu class="h-3.5 w-3.5" />
           <span>AI 模型</span>
         </button>
 
@@ -988,7 +1028,7 @@ onMounted(() => {
           ]"
           @click="activeTab = 'security'"
         >
-          <el-icon class="text-xs"><component is="Lock" /></el-icon>
+          <ShieldCheck class="h-3.5 w-3.5" />
           <span>安全中心</span>
         </button>
 
@@ -1002,7 +1042,7 @@ onMounted(() => {
           ]"
           @click="activeTab = 'site'"
         >
-          <el-icon class="text-xs"><component is="Setting" /></el-icon>
+          <Settings class="h-3.5 w-3.5" />
           <span>站点设置</span>
         </button>
       </div>
@@ -1013,7 +1053,7 @@ onMounted(() => {
         <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-subtle">
           <!-- 1. 搜索框 -->
           <div class="flex-1 flex items-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md px-2.5 py-1 min-w-[180px]">
-            <el-icon class="text-xs text-slate-400 mr-1.5"><component is="Search" /></el-icon>
+            <Search class="h-3.5 w-3.5 text-slate-400 mr-1.5 flex-shrink-0" />
             <input
               v-model="bookmarkFilter"
               type="text"
@@ -1023,19 +1063,18 @@ onMounted(() => {
           </div>
 
           <!-- 2. 分类下拉 -->
-          <el-select
+          <select
             v-model="bookmarkCategoryFilter"
-            size="small"
-            class="w-36 flex-shrink-0"
-            placeholder="所属分类"
+            class="h-7 w-36 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 text-xs text-slate-700 dark:text-slate-300 outline-none flex-shrink-0"
           >
-            <el-option
+            <option
               v-for="opt in categoryFilterOptions"
               :key="opt.id"
-              :label="opt.name"
               :value="opt.id"
-            />
-          </el-select>
+            >
+              {{ opt.name }}
+            </option>
+          </select>
 
           <!-- 3. 添加按钮 -->
           <button
@@ -1043,17 +1082,17 @@ onMounted(() => {
             class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
             @click="openBookmarkDialog()"
           >
-            <el-icon class="text-xs"><component is="Plus" /></el-icon>
+            <Plus class="h-3.5 w-3.5" />
             <span>添加书签</span>
           </button>
         </div>
 
         <!-- 链接列表 -->
         <div v-if="loadingBookmarks" class="py-12 text-center text-slate-400">
-          <el-icon class="is-loading text-xl"><component is="Loading" /></el-icon>
+          <Loader2 class="h-6 w-6 animate-spin mx-auto text-slate-400" />
         </div>
         <div v-else-if="!filteredBookmarks.length" class="py-12 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg">
-          <el-empty description="暂无符合条件的导航书签" />
+          <div class="text-center text-xs text-slate-400">暂无符合条件的导航书签</div>
         </div>
         <div v-else class="space-y-2">
           <div ref="bookmarkListRef" class="space-y-1.5">
@@ -1065,7 +1104,7 @@ onMounted(() => {
               <!-- 左侧：拖拽 + 图标 + 标题 + 分类 + 私有锁 -->
               <div class="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
                 <span class="bm-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
-                  <el-icon class="text-xs"><component is="Rank" /></el-icon>
+                  <GripVertical class="h-3.5 w-3.5" />
                 </span>
                 <div class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0">
                   <img
@@ -1088,7 +1127,7 @@ onMounted(() => {
                 <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex-shrink-0 font-normal">
                   {{ getCategoryName(bm.category_id) }}
                 </span>
-                <el-icon v-if="bm.is_private" class="text-xs text-amber-500 flex-shrink-0" title="私有书签"><component is="Lock" /></el-icon>
+                <Lock v-if="bm.is_private" class="h-3 w-3 text-amber-500 flex-shrink-0" title="私有书签" />
               </div>
 
               <!-- 右侧操作 (编辑 + 删除) -->
@@ -1099,7 +1138,7 @@ onMounted(() => {
                   @click="openBookmarkDialog(bm)"
                   title="编辑书签"
                 >
-                  <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+                  <Pencil class="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
@@ -1107,7 +1146,7 @@ onMounted(() => {
                   @click="confirmDeleteBookmark(bm)"
                   title="删除书签"
                 >
-                  <el-icon class="text-xs"><component is="Delete" /></el-icon>
+                  <Trash2 class="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -1126,7 +1165,7 @@ onMounted(() => {
                 @click="currentPage--"
                 title="上一页"
               >
-                <el-icon class="text-[10px]"><component is="ArrowLeft" /></el-icon>
+                <ChevronLeft class="h-3.5 w-3.5" />
               </button>
 
               <template v-for="(p, idx) in visiblePages" :key="idx">
@@ -1153,7 +1192,7 @@ onMounted(() => {
                 @click="currentPage++"
                 title="下一页"
               >
-                <el-icon class="text-[10px]"><component is="ArrowRight" /></el-icon>
+                <ChevronRight class="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -1168,7 +1207,7 @@ onMounted(() => {
             class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             @click="toggleExpandAll"
           >
-            <el-icon class="text-xs"><component :is="isAllExpanded ? 'Fold' : 'Expand'" /></el-icon>
+            <ChevronsUpDown class="h-3.5 w-3.5" />
             <span>{{ isAllExpanded ? '收起所有分类' : '一键展开所有分类' }}</span>
           </button>
 
@@ -1177,7 +1216,7 @@ onMounted(() => {
             class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center gap-1 transition-colors cursor-pointer"
             @click="openCategoryDialog()"
           >
-            <el-icon class="text-xs"><component is="Plus" /></el-icon>
+            <Plus class="h-3.5 w-3.5" />
             <span>新建一级分类</span>
           </button>
         </div>
@@ -1188,12 +1227,13 @@ onMounted(() => {
             <div class="group flex items-center justify-between px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
               <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
                 <span class="cat-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
-                  <el-icon class="text-xs"><component is="Rank" /></el-icon>
+                  <GripVertical class="h-3.5 w-3.5" />
                 </span>
                 <button type="button" class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer" @click.stop="toggleExpand(cat.id)">
-                  <el-icon class="text-xs"><component :is="expandedCategories.includes(cat.id) ? 'ArrowDown' : 'ArrowRight'" /></el-icon>
+                  <ChevronDown v-if="expandedCategories.includes(cat.id)" class="h-3.5 w-3.5" />
+                  <ChevronRight v-else class="h-3.5 w-3.5" />
                 </button>
-                <el-icon class="text-xs text-slate-500 flex-shrink-0"><component :is="mapIcon(cat.icon)" /></el-icon>
+                <component :is="mapIcon(cat.icon)" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
                 <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{{ cat.name }}</span>
                 <span v-if="cat.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
                 <span class="text-[11px] text-slate-400 dark:text-slate-500 font-normal">({{ cat.children.length }} 个子分类)</span>
@@ -1206,7 +1246,7 @@ onMounted(() => {
                   @click.stop="openCategoryDialog(undefined, cat.id)"
                   title="添加子分类"
                 >
-                  <el-icon class="text-xs"><component is="Plus" /></el-icon>
+                  <Plus class="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
@@ -1214,7 +1254,7 @@ onMounted(() => {
                   @click.stop="openCategoryDialog(cat)"
                   title="编辑分类"
                 >
-                  <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+                  <Pencil class="h-3.5 w-3.5" />
                 </button>
                 <button
                   type="button"
@@ -1222,7 +1262,7 @@ onMounted(() => {
                   @click.stop="confirmDeleteCategory(cat)"
                   title="删除分类"
                 >
-                  <el-icon class="text-xs"><component is="Delete" /></el-icon>
+                  <Trash2 class="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -1237,10 +1277,10 @@ onMounted(() => {
                 >
                   <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
                     <span class="sub-drag text-slate-400 hover:text-slate-600 cursor-grab flex items-center" title="拖拽排序">
-                      <el-icon class="text-xs"><component is="Rank" /></el-icon>
+                      <GripVertical class="h-3.5 w-3.5" />
                     </span>
                     <span class="text-slate-400 text-xs font-mono">└</span>
-                    <el-icon class="text-xs text-slate-500 flex-shrink-0"><component :is="mapIcon(sub.icon)" /></el-icon>
+                    <component :is="mapIcon(sub.icon)" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
                     <span class="text-xs text-slate-700 dark:text-slate-300 truncate">{{ sub.name }}</span>
                     <span v-if="sub.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
                   </div>
@@ -1252,7 +1292,7 @@ onMounted(() => {
                       @click="openCategoryDialog(sub)"
                       title="编辑子分类"
                     >
-                      <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+                      <Pencil class="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
@@ -1260,7 +1300,7 @@ onMounted(() => {
                       @click="confirmDeleteCategory(sub)"
                       title="删除子分类"
                     >
-                      <el-icon class="text-xs"><component is="Delete" /></el-icon>
+                      <Trash2 class="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -1277,21 +1317,22 @@ onMounted(() => {
       <!-- Tab 3：AI 模型与推理参数 -->
       <div v-if="activeTab === 'ai'" class="space-y-3">
         <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
-          <el-form label-position="top" size="small" class="space-y-3.5">
+          <div class="space-y-3.5">
             <!-- 1. API Base URL -->
-            <el-form-item label="API Base URL">
-              <el-input v-model="aiSettings.base_url" placeholder="https://api.deepseek.com/v1" />
-            </el-form-item>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">API Base URL</label>
+              <Input v-model="aiSettings.base_url" placeholder="https://api.deepseek.com/v1" />
+            </div>
 
             <!-- 2. API Key -->
-            <el-form-item label="API Key">
-              <el-input
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">API Key</label>
+              <Input
                 v-model="aiSettings.api_key"
                 type="password"
-                show-password
                 :placeholder="aiSettings.has_api_key === 'true' ? `已配置 (${aiSettings.api_key_masked})，输入新密钥可覆盖` : 'sk-...'"
               />
-            </el-form-item>
+            </div>
 
             <!-- 3. 启用模型 -->
             <div class="space-y-2 p-3 rounded-md bg-slate-50 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70">
@@ -1300,11 +1341,12 @@ onMounted(() => {
                 <div class="flex items-center gap-1.5">
                   <button
                     type="button"
-                    class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1"
                     :disabled="fetchingModels"
                     @click="fetchOnlineModels"
                   >
-                    <el-icon class="mr-1" :class="{ 'is-loading': fetchingModels }"><component :is="fetchingModels ? 'Loading' : 'Refresh'" /></el-icon>
+                    <Loader2 v-if="fetchingModels" class="h-3 w-3 animate-spin text-primary" />
+                    <RotateCw v-else class="h-3 w-3 text-slate-500" />
                     <span>{{ fetchingModels ? '获取中...' : '获取' }}</span>
                   </button>
                   <button type="button" class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" @click="selectAllModels">全选</button>
@@ -1329,7 +1371,8 @@ onMounted(() => {
                   @click="toggleModelCheck(m)"
                 >
                   <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
-                    <el-icon class="text-xs"><component :is="(aiSettings.available_models || []).includes(m) ? 'CircleCheckFilled' : 'CircleCheck'" /></el-icon>
+                    <CheckCircle2 v-if="(aiSettings.available_models || []).includes(m)" class="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                    <Circle v-else class="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                     <span class="text-xs truncate">{{ m }}</span>
                   </div>
 
@@ -1341,7 +1384,7 @@ onMounted(() => {
                       @click.stop="setDefaultModel(m)"
                       :title="aiSettings.model === m ? '当前默认模型' : '点击设为默认模型'"
                     >
-                      <el-icon class="text-xs"><component :is="aiSettings.model === m ? 'StarFilled' : 'Star'" /></el-icon>
+                      <Star class="h-3.5 w-3.5" :class="aiSettings.model === m ? 'fill-amber-500 text-amber-500' : ''" />
                     </button>
                     <button
                       type="button"
@@ -1349,7 +1392,7 @@ onMounted(() => {
                       @click.stop="removeModel(m)"
                       title="删除此模型"
                     >
-                      <el-icon class="text-[10px]"><component is="Close" /></el-icon>
+                      <X class="h-3 w-3" />
                     </button>
                   </div>
                 </div>
@@ -1357,10 +1400,8 @@ onMounted(() => {
 
               <!-- 手动添加模型 -->
               <div class="flex items-center gap-2 mt-1">
-                <input
+                <Input
                   v-model="customModelName"
-                  type="text"
-                  class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2.5 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none"
                   placeholder="手动添加模型名称 (如 qwen-plus)"
                   @keyup.enter="addCustomModel"
                 />
@@ -1370,7 +1411,7 @@ onMounted(() => {
                   @click="addCustomModel"
                   title="添加模型"
                 >
-                  <el-icon class="text-xs"><component is="Plus" /></el-icon>
+                  <Plus class="h-3.5 w-3.5" />
                   <span>添加</span>
                 </button>
               </div>
@@ -1378,41 +1419,27 @@ onMounted(() => {
 
             <!-- 专属模型 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <el-form-item label="在线笔记写作专属模型">
-                <el-select
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">在线笔记写作专属模型</label>
+                <select
                   v-model="aiSettings.writing_model"
-                  class="w-full"
-                  placeholder="选择或输入笔记写作专属模型"
-                  filterable
-                  allow-create
-                  default-first-option
+                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <el-option
-                    v-for="m in allFetchedModels"
-                    :key="m"
-                    :label="m"
-                    :value="m"
-                  />
-                </el-select>
-              </el-form-item>
+                  <option value="">跟随全局默认</option>
+                  <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
+                </select>
+              </div>
 
-              <el-form-item label="导航书签解析专属模型">
-                <el-select
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">导航书签解析专属模型</label>
+                <select
                   v-model="aiSettings.bookmark_model"
-                  class="w-full"
-                  placeholder="选择或输入导航书签解析专属模型"
-                  filterable
-                  allow-create
-                  default-first-option
+                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <el-option
-                    v-for="m in allFetchedModels"
-                    :key="m"
-                    :label="m"
-                    :value="m"
-                  />
-                </el-select>
-              </el-form-item>
+                  <option value="">跟随全局默认</option>
+                  <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
+                </select>
+              </div>
             </div>
 
             <!-- 深度思考开关 -->
@@ -1421,12 +1448,12 @@ onMounted(() => {
                 <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">深度思考 (Reasoning CoT)</div>
                 <div class="text-[11px] text-slate-400">开启后大模型将展开深入步骤思考</div>
               </div>
-              <el-switch v-model="aiSettings.reasoning_mode" />
+              <Switch :checked="aiSettings.reasoning_mode" @update:checked="aiSettings.reasoning_mode = $event" />
             </div>
 
             <!-- 采样温度 -->
             <div>
-              <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center justify-between mb-1.5">
                 <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
                   采样温度 (Temperature): <span class="font-mono font-semibold text-slate-900 dark:text-slate-100">{{ aiSettings.temperature }}</span>
                 </label>
@@ -1434,44 +1461,57 @@ onMounted(() => {
                   {{ aiSettings.temperature < 0.4 ? '严谨精准' : aiSettings.temperature > 1.0 ? '创意发散' : '通用平衡' }}
                 </span>
               </div>
-              <el-slider v-model="aiSettings.temperature" :min="0" :max="2" :step="0.05" />
+              <Slider
+                :model-value="[aiSettings.temperature]"
+                :min="0"
+                :max="2"
+                :step="0.05"
+                @update:model-value="aiSettings.temperature = $event?.[0] ?? 0.7"
+              />
             </div>
 
             <!-- Top-P -->
             <div>
-              <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center justify-between mb-1.5">
                 <label class="text-xs font-medium text-slate-600 dark:text-slate-300">
                   核采样 (Top-P): <span class="font-mono font-semibold text-slate-900 dark:text-slate-100">{{ aiSettings.top_p }}</span>
                 </label>
               </div>
-              <el-slider v-model="aiSettings.top_p" :min="0.1" :max="1" :step="0.05" />
+              <Slider
+                :model-value="[aiSettings.top_p]"
+                :min="0.1"
+                :max="1"
+                :step="0.05"
+                @update:model-value="aiSettings.top_p = $event?.[0] ?? 0.95"
+              />
             </div>
 
             <!-- Max Tokens -->
-            <el-form-item label="单次最大生成 Token 数 (Max Tokens)">
-              <el-input-number v-model="aiSettings.max_tokens" :min="256" :max="16384" :step="512" class="w-full" />
-            </el-form-item>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">单次最大生成 Token 数 (Max Tokens)</label>
+              <Input v-model.number="aiSettings.max_tokens" type="number" :min="256" :max="16384" :step="512" class="w-full" />
+            </div>
 
             <!-- 全局系统提示词 -->
-            <el-form-item label="全局系统提示词 (System Prompt)">
-              <el-input
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">全局系统提示词 (System Prompt)</label>
+              <Textarea
                 v-model="aiSettings.system_prompt"
-                type="textarea"
                 :rows="3"
                 placeholder="设置 AI 助手的全局角色定位与回复规范"
               />
-            </el-form-item>
-          </el-form>
+            </div>
+          </div>
 
           <div class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800">
             <span class="text-xs text-slate-400">当前默认模型：<strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ aiSettings.model || '未设定' }}</strong></span>
             <button
               type="button"
-              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer disabled:opacity-50"
+              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
               :disabled="savingAiSettings"
               @click="saveAdminAiSettings"
             >
-              <el-icon v-if="savingAiSettings" class="is-loading mr-1"><component is="Loading" /></el-icon>
+              <Loader2 v-if="savingAiSettings" class="h-3.5 w-3.5 animate-spin" />
               <span>{{ savingAiSettings ? '保存中...' : '保存配置' }}</span>
             </button>
           </div>
@@ -1491,7 +1531,7 @@ onMounted(() => {
             class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             @click="openAccountDialog"
           >
-            <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+            <Pencil class="h-3.5 w-3.5" />
             <span>修改用户名与密码</span>
           </button>
         </div>
@@ -1519,7 +1559,7 @@ onMounted(() => {
               :disabled="settingUpTotp"
               @click="startTotpSetup"
             >
-              <el-icon class="text-xs"><component is="Lock" /></el-icon>
+              <Lock class="h-3.5 w-3.5" />
               <span>配置 2FA</span>
             </button>
           </div>
@@ -1529,7 +1569,7 @@ onMounted(() => {
             <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md" /></div>
             <p class="text-[11px] text-slate-400 text-center break-all font-mono">{{ totpSetup.secret }}</p>
             <div class="flex gap-2 max-w-sm mx-auto">
-              <el-input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" size="small" class="flex-1" />
+              <Input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" class="flex-1 h-7 text-xs" />
               <button type="button" class="h-7 px-3 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium" @click="confirmTotp">确认绑定</button>
             </div>
           </div>
@@ -1554,7 +1594,7 @@ onMounted(() => {
               :disabled="registeringPasskey"
               @click="registerPasskey"
             >
-              <el-icon class="text-xs"><component is="Key" /></el-icon>
+              <Key class="h-3.5 w-3.5" />
               <span>绑定 Passkey</span>
             </button>
           </div>
@@ -1564,18 +1604,41 @@ onMounted(() => {
       <!-- Tab 5：站点设置 -->
       <div v-if="activeTab === 'site'" class="space-y-3">
         <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
-          <el-form label-position="top" size="small" class="space-y-3">
+          <div class="space-y-3.5">
             <!-- 1. 外观深浅模式 -->
-            <el-form-item label="外观主题">
-              <el-radio-group :model-value="themeStore.mode" @change="themeStore.setMode($event as any)">
-                <el-radio-button value="system">跟随系统</el-radio-button>
-                <el-radio-button value="light">日间浅色</el-radio-button>
-                <el-radio-button value="dark">夜间深色</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">外观主题</label>
+              <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800/80 p-1">
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
+                  :class="themeStore.mode === 'system' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'"
+                  @click="themeStore.setMode('system')"
+                >
+                  跟随系统
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
+                  :class="themeStore.mode === 'light' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'"
+                  @click="themeStore.setMode('light')"
+                >
+                  日间浅色
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
+                  :class="themeStore.mode === 'dark' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'"
+                  @click="themeStore.setMode('dark')"
+                >
+                  夜间深色
+                </button>
+              </div>
+            </div>
 
             <!-- 2. 主品牌色 -->
-            <el-form-item label="系统主品牌色 (实时生效)">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">系统主品牌色 (实时生效)</label>
               <div class="flex items-center gap-2 flex-wrap">
                 <button
                   v-for="p in colorPresets"
@@ -1587,37 +1650,40 @@ onMounted(() => {
                   :title="p.name"
                   @click="selectThemeColor(p.color)"
                 >
-                  <el-icon v-if="siteForm.themePrimaryColor === p.color" class="text-white text-xs"><component is="Check" /></el-icon>
+                  <Check v-if="siteForm.themePrimaryColor === p.color" class="text-white h-3.5 w-3.5" />
                 </button>
 
                 <div class="flex items-center gap-2 ml-1">
-                  <el-color-picker
-                    v-model="siteForm.themePrimaryColor"
-                    size="small"
-                    @change="siteStore.setThemePrimaryColor($event as any)"
+                  <input
+                    type="color"
+                    :value="siteForm.themePrimaryColor"
+                    class="w-7 h-7 rounded border border-slate-200 dark:border-slate-800 cursor-pointer bg-transparent"
+                    @input="siteStore.setThemePrimaryColor(($event.target as HTMLInputElement).value)"
                   />
                   <span class="text-xs font-mono text-slate-400">{{ siteForm.themePrimaryColor }}</span>
                 </div>
               </div>
-            </el-form-item>
+            </div>
 
             <!-- 3. 搜索背景图 -->
-            <el-form-item label="导航主页搜索组件背景图">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">导航主页搜索组件背景图</label>
               <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
                 <div class="flex items-center gap-2">
-                  <el-input
+                  <Input
                     v-model="siteForm.searchBgImage"
                     placeholder="输入背景图片 URL 或点击右侧上传..."
-                    clearable
+                    class="flex-1"
                     @input="siteStore.searchBgImage = siteForm.searchBgImage"
                   />
                   <button
                     type="button"
-                    class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+                    class="h-9 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
                     :disabled="uploadingBg"
                     @click="bgUploadInputRef?.click()"
                   >
-                    <el-icon class="text-xs" :class="{ 'is-loading': uploadingBg }"><component :is="uploadingBg ? 'Loading' : 'Upload'" /></el-icon>
+                    <Loader2 v-if="uploadingBg" class="h-3 w-3 animate-spin text-primary" />
+                    <Upload v-else class="h-3 w-3 text-slate-500" />
                     <span>{{ uploadingBg ? '上传中...' : '上传图片' }}</span>
                   </button>
                   <input ref="bgUploadInputRef" type="file" accept="image/*" hidden @change="handleBgUpload" />
@@ -1631,22 +1697,25 @@ onMounted(() => {
                     title="清除背景图"
                     @click="clearCustomBg"
                   >
-                    <el-icon><component is="Close" /></el-icon>
+                    <X class="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
-            </el-form-item>
+            </div>
 
-            <el-form-item label="站点名称">
-              <el-input v-model="siteForm.siteName" placeholder="ZenLink" />
-            </el-form-item>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">站点名称</label>
+              <Input v-model="siteForm.siteName" placeholder="ZenLink" />
+            </div>
 
-            <el-form-item label="站点描述">
-              <el-input v-model="siteForm.siteDesc" placeholder="干净简洁的导航！" />
-            </el-form-item>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">站点描述</label>
+              <Input v-model="siteForm.siteDesc" placeholder="干净简洁的导航！" />
+            </div>
 
             <!-- 网站 Logo -->
-            <el-form-item label="网站图标与站标 (Logo / Favicon)">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">网站图标与站标 (Logo / Favicon)</label>
               <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
@@ -1659,25 +1728,26 @@ onMounted(() => {
                       title="清除"
                       @click="clearCustomLogo"
                     >
-                      <el-icon><component is="Delete" /></el-icon>
+                      <Trash2 class="h-4 w-4" />
                     </button>
                   </div>
 
                   <div class="flex-1 space-y-1 min-w-0">
                     <div class="flex items-center gap-2">
-                      <el-input
+                      <Input
                         v-model="siteForm.siteLogo"
                         placeholder="输入图片 URL 或点击右侧上传..."
-                        clearable
+                        class="flex-1"
                         @input="siteStore.setSiteLogo(siteForm.siteLogo)"
                       />
                       <button
                         type="button"
-                        class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
+                        class="h-9 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
                         :disabled="uploadingLogo"
                         @click="logoUploadInputRef?.click()"
                       >
-                        <el-icon class="text-xs" :class="{ 'is-loading': uploadingLogo }"><component :is="uploadingLogo ? 'Loading' : 'Upload'" /></el-icon>
+                        <Loader2 v-if="uploadingLogo" class="h-3 w-3 animate-spin text-primary" />
+                        <Upload v-else class="h-3 w-3 text-slate-500" />
                         <span>{{ uploadingLogo ? '上传中...' : '上传' }}</span>
                       </button>
                       <input ref="logoUploadInputRef" type="file" accept="image/*" hidden @change="handleLogoUpload" />
@@ -1686,25 +1756,30 @@ onMounted(() => {
                   </div>
                 </div>
               </div>
-            </el-form-item>
+            </div>
 
-            <el-form-item label="默认搜索引擎">
-              <el-select v-model="siteForm.defaultEngine" class="w-full">
-                <el-option label="Google" value="google" />
-                <el-option label="Bing" value="bing" />
-                <el-option label="DuckDuckGo" value="duckduckgo" />
-              </el-select>
-            </el-form-item>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">默认搜索引擎</label>
+              <select
+                v-model="siteForm.defaultEngine"
+                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="google">Google</option>
+                <option value="bing">Bing</option>
+                <option value="duckduckgo">DuckDuckGo</option>
+              </select>
+            </div>
 
             <!-- 功能模块开关 -->
-            <el-form-item label="功能模块开关">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">功能模块开关</label>
               <div class="space-y-2 p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 w-full">
                 <div class="flex items-center justify-between">
                   <div>
                     <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">开启 AI 助手</div>
                     <div class="text-[11px] text-slate-400">开启后可在侧边栏使用 AI 助手</div>
                   </div>
-                  <el-switch v-model="siteForm.enableAi" />
+                  <Switch :checked="siteForm.enableAi" @update:checked="siteForm.enableAi = $event" />
                 </div>
 
                 <div class="border-t border-slate-200/60 dark:border-slate-800/60 pt-2 flex items-center justify-between">
@@ -1712,19 +1787,19 @@ onMounted(() => {
                     <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">开启在线笔记</div>
                     <div class="text-[11px] text-slate-400">开启后可在侧边栏使用在线笔记</div>
                   </div>
-                  <el-switch v-model="siteForm.enableNotes" />
+                  <Switch :checked="siteForm.enableNotes" @update:checked="siteForm.enableNotes = $event" />
                 </div>
               </div>
-            </el-form-item>
-          </el-form>
+            </div>
+          </div>
 
           <div class="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex justify-end">
             <button
               type="button"
-              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer"
+              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
               @click="saveSiteSettings"
             >
-              <el-icon class="mr-1"><component is="Check" /></el-icon>
+              <Check class="h-3.5 w-3.5" />
               <span>保存设置</span>
             </button>
           </div>
@@ -1734,7 +1809,7 @@ onMounted(() => {
         <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg p-4 sm:p-5 shadow-subtle space-y-3">
           <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0">附件存储驱动设置</h3>
 
-          <el-form label-position="top" size="small" class="space-y-3">
+          <div class="space-y-3">
             <div>
               <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">当前存储位置</label>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1744,13 +1819,13 @@ onMounted(() => {
                   @click="storageSettings.storage_type = 'local'"
                 >
                   <div class="flex items-center gap-2">
-                    <el-icon class="text-base text-indigo-500"><component is="FolderOpened" /></el-icon>
+                    <FolderOpen class="h-5 w-5 text-indigo-500" />
                     <div>
                       <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">本地服务器存储 (Local)</div>
                       <div class="text-[11px] text-slate-400">文件保存在 data/uploads 目录</div>
                     </div>
                   </div>
-                  <el-icon v-if="storageSettings.storage_type === 'local'" class="text-indigo-500"><component is="Check" /></el-icon>
+                  <Check v-if="storageSettings.storage_type === 'local'" class="h-4 w-4 text-indigo-500" />
                 </div>
 
                 <div
@@ -1759,13 +1834,13 @@ onMounted(() => {
                   @click="storageSettings.storage_type = 'r2'"
                 >
                   <div class="flex items-center gap-2">
-                    <el-icon class="text-base text-indigo-500"><component is="Cloudy" /></el-icon>
+                    <Cloud class="h-5 w-5 text-indigo-500" />
                     <div>
                       <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Cloudflare R2 对象存储</div>
                       <div class="text-[11px] text-slate-400">全球 CDN 直链加速</div>
                     </div>
                   </div>
-                  <el-icon v-if="storageSettings.storage_type === 'r2'" class="text-indigo-500"><component is="Check" /></el-icon>
+                  <Check v-if="storageSettings.storage_type === 'r2'" class="h-4 w-4 text-indigo-500" />
                 </div>
               </div>
             </div>
@@ -1776,51 +1851,55 @@ onMounted(() => {
                 <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Cloudflare R2 凭据配置</span>
                 <button
                   type="button"
-                  class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1"
                   :disabled="testingR2"
                   @click="testR2"
                 >
-                  <el-icon class="mr-1" :class="{ 'is-loading': testingR2 }"><component :is="testingR2 ? 'Loading' : 'Connection'" /></el-icon>
+                  <Loader2 v-if="testingR2" class="h-3 w-3 animate-spin text-primary" />
+                  <Network v-else class="h-3 w-3 text-slate-500" />
                   <span>{{ testingR2 ? '测试中...' : '测试连接' }}</span>
                 </button>
               </div>
 
-              <el-form-item label="Cloudflare Account ID">
-                <el-input v-model="storageSettings.r2_account_id" placeholder="例如：a1b2c3d4e5f6..." />
-              </el-form-item>
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Cloudflare Account ID</label>
+                <Input v-model="storageSettings.r2_account_id" placeholder="例如：a1b2c3d4e5f6..." />
+              </div>
 
-              <el-form-item label="R2 存储桶名称 (Bucket Name)">
-                <el-input v-model="storageSettings.r2_bucket_name" placeholder="例如：zenlink-notes" />
-              </el-form-item>
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">R2 存储桶名称 (Bucket Name)</label>
+                <Input v-model="storageSettings.r2_bucket_name" placeholder="例如：zenlink-notes" />
+              </div>
 
-              <el-form-item label="Access Key ID">
-                <el-input v-model="storageSettings.r2_access_key_id" placeholder="R2 Access Key ID" />
-              </el-form-item>
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Access Key ID</label>
+                <Input v-model="storageSettings.r2_access_key_id" placeholder="R2 Access Key ID" />
+              </div>
 
-              <el-form-item label="Secret Access Key">
-                <el-input
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">Secret Access Key</label>
+                <Input
                   v-model="storageSettings.r2_secret_access_key"
                   type="password"
-                  show-password
                   :placeholder="storageSettings.r2_secret_access_key_masked ? `已配置 (${storageSettings.r2_secret_access_key_masked})，输入新密钥可覆盖` : 'R2 Secret Access Key'"
                 />
-              </el-form-item>
-
-              <el-form-item label="公开访问域名 / 自定义 CDN 域名 (可选)">
-                <el-input v-model="storageSettings.r2_public_domain" placeholder="https://pub-xxxx.r2.dev 或 https://cdn.yourdomain.com" />
-              </el-form-item>
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-slate-700 dark:text-slate-300">公开访问域名 / 自定义 CDN 域名 (可选)</label>
+                <Input v-model="storageSettings.r2_public_domain" placeholder="https://pub-xxxx.r2.dev 或 https://cdn.yourdomain.com" />
+              </div>
             </div>
-          </el-form>
+          </div>
 
           <div class="flex items-center justify-between pt-3 border-t border-slate-200/80 dark:border-slate-800">
             <span class="text-xs text-slate-400">当前存储驱动：<strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ storageSettings.storage_type === 'r2' ? 'Cloudflare R2' : '本地服务器' }}</strong></span>
             <button
               type="button"
-              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer"
+              class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer flex items-center gap-1"
               :disabled="savingStorage"
               @click="saveStorage"
             >
-              <el-icon class="mr-1"><component is="Check" /></el-icon>
+              <Loader2 v-if="savingStorage" class="h-3.5 w-3.5 animate-spin" />
+              <Check v-else class="h-3.5 w-3.5" />
               <span>{{ savingStorage ? '保存中...' : '保存存储设置' }}</span>
             </button>
           </div>
@@ -1835,7 +1914,7 @@ onMounted(() => {
               class="h-7 px-3 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
               @click="exportBookmarks"
             >
-              <el-icon class="text-xs"><component is="Download" /></el-icon>
+              <Download class="h-3.5 w-3.5" />
               <span>导出 JSON</span>
             </button>
             <button
@@ -1843,7 +1922,7 @@ onMounted(() => {
               class="h-7 px-3 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
               @click="importInputRef?.click()"
             >
-              <el-icon class="text-xs"><component is="Upload" /></el-icon>
+              <Upload class="h-3.5 w-3.5" />
               <span>导入 (HTML / JSON)</span>
             </button>
             <input ref="importInputRef" type="file" accept=".json,.html,.htm" hidden @change="handleImportBookmarks" />
@@ -1853,143 +1932,174 @@ onMounted(() => {
     </div>
 
     <!-- 对话框：账户安全 -->
-    <el-dialog
-      v-model="showAccountDialog"
-      title="账户安全设置"
-      :width="isMobile ? '92%' : '420px'"
-      align-center
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <el-form label-position="top" size="small" class="space-y-3">
-        <el-form-item label="用户名">
-          <el-input v-model="accountForm.username" placeholder="管理员用户名" />
-        </el-form-item>
+    <Dialog :open="showAccountDialog" @update:open="showAccountDialog = $event">
+      <DialogContent class="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>账户安全设置</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">用户名</label>
+            <Input v-model="accountForm.username" placeholder="管理员用户名" class="h-8 text-xs" />
+          </div>
 
-        <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-          <p class="text-xs text-slate-400 mb-2">如无需修改密码，以下密码项留空即可：</p>
-          <el-form-item label="当前密码">
-            <el-input v-model="accountForm.currentPassword" type="password" show-password placeholder="修改密码时需验证当前密码" />
-          </el-form-item>
-          <el-form-item label="新密码">
-            <el-input v-model="accountForm.newPassword" type="password" show-password placeholder="输入新密码" />
-          </el-form-item>
-          <el-form-item label="确认新密码">
-            <el-input v-model="accountForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" />
-          </el-form-item>
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+            <p class="text-xs text-muted-foreground">如无需修改密码，以下密码项留空即可：</p>
+            <div class="space-y-1.5">
+              <label class="font-medium text-slate-700 dark:text-slate-300">当前密码</label>
+              <Input v-model="accountForm.currentPassword" type="password" placeholder="修改密码时需验证当前密码" class="h-8 text-xs" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="font-medium text-slate-700 dark:text-slate-300">新密码</label>
+              <Input v-model="accountForm.newPassword" type="password" placeholder="输入新密码" class="h-8 text-xs" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="font-medium text-slate-700 dark:text-slate-300">确认新密码</label>
+              <Input v-model="accountForm.confirmPassword" type="password" placeholder="再次输入新密码" class="h-8 text-xs" />
+            </div>
+          </div>
         </div>
-      </el-form>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <el-button @click="showAccountDialog = false">取消</el-button>
-          <el-button type="primary" :loading="savingAccount" @click="saveAccountSettings">保存修改</el-button>
-        </div>
-      </template>
-    </el-dialog>
+        <DialogFooter>
+          <Button variant="outline" size="sm" @click="showAccountDialog = false">取消</Button>
+          <Button size="sm" :disabled="savingAccount" @click="saveAccountSettings">
+            <Loader2 v-if="savingAccount" class="h-3.5 w-3.5 animate-spin mr-1" />
+            <span>保存修改</span>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- 对话框：书签添加/编辑 -->
-    <el-dialog
-      v-model="showBookmarkDialog"
-      :title="editingBookmark.id ? '编辑书签' : '添加书签'"
-      :width="isMobile ? '92%' : '460px'"
-      align-center
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <el-form label-position="top" size="small" class="space-y-3">
-        <el-form-item label="网址链接 *">
-          <div class="flex gap-2 w-full">
-            <el-input v-model="editingBookmark.url" placeholder="https://..." class="flex-1" />
-            <el-button type="primary" plain @click="fetchBookmarkMeta">
-              <span>AI 解析</span>
-            </el-button>
+    <Dialog :open="showBookmarkDialog" @update:open="showBookmarkDialog = $event">
+      <DialogContent class="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>{{ editingBookmark.id ? '编辑书签' : '添加书签' }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">网址链接 <span class="text-red-500">*</span></label>
+            <div class="flex gap-2 w-full">
+              <Input v-model="editingBookmark.url" placeholder="https://..." class="flex-1 h-8 text-xs" />
+              <Button variant="outline" size="sm" class="h-8 text-xs shrink-0" @click="fetchBookmarkMeta">
+                <Sparkles class="h-3.5 w-3.5 mr-1 text-primary" />
+                <span>AI 解析</span>
+              </Button>
+            </div>
           </div>
-        </el-form-item>
-        <el-form-item label="标题 *">
-          <el-input v-model="editingBookmark.title" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="editingBookmark.description" type="textarea" :rows="2" resize="none" />
-        </el-form-item>
-        <div class="grid grid-cols-2 gap-3">
-          <el-form-item label="图标 URL">
-            <div class="flex items-center gap-2 w-full">
-              <el-input v-model="editingBookmark.favicon" placeholder="留空自动抓取" class="flex-1" />
-              <div class="w-5 h-5 flex items-center justify-center rounded-full overflow-hidden flex-shrink-0">
-                <img
-                  v-if="!modalImgError && (editingBookmark.url || editingBookmark.favicon)"
-                  :src="getAdminRowFavicon(editingBookmark)"
-                  class="w-full h-full object-contain rounded-full"
-                  alt=""
-                  @error="modalImgError = true"
-                />
-                <div
-                  v-else
-                  class="w-full h-full flex items-center justify-center text-white text-[10px] font-bold rounded-full"
-                  :style="{ backgroundColor: getAvatarColor(editingBookmark.title || editingBookmark.url) }"
-                >
-                  {{ getAvatarChar(editingBookmark.title, editingBookmark.url) }}
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">标题 <span class="text-red-500">*</span></label>
+            <Input v-model="editingBookmark.title" placeholder="书签标题" class="h-8 text-xs" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">描述</label>
+            <Textarea v-model="editingBookmark.description" placeholder="书签描述..." class="text-xs resize-none h-16" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <label class="font-medium text-slate-700 dark:text-slate-300">图标 URL</label>
+              <div class="flex items-center gap-2 w-full">
+                <Input v-model="editingBookmark.favicon" placeholder="留空自动抓取" class="flex-1 h-8 text-xs" />
+                <div class="w-5 h-5 flex items-center justify-center rounded-full overflow-hidden flex-shrink-0">
+                  <img
+                    v-if="!modalImgError && (editingBookmark.url || editingBookmark.favicon)"
+                    :src="getAdminRowFavicon(editingBookmark)"
+                    class="w-full h-full object-contain rounded-full"
+                    alt=""
+                    @error="modalImgError = true"
+                  />
+                  <div
+                    v-else
+                    class="w-full h-full flex items-center justify-center text-white text-[10px] font-bold rounded-full"
+                    :style="{ backgroundColor: getAvatarColor(editingBookmark.title || editingBookmark.url) }"
+                  >
+                    {{ getAvatarChar(editingBookmark.title, editingBookmark.url) }}
+                  </div>
                 </div>
               </div>
             </div>
-          </el-form-item>
-          <el-form-item label="备用链接">
-            <el-input v-model="editingBookmark.backup_url" />
-          </el-form-item>
-        </div>
-        <el-form-item label="所属分类">
-          <el-select v-model="editingBookmark.category_id" placeholder="选择分类" clearable class="w-full">
-            <el-option
-              v-for="opt in categoryDialogOptions"
-              :key="opt.id"
-              :label="opt.name"
-              :value="opt.id"
+            <div class="space-y-1.5">
+              <label class="font-medium text-slate-700 dark:text-slate-300">备用链接</label>
+              <Input v-model="editingBookmark.backup_url" placeholder="备用链接" class="h-8 text-xs" />
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">所属分类</label>
+            <select
+              :value="editingBookmark.category_id ?? ''"
+              class="w-full h-8 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @change="editingBookmark.category_id = ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null"
+            >
+              <option value="">选择分类</option>
+              <option
+                v-for="opt in categoryDialogOptions"
+                :key="opt.id"
+                :value="opt.id"
+              >
+                {{ opt.name }}
+              </option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer text-xs select-none pt-1">
+            <input
+              type="checkbox"
+              :checked="editingBookmark.is_private === 1"
+              class="rounded border-input text-primary focus:ring-ring h-4 w-4"
+              @change="editingBookmark.is_private = ($event.target as HTMLInputElement).checked ? 1 : 0"
             />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-checkbox v-model="editingBookmark.is_private" :true-value="1" :false-value="0">私有书签（仅登录后可见）</el-checkbox>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <el-button @click="showBookmarkDialog = false">取消</el-button>
-          <el-button type="primary" @click="saveBookmark">保存</el-button>
+            <span>私有书签（仅登录后可见）</span>
+          </label>
         </div>
-      </template>
-    </el-dialog>
+        <DialogFooter>
+          <Button variant="outline" size="sm" @click="showBookmarkDialog = false">取消</Button>
+          <Button size="sm" @click="saveBookmark">保存</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <!-- 对话框：分类新建/编辑 -->
-    <el-dialog
-      v-model="showCategoryDialog"
-      :title="editingCategory.id ? '编辑分类' : '新建分类'"
-      :width="isMobile ? '92%' : '400px'"
-      align-center
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <el-form label-position="top" size="small" class="space-y-3">
-        <el-form-item label="分类名称 *">
-          <el-input v-model="editingCategory.name" />
-        </el-form-item>
-        <el-form-item label="图标">
-          <IconPicker v-model="editingCategory.icon" />
-        </el-form-item>
-        <el-form-item label="上级分类">
-          <el-select v-model="editingCategory.parent_id" placeholder="无 (一级分类)" clearable class="w-full">
-            <el-option v-for="cat in topCategories()" :key="cat.id" :label="cat.name" :value="cat.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-checkbox v-model="editingCategory.is_private" :true-value="1" :false-value="0">私有分类</el-checkbox>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <el-button @click="showCategoryDialog = false">取消</el-button>
-          <el-button type="primary" @click="saveCategory">保存</el-button>
+    <Dialog :open="showCategoryDialog" @update:open="showCategoryDialog = $event">
+      <DialogContent class="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>{{ editingCategory.id ? '编辑分类' : '新建分类' }}</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">分类名称 <span class="text-red-500">*</span></label>
+            <Input v-model="editingCategory.name" placeholder="分类名称" class="h-8 text-xs" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">图标</label>
+            <IconPicker v-model="editingCategory.icon" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-slate-700 dark:text-slate-300">上级分类</label>
+            <select
+              :value="editingCategory.parent_id ?? ''"
+              class="w-full h-8 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @change="editingCategory.parent_id = ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null"
+            >
+              <option value="">无 (一级分类)</option>
+              <option v-for="cat in topCategories()" :key="cat.id" :value="cat.id">
+                {{ cat.name }}
+              </option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer text-xs select-none pt-1">
+            <input
+              type="checkbox"
+              :checked="editingCategory.is_private === 1"
+              class="rounded border-input text-primary focus:ring-ring h-4 w-4"
+              @change="editingCategory.is_private = ($event.target as HTMLInputElement).checked ? 1 : 0"
+            />
+            <span>私有分类</span>
+          </label>
         </div>
-      </template>
-    </el-dialog>
+        <DialogFooter>
+          <Button variant="outline" size="sm" @click="showCategoryDialog = false">取消</Button>
+          <Button size="sm" @click="saveCategory">保存</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
   </div>
 </template>

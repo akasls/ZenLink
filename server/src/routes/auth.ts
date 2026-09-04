@@ -29,7 +29,15 @@ interface StoredChallenge {
 const regChallengeStore = new Map<number, StoredChallenge>();
 const loginChallengeStore = new Map<string, number>();
 
-// 定期清理过期 challenge
+// 登录防爆破滑动限制器 (同一 IP 连续 5 次失败锁定 15 分钟)
+interface AttemptRecord {
+  count: number;
+  lockedUntil: number;
+  lastAttempt: number;
+}
+const loginAttempts = new Map<string, AttemptRecord>();
+
+// 定期清理过期 challenge 与过期防爆破记录，防止内存泄漏
 setInterval(() => {
   const now = Date.now();
   for (const [uid, item] of regChallengeStore.entries()) {
@@ -38,14 +46,12 @@ setInterval(() => {
   for (const [challenge, exp] of loginChallengeStore.entries()) {
     if (exp < now) loginChallengeStore.delete(challenge);
   }
+  for (const [ip, attempt] of loginAttempts.entries()) {
+    if (attempt.lockedUntil < now && now - attempt.lastAttempt > 15 * 60 * 1000) {
+      loginAttempts.delete(ip);
+    }
+  }
 }, 60000);
-
-// 登录防爆破滑动限制器 (同一 IP 连续 5 次失败锁定 15 分钟)
-interface AttemptRecord {
-  count: number;
-  lockedUntil: number;
-}
-const loginAttempts = new Map<string, AttemptRecord>();
 
 export default async function authRoutes(fastify: FastifyInstance): Promise<void> {
   // ==================== 密码登录 ====================
@@ -66,12 +72,21 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
       return reply.status(429).send({ error: `尝试次数过多，请 ${waitMin} 分钟后再试` });
     }
 
-    const body = loginSchema.parse(request.body);
+    let body;
+    try {
+      body = loginSchema.parse(request.body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: '参数验证失败', details: error.errors });
+      }
+      throw error;
+    }
 
     const user = dbHelper.get('SELECT * FROM users WHERE username = ?', [body.username]);
     if (!user) {
-      const rec = loginAttempts.get(clientIp) || { count: 0, lockedUntil: 0 };
+      const rec = loginAttempts.get(clientIp) || { count: 0, lockedUntil: 0, lastAttempt: now };
       rec.count += 1;
+      rec.lastAttempt = now;
       if (rec.count >= 5) rec.lockedUntil = now + 15 * 60 * 1000;
       loginAttempts.set(clientIp, rec);
       return reply.status(401).send({ error: '用户名或密码错误' });
@@ -79,8 +94,9 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
 
     const validPassword = bcrypt.compareSync(body.password, user.password_hash);
     if (!validPassword) {
-      const rec = loginAttempts.get(clientIp) || { count: 0, lockedUntil: 0 };
+      const rec = loginAttempts.get(clientIp) || { count: 0, lockedUntil: 0, lastAttempt: now };
       rec.count += 1;
+      rec.lastAttempt = now;
       if (rec.count >= 5) rec.lockedUntil = now + 15 * 60 * 1000;
       loginAttempts.set(clientIp, rec);
       return reply.status(401).send({ error: '用户名或密码错误' });

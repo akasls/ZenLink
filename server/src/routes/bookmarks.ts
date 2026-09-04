@@ -2,14 +2,18 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { join, dirname, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, promises as fsPromises } from 'fs';
 import crypto from 'crypto';
 import dbHelper, { saveDatabase } from '../db/index.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { fetchSiteMeta, checkUrlStatus, isSafeUrl, isSafeUrlAsync, safeFetch } from '../services/meta-scraper.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const FAVICON_DIR = resolve(__dirname, '../../../data/favicons');
+const FAVICON_DIR = existsSync(resolve(__dirname, '../../data/favicons'))
+  ? resolve(__dirname, '../../data/favicons')
+  : (existsSync(resolve(__dirname, '../../../data/favicons'))
+    ? resolve(__dirname, '../../../data/favicons')
+    : resolve(__dirname, '../../data/favicons'));
 if (!existsSync(FAVICON_DIR)) {
   mkdirSync(FAVICON_DIR, { recursive: true });
 }
@@ -37,33 +41,31 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     return crypto.createHash('md5').update(str).digest('hex');
   }
 
-  function getDiskFavicon(key: string): { buffer: Buffer; contentType: string; filename: string } | null {
+  async function getDiskFavicon(key: string): Promise<{ buffer: Buffer; contentType: string; filename: string } | null> {
     if (!existsSync(FAVICON_DIR)) return null;
     const extensions = ['.png', '.svg', '.ico', '.webp', '.jpg'];
     for (const ext of extensions) {
       const filename = `${key}${ext}`;
       const filePath = join(FAVICON_DIR, filename);
-      if (existsSync(filePath)) {
-        try {
-          const buffer = readFileSync(filePath);
-          if (buffer.length > 0) {
-            let contentType = 'image/png';
-            if (ext === '.svg') contentType = 'image/svg+xml';
-            else if (ext === '.ico') contentType = 'image/x-icon';
-            else if (ext === '.webp') contentType = 'image/webp';
-            else if (ext === '.jpg') contentType = 'image/jpeg';
-            return { buffer, contentType, filename };
-          }
-        } catch {}
-      }
+      try {
+        const buffer = await fsPromises.readFile(filePath);
+        if (buffer.length > 0) {
+          let contentType = 'image/png';
+          if (ext === '.svg') contentType = 'image/svg+xml';
+          else if (ext === '.ico') contentType = 'image/x-icon';
+          else if (ext === '.webp') contentType = 'image/webp';
+          else if (ext === '.jpg') contentType = 'image/jpeg';
+          return { buffer, contentType, filename };
+        }
+      } catch {}
     }
     return null;
   }
 
-  function saveDiskFavicon(key: string, buffer: Buffer, contentType: string): string {
+  async function saveDiskFavicon(key: string, buffer: Buffer, contentType: string): Promise<string> {
     try {
       if (!existsSync(FAVICON_DIR)) {
-        mkdirSync(FAVICON_DIR, { recursive: true });
+        await fsPromises.mkdir(FAVICON_DIR, { recursive: true });
       }
       let ext = '.png';
       if (contentType.includes('svg')) ext = '.svg';
@@ -73,7 +75,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
 
       const filename = `${key}${ext}`;
       const filePath = join(FAVICON_DIR, filename);
-      writeFileSync(filePath, buffer);
+      await fsPromises.writeFile(filePath, buffer);
       return `/api/favicon/${filename}`;
     } catch {
       return '';
@@ -82,7 +84,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
 
   async function fetchAndPersistFavicon(targetUrl: string, customIcon: string, siteTitle: string, key: string, domain: string): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
     // 1. 优先读取磁盘
-    const onDisk = getDiskFavicon(key);
+    const onDisk = await getDiskFavicon(key);
     if (onDisk) {
       return onDisk;
     }
@@ -157,7 +159,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
       );
       const winner = await Promise.any(fetchPromises);
       if (winner && winner.buffer) {
-        saveDiskFavicon(key, winner.buffer, winner.contentType);
+        await saveDiskFavicon(key, winner.buffer, winner.contentType);
         const ext = winner.contentType.includes('svg') ? '.svg' : winner.contentType.includes('ico') || winner.contentType.includes('icon') ? '.ico' : winner.contentType.includes('webp') ? '.webp' : '.png';
         return { buffer: winner.buffer, contentType: winner.contentType, filename: `${key}${ext}` };
       }
@@ -166,7 +168,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     // 3. Fallback 到原生 SVG 徽标并落盘
     const char = siteTitle || domain || targetUrl || 'Z';
     const svgBuffer = getAvatarSvg(char, domain || siteTitle || targetUrl);
-    saveDiskFavicon(key, svgBuffer, 'image/svg+xml');
+    await saveDiskFavicon(key, svgBuffer, 'image/svg+xml');
     return { buffer: svgBuffer, contentType: 'image/svg+xml', filename: `${key}.svg` };
   }
 
@@ -175,7 +177,8 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     const { filename } = request.params as { filename: string };
     const safeName = basename(filename);
     const filePath = join(FAVICON_DIR, safeName);
-    if (existsSync(filePath)) {
+    try {
+      const buffer = await fsPromises.readFile(filePath);
       const ext = safeName.split('.').pop()?.toLowerCase() || 'png';
       let contentType = 'image/png';
       if (ext === 'svg') contentType = 'image/svg+xml';
@@ -183,13 +186,13 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
       else if (ext === 'webp') contentType = 'image/webp';
       else if (ext === 'jpg' || ext === 'jpeg') contentType = 'image/jpeg';
 
-      const buffer = readFileSync(filePath);
       return reply
         .header('Content-Type', contentType)
         .header('Cache-Control', 'public, max-age=31536000, immutable')
         .send(buffer);
+    } catch {
+      return reply.status(404).send({ error: 'Favicon not found' });
     }
-    return reply.status(404).send({ error: 'Favicon not found' });
   });
 
   // 主 Favicon 获取接口：优先 100% 磁盘读取，彻底避免前台用户浏览时产生外部网络开销
@@ -212,7 +215,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     const key = getFaviconKey(targetUrl, domain, customIcon);
 
     // 1. 优先直接从磁盘读取（0 毫秒，0 外部请求）
-    const diskCached = getDiskFavicon(key);
+    const diskCached = await getDiskFavicon(key);
     if (diskCached) {
       return reply
         .header('Content-Type', diskCached.contentType)
@@ -240,7 +243,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
             domain = new URL(u).hostname;
           }
           const key = getFaviconKey(bm.url, domain, bm.favicon);
-          if (!getDiskFavicon(key)) {
+          if (!(await getDiskFavicon(key))) {
             await fetchAndPersistFavicon(bm.url, bm.favicon, bm.title, key, domain);
           }
         } catch {}
@@ -285,9 +288,9 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     title: z.string().min(1, '标题不能为空').max(200),
     description: z.string().max(500).optional().default(''),
     url: z.string().url('请输入有效的 URL'),
-    backupUrl: z.string().url().optional().nullable(),
+    backupUrl: z.union([z.string().url(), z.literal('')]).optional().nullable(),
     favicon: z.string().optional().default(''),
-    categoryId: z.number().int().positive().optional().nullable(),
+    categoryId: z.union([z.number().int(), z.literal(0)]).optional().nullable(),
     isPrivate: z.boolean().optional().default(false),
   });
 
@@ -299,9 +302,12 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
       const maxSort = dbHelper.get('SELECT COALESCE(MAX(sort_order), 0) as max_sort FROM bookmarks');
       const sortOrder = (maxSort?.max_sort || 0) + 1;
 
+      const cleanBackupUrl = body.backupUrl ? body.backupUrl.trim() : null;
+      const cleanCategoryId = (body.categoryId && body.categoryId > 0) ? body.categoryId : null;
+
       const result = dbHelper.run(
         'INSERT INTO bookmarks (title, description, url, backup_url, favicon, category_id, is_private, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [body.title, body.description, body.url, body.backupUrl || null, body.favicon, body.categoryId || null, body.isPrivate ? 1 : 0, sortOrder]
+        [body.title, body.description, body.url, cleanBackupUrl, body.favicon, cleanCategoryId, body.isPrivate ? 1 : 0, sortOrder]
       );
 
       saveDatabase();
@@ -322,9 +328,9 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(500).optional(),
     url: z.string().url().optional(),
-    backupUrl: z.string().url().optional().nullable(),
+    backupUrl: z.union([z.string().url(), z.literal('')]).optional().nullable(),
     favicon: z.string().optional(),
-    categoryId: z.number().int().positive().optional().nullable(),
+    categoryId: z.union([z.number().int(), z.literal(0)]).optional().nullable(),
     isPrivate: z.boolean().optional(),
     sortOrder: z.number().int().optional(),
   });
@@ -344,9 +350,15 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     if (body.title !== undefined) { fields.push('title = ?'); values.push(body.title); }
     if (body.description !== undefined) { fields.push('description = ?'); values.push(body.description); }
     if (body.url !== undefined) { fields.push('url = ?'); values.push(body.url); }
-    if (body.backupUrl !== undefined) { fields.push('backup_url = ?'); values.push(body.backupUrl); }
+    if (body.backupUrl !== undefined) {
+      fields.push('backup_url = ?');
+      values.push(body.backupUrl ? body.backupUrl.trim() : null);
+    }
     if (body.favicon !== undefined) { fields.push('favicon = ?'); values.push(body.favicon); }
-    if (body.categoryId !== undefined) { fields.push('category_id = ?'); values.push(body.categoryId); }
+    if (body.categoryId !== undefined) {
+      fields.push('category_id = ?');
+      values.push((body.categoryId && body.categoryId > 0) ? body.categoryId : null);
+    }
     if (body.isPrivate !== undefined) { fields.push('is_private = ?'); values.push(body.isPrivate ? 1 : 0); }
     if (body.sortOrder !== undefined) { fields.push('sort_order = ?'); values.push(body.sortOrder); }
 

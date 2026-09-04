@@ -5,7 +5,11 @@ import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const UPLOAD_DIR = resolve(__dirname, '../../../data/uploads');
+const UPLOAD_DIR = existsSync(resolve(__dirname, '../../data/uploads'))
+  ? resolve(__dirname, '../../data/uploads')
+  : (existsSync(resolve(__dirname, '../../../data/uploads'))
+    ? resolve(__dirname, '../../../data/uploads')
+    : resolve(__dirname, '../../data/uploads'));
 
 if (!existsSync(UPLOAD_DIR)) {
   mkdirSync(UPLOAD_DIR, { recursive: true });

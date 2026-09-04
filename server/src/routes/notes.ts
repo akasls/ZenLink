@@ -5,10 +5,14 @@ import { uploadFileBuffer, getStorageSettings, getR2Client } from '../utils/s3.j
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { resolve, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, mkdirSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, createReadStream } from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const UPLOAD_DIR = resolve(__dirname, '../../../data/uploads');
+const UPLOAD_DIR = existsSync(resolve(__dirname, '../../data/uploads'))
+  ? resolve(__dirname, '../../data/uploads')
+  : (existsSync(resolve(__dirname, '../../../data/uploads'))
+    ? resolve(__dirname, '../../../data/uploads')
+    : resolve(__dirname, '../../data/uploads'));
 
 if (!existsSync(UPLOAD_DIR)) {
   mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -409,11 +413,11 @@ export default async function noteRoutes(fastify: FastifyInstance) {
     };
 
     const contentType = mimeTypes[ext] || 'application/octet-stream';
-    const buffer = readFileSync(filePath);
     if (ext === 'svg' || ext === 'html' || ext === 'htm') {
       reply.header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
     }
-    reply.header('Content-Type', contentType).header('Cache-Control', 'public, max-age=86400').send(buffer);
+    const stream = createReadStream(filePath);
+    return reply.header('Content-Type', contentType).header('Cache-Control', 'public, max-age=86400').send(stream);
   });
 
   // 下载附件文件
@@ -453,11 +457,11 @@ export default async function noteRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ error: '本地文件已被删除' });
     }
 
-    const buffer = readFileSync(localFile);
+    const stream = createReadStream(localFile);
     reply
       .header('Content-Type', 'application/octet-stream')
       .header('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`)
-      .send(buffer);
+      .send(stream);
   });
 
 }

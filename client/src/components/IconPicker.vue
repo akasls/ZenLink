@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { mapIcon } from '@/utils/icon-map';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Search, ChevronDown } from 'lucide-vue-next';
 
 const modelValue = defineModel<string>({ default: 'pi pi-folder' });
 const showPicker = ref(false);
 const search = ref('');
 
-// 可选图标列表（保持 pi pi-xxx 格式存储到数据库，显示时映射为 Element Plus 图标）
+// 可选图标列表（保持 pi pi-xxx 格式存储到数据库，显示时映射为 Lucide 图标）
 const icons = [
   'pi pi-folder', 'pi pi-folder-open', 'pi pi-bookmark', 'pi pi-book',
   'pi pi-code', 'pi pi-desktop', 'pi pi-mobile', 'pi pi-tablet',
@@ -40,7 +49,7 @@ const icons = [
 const filteredIcons = computed(() => {
   if (!search.value) return icons;
   const q = search.value.toLowerCase();
-  return icons.filter(i => i.includes(q));
+  return icons.filter((i) => i.includes(q));
 });
 
 function selectIcon(icon: string) {
@@ -58,47 +67,66 @@ function getIconLabel(icon: string): string {
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class="h-7 px-2.5 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+        class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
         @click="showPicker = true"
       >
-        <el-icon class="text-xs text-slate-500"><component :is="mapIcon(modelValue)" /></el-icon>
+        <component :is="mapIcon(modelValue)" class="h-3.5 w-3.5 text-muted-foreground" />
         <span class="text-xs">{{ getIconLabel(modelValue) || '选择图标' }}</span>
-        <el-icon class="text-[10px] text-slate-400"><component is="ArrowDown" /></el-icon>
+        <ChevronDown class="h-3 w-3 text-muted-foreground" />
       </button>
     </div>
 
-    <el-dialog v-model="showPicker" title="选择分类图标" width="400px" align-center destroy-on-close>
-      <div class="mb-3">
-        <el-input v-model="search" placeholder="搜索图标名称..." clearable size="small">
-          <template #prefix>
-            <el-icon><component is="Search" /></el-icon>
-          </template>
-        </el-input>
-      </div>
-      <div class="grid grid-cols-7 gap-1.5 max-h-[260px] overflow-y-auto p-1">
-        <el-tooltip
-          v-for="icon in filteredIcons"
-          :key="icon"
-          :content="getIconLabel(icon)"
-          placement="top"
-          :show-after="300"
-        >
-          <button
-            type="button"
-            class="w-9 h-9 flex items-center justify-center rounded-md border transition-all cursor-pointer"
-            :class="[
-              modelValue === icon
-                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900 dark:border-slate-100 font-bold shadow-xs'
-                : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200/70 dark:border-slate-700/70 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-            ]"
-            @click="selectIcon(icon)"
+    <Dialog :open="showPicker" @update:open="showPicker = $event">
+      <DialogContent class="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>选择分类图标</DialogTitle>
+        </DialogHeader>
+
+        <div class="space-y-3 pt-1">
+          <div class="relative">
+            <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              v-model="search"
+              placeholder="搜索图标名称..."
+              class="pl-9 text-xs"
+              autofocus
+            />
+          </div>
+
+          <div class="grid grid-cols-7 gap-1.5 max-h-[260px] overflow-y-auto p-1 rounded-md border border-border/60 bg-muted/20">
+            <Tooltip
+              v-for="icon in filteredIcons"
+              :key="icon"
+              :delay-duration="200"
+            >
+              <TooltipTrigger as-child>
+                <button
+                  type="button"
+                  class="w-9 h-9 flex items-center justify-center rounded-md border transition-all cursor-pointer"
+                  :class="[
+                    modelValue === icon
+                      ? 'bg-primary text-primary-foreground border-primary font-bold shadow-xs'
+                      : 'bg-card border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent',
+                  ]"
+                  @click="selectIcon(icon)"
+                >
+                  <component :is="mapIcon(icon)" class="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" class="text-xs">
+                {{ getIconLabel(icon) }}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div
+            v-if="filteredIcons.length === 0"
+            class="text-xs text-center py-6 text-muted-foreground"
           >
-            <el-icon class="text-sm"><component :is="mapIcon(icon)" /></el-icon>
-          </button>
-        </el-tooltip>
-      </div>
-      <el-empty v-if="filteredIcons.length === 0" description="未找到匹配图标" class="py-6" />
-    </el-dialog>
+            未找到匹配图标
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
-

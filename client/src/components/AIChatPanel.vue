@@ -2,9 +2,39 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { aiApi, noteApi } from '@/api';
 import { useAuthStore } from '@/stores/auth';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { toast } from '@/components/ui/sonner';
+import { confirmBox } from '@/utils/confirm';
+import { renderMarkdown, handleCodeCopyClick } from '@/utils/markdown';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import {
+  Plus,
+  Pencil,
+  Copy,
+  Trash2,
+  RotateCw,
+  ChevronDown,
+  Check,
+  Square,
+  Send,
+  Paperclip,
+  ArrowDown,
+  MessageSquare,
+  Tickets,
+} from 'lucide-vue-next';
 
 const props = defineProps<{
   active?: boolean;
@@ -14,42 +44,6 @@ const authStore = useAuthStore();
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 function handleResize() { isMobile.value = window.innerWidth < 768; }
-
-// ==================== 1. 极简轻量 Marked 渲染器 (淡灰色代码框 + 右上角悬浮复制图标，不占用独占行高) ====================
-const renderer = new marked.Renderer();
-
-renderer.code = function (token: any) {
-  const code = typeof token === 'object' && token !== null && 'text' in token ? token.text : (token || '');
-  const lang = (typeof token === 'object' && token !== null && 'lang' in token ? token.lang : '') || '';
-  const language = (lang || 'text').toLowerCase().trim();
-
-  const escapedCode = String(code)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-  const encodedCode = encodeURIComponent(String(code));
-
-  return `
-    <div class="code-block-wrapper">
-      <button type="button" class="code-floating-copy-btn" data-code="${encodedCode}" title="复制代码">
-        <svg class="copy-svg" viewBox="0 0 1024 1024" width="14" height="14">
-          <path fill="currentColor" d="M768 832a128 128 0 0 1-128 128H192A128 128 0 0 1 64 832V384a128 128 0 0 1 128-128v64a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64h64z"/>
-          <path fill="currentColor" d="M384 128a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64V192a64 64 0 0 0-64-64H384zm0-64h448a128 128 0 0 1 128 128v448a128 128 0 0 1-128 128H384a128 128 0 0 1-128-128V192A128 128 0 0 1 384 64z"/>
-        </svg>
-      </button>
-      <pre class="code-pre-surface"><code class="language-${language}">${escapedCode}</code></pre>
-    </div>
-  `;
-};
-
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-  renderer,
-});
 
 interface Message {
   id?: number | string;
@@ -118,7 +112,7 @@ function selectRole(r: RolePreset) {
     const cur = conversations.value.find(c => c.id === activeConversationId.value);
     if (cur) cur.role_id = r.id;
   }
-  ElMessage.success('已应用角色「' + r.name + '」');
+  toast.success('已应用角色「' + r.name + '」');
 }
 
 function loadCustomRoles() {
@@ -171,11 +165,11 @@ function openEditRoleModal(role: RolePreset, e?: Event) {
 
 function saveCustomRole() {
   if (!editingRole.value.name.trim()) {
-    ElMessage.warning('请输入角色名称');
+    toast.warning('请输入角色名称');
     return;
   }
   if (!editingRole.value.prompt.trim()) {
-    ElMessage.warning('请输入角色的提示词');
+    toast.warning('请输入角色的提示词');
     return;
   }
 
@@ -199,7 +193,7 @@ function saveCustomRole() {
   loadCustomRoles();
   selectedRoleId.value = editingRole.value.id;
   showRoleModal.value = false;
-  ElMessage.success(`已保存角色「${editingRole.value.name}」`);
+  toast.success(`已保存角色「${editingRole.value.name}」`);
 }
 
 function deleteCustomRole(roleId: string, e?: Event) {
@@ -210,7 +204,7 @@ function deleteCustomRole(roleId: string, e?: Event) {
     selectedRoleId.value = 'default';
   }
   loadCustomRoles();
-  ElMessage.success('已删除角色');
+  toast.success('已删除角色');
 }
 
 // 会话与消息状态
@@ -501,9 +495,9 @@ async function saveEditTitle(conv: Conversation) {
   try {
     await aiApi.updateConversation(conv.id, { title: newTitle });
     conv.title = newTitle;
-    ElMessage.success('已更新会话名称');
+    toast.success('已更新会话名称');
   } catch {
-    ElMessage.error('更新标题失败');
+    toast.error('更新标题失败');
   } finally {
     cancelEditTitle();
   }
@@ -514,13 +508,7 @@ async function deleteConversation(id: string, e?: Event) {
   const conv = conversations.value.find(c => c.id === id);
   const convTitle = conv ? `「${conv.title}」` : '此会话';
   try {
-    await ElMessageBox.confirm(`确定要删除 ${convTitle} 吗？删除后不可恢复。`, '删除会话', {
-      type: 'warning',
-      customClass: 'zenlink-custom-dialog',
-      confirmButtonText: '确定删除',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'el-button--danger',
-    });
+    await confirmBox(`确定要删除 ${convTitle} 吗？删除后不可恢复。`, '删除会话');
     await aiApi.deleteConversation(id);
     conversations.value = conversations.value.filter(c => c.id !== id);
     if (activeConversationId.value === id) {
@@ -531,39 +519,33 @@ async function deleteConversation(id: string, e?: Event) {
         messages.value = [];
       }
     }
-    ElMessage.success('已删除会话');
+    toast.success('已删除会话');
   } catch {}
 }
 
 async function clearAllConversations() {
   try {
-    await ElMessageBox.confirm('确定要清空全部 AI 对话历史吗？此操作无法撤销。', '清空历史', {
-      type: 'warning',
-      customClass: 'zenlink-custom-dialog',
-      confirmButtonText: '确定清空',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'el-button--danger',
-    });
+    await confirmBox('确定要清空全部 AI 对话历史吗？此操作无法撤销。', '清空历史');
     await aiApi.clearConversations();
     conversations.value = [];
     activeConversationId.value = '';
     messages.value = [];
     convPopoverVisible.value = false;
-    ElMessage.success('已清空所有对话');
+    toast.success('已清空所有对话');
   } catch {}
 }
 
 function selectModelOption(m: string) {
   selectedModel.value = m;
   modelPopoverVisible.value = false;
-  ElMessage.success(`已切换模型为「${m}」`);
+  toast.success(`已切换模型为「${m}」`);
 }
 
 function setDefaultModel() {
   if (selectedModel.value) {
-    ElMessage.success(`已将「${selectedModel.value}」设为默认模型`);
+    toast.success(`已将「${selectedModel.value}」设为默认模型`);
   } else {
-    ElMessage.warning('当前无可用模型');
+    toast.warning('当前无可用模型');
   }
   modelPopoverVisible.value = false;
 }
@@ -580,9 +562,9 @@ async function uploadAttachment(file: File) {
       size: f?.size || file.size,
       isImage: file.type.startsWith('image/'),
     });
-    ElMessage.success(`已附加「${file.name}」`);
+    toast.success(`已附加「${file.name}」`);
   } catch {
-    ElMessage.error('附件上传失败');
+    toast.error('附件上传失败');
   } finally {
     uploadingAttachment.value = false;
   }
@@ -626,7 +608,7 @@ function startEditMsg(index: number, msg: Message) {
     textareaRef.value?.focus();
     scrollToBottomSmooth();
   });
-  ElMessage.info(`已将提问 #${index + 1} 载入下方编辑框`);
+  toast.info(`已将提问 #${index + 1} 载入下方编辑框`);
 }
 
 function cancelEditingMsg() {
@@ -638,13 +620,7 @@ function cancelEditingMsg() {
 async function deleteMessage(index: number) {
   const msg = messages.value[index];
   try {
-    await ElMessageBox.confirm('确定要删除这条消息吗？', '删除消息', {
-      type: 'warning',
-      customClass: 'zenlink-custom-dialog',
-      confirmButtonText: '确定删除',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'el-button--danger',
-    });
+    await confirmBox('确定要删除这条消息吗？', '删除消息');
 
     if (msg && msg.id) {
       await aiApi.deleteMessage(msg.id).catch(() => {});
@@ -660,7 +636,7 @@ async function deleteMessage(index: number) {
       messages.value.splice(index, 1);
     }
 
-    ElMessage.success('已删除消息');
+    toast.success('已删除消息');
   } catch {}
 }
 
@@ -803,35 +779,12 @@ function handleKeyDown(e: KeyboardEvent) {
 
 function copyMessage(content: string) {
   navigator.clipboard.writeText(content);
-  ElMessage.success('已复制内容');
-}
-
-function renderMarkdown(content: string): string {
-  if (!content) return '';
-  const rawHtml = marked.parse(content) as string;
-  return DOMPurify.sanitize(rawHtml, { ADD_ATTR: ['target', 'data-code'] });
+  toast.success('已复制内容');
 }
 
 // ==================== 7. 代码框复制按钮事件代理 ====================
 function handleChatContainerClick(e: MouseEvent) {
-  const target = e.target as HTMLElement;
-  const copyBtn = target.closest('.code-floating-copy-btn') as HTMLElement;
-  if (copyBtn) {
-    e.stopPropagation();
-    const encoded = copyBtn.getAttribute('data-code');
-    if (encoded) {
-      const rawCode = decodeURIComponent(encoded);
-      navigator.clipboard.writeText(rawCode).then(() => {
-        copyBtn.classList.add('copied');
-        ElMessage.success('代码已复制');
-        setTimeout(() => {
-          copyBtn.classList.remove('copied');
-        }, 1800);
-      }).catch(() => {
-        ElMessage.error('复制失败');
-      });
-    }
-  }
+  handleCodeCopyClick(e);
 }
 
 watch(
@@ -884,64 +837,61 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 selection:bg-indigo-500/10">
+  <div class="flex flex-col min-h-screen bg-background text-foreground selection:bg-primary/10">
     <!-- 1. 顶栏 -->
-    <div class="h-12 px-4 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between flex-shrink-0 sticky top-0 z-20">
+    <div class="h-12 px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-0 z-20">
       <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
-        <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate" :title="currentConversationTitle">
+        <span class="text-xs font-semibold text-foreground/90 truncate" :title="currentConversationTitle">
           {{ currentConversationTitle }}
         </span>
       </div>
 
-      <div class="flex-shrink-0 flex items-center gap-1.5">
+      <div class="shrink-0 flex items-center gap-1.5">
         <!-- 移动端章节跳转 Popover -->
-        <el-popover
+        <Popover
           v-if="userQuestions.length >= 2"
-          v-model:visible="mobileChapterPopoverVisible"
-          trigger="click"
-          placement="bottom-end"
-          :width="240"
-          popper-class="!p-2 !bg-white dark:!bg-slate-900 !border-slate-200/80 dark:!border-slate-800 !rounded-lg !shadow-lg"
-          :show-arrow="false"
+          v-model:open="mobileChapterPopoverVisible"
         >
-          <template #reference>
+          <PopoverTrigger as-child>
             <button
               type="button"
-              class="h-7 px-2 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs font-medium text-slate-700 dark:text-slate-300 md:hidden flex items-center gap-1 cursor-pointer"
+              class="h-7 px-2 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground md:hidden flex items-center gap-1 cursor-pointer transition-colors"
               title="快速跳转历史提问"
             >
-              <el-icon class="text-xs"><component is="Tickets" /></el-icon>
+              <Tickets class="h-3.5 w-3.5 text-muted-foreground" />
               <span>章节 ({{ userQuestions.length }})</span>
             </button>
-          </template>
+          </PopoverTrigger>
 
-          <div class="space-y-1">
-            <div class="text-xs font-semibold text-slate-400 px-1 pb-1 border-b border-slate-100 dark:border-slate-800">
-              提问列表
-            </div>
-            <div class="max-h-48 overflow-y-auto space-y-0.5">
-              <div
-                v-for="(item, qIdx) in userQuestions"
-                :key="'mq-' + item.index"
-                class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
-                :class="{ 'bg-slate-100 dark:bg-slate-800 font-semibold text-indigo-600 dark:text-indigo-400': activeChapterMsgIndex === item.index }"
-                @click="jumpToMessage(item.index); mobileChapterPopoverVisible = false;"
-              >
-                <span class="font-mono text-[11px] text-indigo-500 flex-shrink-0">#{{ qIdx + 1 }}</span>
-                <span class="truncate">{{ item.msg.content.slice(0, 30) || '（空提问）' }}</span>
+          <PopoverContent align="end" class="w-60 p-2 shadow-lg">
+            <div class="space-y-1">
+              <div class="text-xs font-semibold text-muted-foreground px-1 pb-1 border-b border-border">
+                提问列表
+              </div>
+              <div class="max-h-48 overflow-y-auto space-y-0.5">
+                <div
+                  v-for="(item, qIdx) in userQuestions"
+                  :key="'mq-' + item.index"
+                  class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-foreground/80 hover:bg-accent hover:text-foreground cursor-pointer transition-colors"
+                  :class="{ 'bg-accent font-semibold text-primary': activeChapterMsgIndex === item.index }"
+                  @click="jumpToMessage(item.index); mobileChapterPopoverVisible = false;"
+                >
+                  <span class="font-mono text-[11px] text-primary shrink-0">#{{ qIdx + 1 }}</span>
+                  <span class="truncate">{{ item.msg.content.slice(0, 30) || '（空提问）' }}</span>
+                </div>
               </div>
             </div>
-          </div>
-        </el-popover>
+          </PopoverContent>
+        </Popover>
 
         <!-- 新建会话按钮 -->
         <button
           type="button"
-          class="h-7 px-2.5 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+          class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
           title="发起新会话"
           @click="createNewConversation"
         >
-          <el-icon class="text-xs"><component is="Plus" /></el-icon>
+          <Plus class="h-3.5 w-3.5" />
           <span>新建对话</span>
         </button>
       </div>
@@ -958,12 +908,12 @@ onUnmounted(() => {
       >
         <!-- 空状态 -->
         <div v-if="messages.length === 0" class="my-auto py-12 text-center max-w-md">
-          <div class="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-center text-2xl mx-auto mb-3 shadow-xs">
+          <div class="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center text-2xl mx-auto mb-3 shadow-xs">
             {{ currentRole?.icon || '🤖' }}
           </div>
-          <h1 class="text-base font-semibold text-slate-900 dark:text-slate-100 m-0 mb-1">有什么可以帮到您？</h1>
-          <p class="text-xs text-slate-400 dark:text-slate-500 m-0 leading-relaxed">
-            当前预设：<strong class="text-slate-700 dark:text-slate-300 font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 支持多模型深度对话与提示词自定义
+          <h1 class="text-base font-semibold text-foreground m-0 mb-1">有什么可以帮到您？</h1>
+          <p class="text-xs text-muted-foreground m-0 leading-relaxed">
+            当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 支持多模型深度对话与提示词自定义
           </p>
         </div>
 
@@ -979,14 +929,14 @@ onUnmounted(() => {
             <!-- 用户消息 -->
             <template v-if="msg.role === 'user'">
               <div class="group flex flex-col items-end max-w-[85%]">
-                <div class="px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs leading-relaxed rounded-lg border border-slate-200/60 dark:border-slate-700/60 break-words shadow-subtle">
+                <div class="px-3.5 py-2.5 bg-muted/80 text-foreground text-xs leading-relaxed rounded-xl border border-border break-words shadow-xs">
                   <div :class="{ 'line-clamp-6': isLongMessage(msg.content) && !expandedMsgMap[index] }">
                     {{ msg.content }}
                   </div>
                   <button
                     v-if="isLongMessage(msg.content)"
                     type="button"
-                    class="mt-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                    class="mt-1 text-[11px] text-primary hover:underline cursor-pointer"
                     @click="toggleMsgExpand(index)"
                   >
                     {{ expandedMsgMap[index] ? '收起 ▴' : '展开全文 ▾' }}
@@ -997,27 +947,27 @@ onUnmounted(() => {
                 <div v-if="!isStreaming" class="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
-                    class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                     @click="startEditMsg(index, msg)"
                     title="编辑提问"
                   >
-                    <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+                    <Pencil class="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
-                    class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                     @click="copyMessage(msg.content)"
                     title="复制文本"
                   >
-                    <el-icon class="text-xs"><component is="CopyDocument" /></el-icon>
+                    <Copy class="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
-                    class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                     @click="deleteMessage(index)"
                     title="删除消息"
                   >
-                    <el-icon class="text-xs"><component is="Delete" /></el-icon>
+                    <Trash2 class="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -1033,11 +983,11 @@ onUnmounted(() => {
                 />
                 <div
                   v-else-if="isStreaming && index === messages.length - 1"
-                  class="flex items-center gap-1 py-2 text-slate-400 text-xs"
+                  class="flex items-center gap-1.5 py-2 text-muted-foreground text-xs"
                 >
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse delay-100"></span>
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse delay-200"></span>
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-100"></span>
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-200"></span>
                   <span class="ml-1 text-[11px]">正在思考与回复...</span>
                 </div>
 
@@ -1045,27 +995,27 @@ onUnmounted(() => {
                 <div v-if="msg.content && !isStreaming" class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
-                    class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                     @click="regenerateMessage(index)"
                     title="重新生成"
                   >
-                    <el-icon class="text-xs"><component is="Refresh" /></el-icon>
+                    <RotateCw class="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
-                    class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                     @click="copyMessage(msg.content)"
                     title="复制回复"
                   >
-                    <el-icon class="text-xs"><component is="CopyDocument" /></el-icon>
+                    <Copy class="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
-                    class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                     @click="deleteMessage(index)"
                     title="删除回复"
                   >
-                    <el-icon class="text-xs"><component is="Delete" /></el-icon>
+                    <Trash2 class="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -1075,198 +1025,186 @@ onUnmounted(() => {
       </div>
 
       <!-- 3. 底部输入卡片 -->
-      <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/90 dark:via-slate-950/90 to-transparent flex-shrink-0">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg shadow-subtle flex flex-col focus-within:border-indigo-500/80 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all overflow-hidden">
+      <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
+        <div class="bg-card border border-border rounded-xl shadow-sm flex flex-col focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden">
           <!-- 上部快捷工具栏 -->
-          <div class="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/30 text-xs">
+          <div class="px-3 py-1.5 border-b border-border/70 flex items-center justify-between bg-muted/30 text-xs">
             <div class="flex items-center gap-2">
               <!-- 对话列表 Popover -->
-              <el-popover
-                v-model:visible="convPopoverVisible"
-                trigger="click"
-                placement="top-start"
-                :width="270"
-                popper-class="!p-2.5 !bg-white dark:!bg-slate-900 !border-slate-200/80 dark:!border-slate-800 !rounded-lg !shadow-lg"
-                :show-arrow="false"
-              >
-                <template #reference>
+              <Popover v-model:open="convPopoverVisible">
+                <PopoverTrigger as-child>
                   <button
                     type="button"
-                    class="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer font-medium"
+                    class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer font-medium transition-colors"
                     title="切换或管理对话"
                   >
-                    <el-icon class="text-xs"><component is="ChatDotRound" /></el-icon>
+                    <MessageSquare class="h-3.5 w-3.5" />
                     <span>对话历史</span>
-                    <el-icon class="text-[10px] text-slate-400"><component is="ArrowDown" /></el-icon>
+                    <ChevronDown class="h-3 w-3 text-muted-foreground" />
                   </button>
-                </template>
+                </PopoverTrigger>
 
-                <div class="space-y-2">
-                  <div class="flex items-center gap-1.5">
-                    <input
-                      v-model="convSearchQuery"
-                      type="text"
-                      placeholder="搜索历史对话..."
-                      class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none"
-                    />
-                    <button
-                      type="button"
-                      class="w-6 h-6 rounded bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center cursor-pointer"
-                      title="发起新对话"
-                      @click="createNewConversation"
-                    >
-                      <el-icon class="text-xs"><component is="Plus" /></el-icon>
-                    </button>
-                  </div>
-
-                  <div class="max-h-48 overflow-y-auto space-y-0.5">
-                    <div
-                      v-for="conv in filteredConversations"
-                      :key="conv.id"
-                      class="group flex items-center justify-between px-2 py-1.5 rounded text-xs cursor-pointer transition-colors"
-                      :class="[
-                        conv.id === activeConversationId
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                      ]"
-                      @click="selectConversation(conv.id)"
-                    >
-                      <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
-                        <span class="text-xs flex-shrink-0">{{ getRoleIcon(conv.role_id) }}</span>
-                        <div v-if="editingConvId === conv.id" class="flex-1" @click.stop>
-                          <input
-                            v-model="editingConvTitle"
-                            class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 text-xs outline-none"
-                            @keydown.enter="saveEditTitle(conv)"
-                            @keydown.esc="cancelEditTitle"
-                            @blur="saveEditTitle(conv)"
-                          />
-                        </div>
-                        <span v-else class="truncate">{{ conv.title }}</span>
-                      </div>
-
-                      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-                        <button type="button" class="text-slate-400 hover:text-slate-700 cursor-pointer" title="重命名" @click.stop="startEditTitle(conv)">
-                          <el-icon class="text-[11px]"><component is="EditPen" /></el-icon>
-                        </button>
-                        <button type="button" class="text-slate-400 hover:text-red-500 cursor-pointer" title="删除" @click.stop="deleteConversation(conv.id, $event)">
-                          <el-icon class="text-[11px]"><component is="Delete" /></el-icon>
-                        </button>
-                      </div>
+                <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-1.5">
+                      <Input
+                        v-model="convSearchQuery"
+                        placeholder="搜索历史对话..."
+                        class="h-7 text-xs flex-1"
+                      />
+                      <button
+                        type="button"
+                        class="w-7 h-7 rounded bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shrink-0"
+                        title="发起新对话"
+                        @click="createNewConversation"
+                      >
+                        <Plus class="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <div v-if="filteredConversations.length === 0" class="text-center py-3 text-xs text-slate-400">暂无对话</div>
-                  </div>
 
-                  <div v-if="conversations.length > 0" class="pt-1.5 border-t border-slate-100 dark:border-slate-800 text-center">
-                    <button type="button" class="text-[11px] text-red-500 hover:underline cursor-pointer" @click="clearAllConversations">
-                      清空所有对话
-                    </button>
-                  </div>
-                </div>
-              </el-popover>
+                    <div class="max-h-48 overflow-y-auto space-y-0.5">
+                      <div
+                        v-for="conv in filteredConversations"
+                        :key="conv.id"
+                        class="group flex items-center justify-between px-2 py-1.5 rounded text-xs cursor-pointer transition-colors"
+                        :class="[
+                          conv.id === activeConversationId
+                            ? 'bg-accent text-accent-foreground font-semibold'
+                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                        ]"
+                        @click="selectConversation(conv.id)"
+                      >
+                        <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
+                          <span class="text-xs shrink-0">{{ getRoleIcon(conv.role_id) }}</span>
+                          <div v-if="editingConvId === conv.id" class="flex-1" @click.stop>
+                            <input
+                              v-model="editingConvTitle"
+                              class="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs outline-none"
+                              @keydown.enter="saveEditTitle(conv)"
+                              @keydown.esc="cancelEditTitle"
+                              @blur="saveEditTitle(conv)"
+                            />
+                          </div>
+                          <span v-else class="truncate">{{ conv.title }}</span>
+                        </div>
 
-              <div class="h-3 w-px bg-slate-200 dark:bg-slate-800"></div>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                          <button type="button" class="text-muted-foreground hover:text-foreground cursor-pointer" title="重命名" @click.stop="startEditTitle(conv)">
+                            <Pencil class="h-3 w-3" />
+                          </button>
+                          <button type="button" class="text-muted-foreground hover:text-destructive cursor-pointer" title="删除" @click.stop="deleteConversation(conv.id, $event)">
+                            <Trash2 class="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="filteredConversations.length === 0" class="text-center py-3 text-xs text-muted-foreground">暂无对话</div>
+                    </div>
+
+                    <div v-if="conversations.length > 0" class="pt-1.5 border-t border-border text-center">
+                      <button type="button" class="text-[11px] text-destructive hover:underline cursor-pointer" @click="clearAllConversations">
+                        清空所有对话
+                      </button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <div class="h-3 w-px bg-border"></div>
 
               <!-- 角色选择 Popover -->
-              <el-popover
-                v-model:visible="rolePopoverVisible"
-                trigger="click"
-                placement="top"
-                :width="270"
-                popper-class="!p-2.5 !bg-white dark:!bg-slate-900 !border-slate-200/80 dark:!border-slate-800 !rounded-lg !shadow-lg"
-                :show-arrow="false"
-              >
-                <template #reference>
+              <Popover v-model:open="rolePopoverVisible">
+                <PopoverTrigger as-child>
                   <button
                     type="button"
-                    class="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer font-medium"
+                    class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer font-medium transition-colors"
                     title="选择或自定义角色提示词"
                   >
                     <span class="text-xs">{{ currentRole?.icon || '🤖' }}</span>
                     <span>{{ currentRole?.name || '默认助手' }}</span>
-                    <el-icon class="text-[10px] text-slate-400"><component is="ArrowDown" /></el-icon>
+                    <ChevronDown class="h-3 w-3 text-muted-foreground" />
                   </button>
-                </template>
+                </PopoverTrigger>
 
-                <div class="space-y-2">
-                  <div class="flex items-center gap-1.5">
-                    <input
-                      v-model="roleSearchQuery"
-                      type="text"
-                      placeholder="搜索角色预设..."
-                      class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none"
-                    />
-                    <button
-                      type="button"
-                      class="w-6 h-6 rounded bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center cursor-pointer"
-                      title="添加新角色"
-                      @click="openAddRoleModal"
-                    >
-                      <el-icon class="text-xs"><component is="Plus" /></el-icon>
-                    </button>
-                  </div>
+                <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-1.5">
+                      <Input
+                        v-model="roleSearchQuery"
+                        placeholder="搜索角色预设..."
+                        class="h-7 text-xs flex-1"
+                      />
+                      <button
+                        type="button"
+                        class="w-7 h-7 rounded bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shrink-0"
+                        title="添加新角色"
+                        @click="openAddRoleModal"
+                      >
+                        <Plus class="h-3.5 w-3.5" />
+                      </button>
+                    </div>
 
-                  <div class="max-h-48 overflow-y-auto space-y-1">
-                    <div
-                      v-for="r in filteredRoles"
-                      :key="r.id"
-                      class="group flex items-center justify-between p-1.5 rounded text-xs cursor-pointer transition-colors"
-                      :class="[
-                        r.id === selectedRoleId
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                      ]"
-                      @click="selectRole(r)"
-                    >
-                      <span class="mr-1.5 text-sm">{{ r.icon }}</span>
-                      <div class="flex-1 min-w-0 pr-1">
-                        <div class="font-medium text-xs truncate">{{ r.name }}</div>
-                        <div class="text-[10px] text-slate-400 truncate">{{ r.prompt }}</div>
-                      </div>
+                    <div class="max-h-48 overflow-y-auto space-y-1">
+                      <div
+                        v-for="r in filteredRoles"
+                        :key="r.id"
+                        class="group flex items-center justify-between p-1.5 rounded text-xs cursor-pointer transition-colors"
+                        :class="[
+                          r.id === selectedRoleId
+                            ? 'bg-accent text-accent-foreground font-semibold'
+                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                        ]"
+                        @click="selectRole(r)"
+                      >
+                        <span class="mr-1.5 text-sm">{{ r.icon }}</span>
+                        <div class="flex-1 min-w-0 pr-1">
+                          <div class="font-medium text-xs truncate">{{ r.name }}</div>
+                          <div class="text-[10px] text-muted-foreground truncate">{{ r.prompt }}</div>
+                        </div>
 
-                      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-                        <button type="button" class="text-slate-400 hover:text-slate-700 cursor-pointer" title="编辑" @click="openEditRoleModal(r, $event)">
-                          <el-icon class="text-[11px]"><component is="EditPen" /></el-icon>
-                        </button>
-                        <button type="button" class="text-slate-400 hover:text-red-500 cursor-pointer" title="删除" @click="deleteRole(r.id, $event)">
-                          <el-icon class="text-[11px]"><component is="Delete" /></el-icon>
-                        </button>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                          <button type="button" class="text-muted-foreground hover:text-foreground cursor-pointer" title="编辑" @click="openEditRoleModal(r, $event)">
+                            <Pencil class="h-3 w-3" />
+                          </button>
+                          <button type="button" class="text-muted-foreground hover:text-destructive cursor-pointer" title="删除" @click="deleteRole(r.id, $event)">
+                            <Trash2 class="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </el-popover>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <!-- 右侧返回底部按钮 -->
             <button
               v-if="showScrollBottomBtn"
               type="button"
-              class="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+              class="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
               title="返回底部"
               @click="scrollToBottomSmooth"
             >
-              <el-icon class="text-xs"><component is="Bottom" /></el-icon>
+              <ArrowDown class="h-3.5 w-3.5" />
               <span>回到底部</span>
             </button>
           </div>
 
           <!-- 附件预览 -->
-          <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 p-2 bg-slate-50/50 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800">
-            <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 text-xs">
+          <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 p-2 bg-muted/20 border-b border-border">
+            <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-background border border-border text-xs">
               <span>{{ att.isImage ? '🖼️' : '📎' }}</span>
               <span class="max-w-[120px] truncate text-[11px]">{{ att.name }}</span>
-              <button type="button" class="text-slate-400 hover:text-red-500 text-xs cursor-pointer" @click="removeAttachment(idx)">×</button>
+              <button type="button" class="text-muted-foreground hover:text-destructive text-xs cursor-pointer" @click="removeAttachment(idx)">×</button>
             </div>
           </div>
 
           <!-- 编辑状态提示条 -->
-          <div v-if="editingMsgIndex !== null" class="px-3 py-1 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200/60 dark:border-amber-900/60 flex items-center justify-between text-xs text-amber-700 dark:text-amber-300">
+          <div v-if="editingMsgIndex !== null" class="px-3 py-1 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
             <div class="flex items-center gap-1">
-              <el-icon class="text-xs"><component is="EditPen" /></el-icon>
+              <Pencil class="h-3.5 w-3.5" />
               <span>正在编辑提问 #{{ editingMsgIndex + 1 }}</span>
             </div>
-            <button type="button" class="text-xs text-amber-600 hover:underline cursor-pointer" @click="cancelEditingMsg">
+            <button type="button" class="text-xs hover:underline cursor-pointer" @click="cancelEditingMsg">
               取消编辑
             </button>
           </div>
@@ -1275,7 +1213,7 @@ onUnmounted(() => {
           <textarea
             ref="textareaRef"
             v-model="inputPrompt"
-            class="w-full px-3.5 py-2.5 text-xs bg-transparent text-slate-800 dark:text-slate-200 outline-none resize-none min-h-[44px] max-h-36 leading-relaxed"
+            class="w-full px-3.5 py-2.5 text-xs bg-transparent text-foreground outline-none resize-none min-h-[44px] max-h-36 leading-relaxed placeholder:text-muted-foreground"
             placeholder="输入您的问题，Enter 发送，Shift+Enter 换行，支持粘贴图片..."
             rows="2"
             :disabled="isStreaming"
@@ -1284,123 +1222,113 @@ onUnmounted(() => {
           />
 
           <!-- 底部发送与模型切换行 -->
-          <div class="px-3 py-1.5 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/30 dark:bg-slate-950/20">
+          <div class="px-3 py-1.5 flex items-center justify-between border-t border-border/60 bg-muted/20">
             <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                 title="上传附件/图片"
                 @click="fileInputRef?.click()"
               >
-                <el-icon class="text-xs"><component is="Plus" /></el-icon>
+                <Paperclip class="h-3.5 w-3.5" />
               </button>
               <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
 
               <!-- 模型选择 Popover -->
-              <el-popover
-                v-model:visible="modelPopoverVisible"
-                trigger="click"
-                placement="top-start"
-                :width="240"
-                popper-class="!p-2 !bg-white dark:!bg-slate-900 !border-slate-200/80 dark:!border-slate-800 !rounded-lg !shadow-lg"
-                :show-arrow="false"
-              >
-                <template #reference>
+              <Popover v-model:open="modelPopoverVisible">
+                <PopoverTrigger as-child>
                   <button
                     type="button"
-                    class="h-6 px-2 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1 transition-colors cursor-pointer"
+                    class="h-6 px-2 rounded border border-input bg-background text-[11px] font-medium text-foreground hover:bg-accent flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <span>{{ selectedModel || '暂无模型' }}</span>
-                    <el-icon class="text-[9px] text-slate-400"><component is="ArrowDown" /></el-icon>
+                    <ChevronDown class="h-3 w-3 text-muted-foreground" />
                   </button>
-                </template>
+                </PopoverTrigger>
 
-                <div class="space-y-1.5">
-                  <input
-                    v-model="modelSearchQuery"
-                    type="text"
-                    placeholder="搜索模型..."
-                    class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-xs text-slate-800 dark:text-slate-200 outline-none"
-                  />
-                  <div class="max-h-40 overflow-y-auto space-y-0.5">
-                    <div
-                      v-for="m in filteredModelOptions"
-                      :key="m"
-                      class="flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer transition-colors"
-                      :class="[
-                        m === selectedModel
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                      ]"
-                      @click="selectModelOption(m)"
-                    >
-                      <span class="truncate">{{ m }}</span>
-                      <el-icon v-if="m === selectedModel" class="text-xs text-indigo-500"><component is="Check" /></el-icon>
+                <PopoverContent side="top" align="start" class="w-60 p-2 shadow-lg">
+                  <div class="space-y-1.5">
+                    <Input
+                      v-model="modelSearchQuery"
+                      placeholder="搜索模型..."
+                      class="h-7 text-xs w-full"
+                    />
+                    <div class="max-h-40 overflow-y-auto space-y-0.5">
+                      <div
+                        v-for="m in filteredModelOptions"
+                        :key="m"
+                        class="flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer transition-colors"
+                        :class="[
+                          m === selectedModel
+                            ? 'bg-accent text-accent-foreground font-semibold'
+                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                        ]"
+                        @click="selectModelOption(m)"
+                      >
+                        <span class="truncate">{{ m }}</span>
+                        <Check v-if="m === selectedModel" class="h-3.5 w-3.5 text-primary" />
+                      </div>
+                    </div>
+                    <div class="pt-1 border-t border-border flex justify-end">
+                      <button type="button" class="text-[11px] text-primary hover:underline cursor-pointer" @click="setDefaultModel">
+                        设为默认
+                      </button>
                     </div>
                   </div>
-                  <div class="pt-1 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-                    <button type="button" class="text-[11px] text-indigo-600 hover:underline cursor-pointer" @click="setDefaultModel">
-                      设为默认
-                    </button>
-                  </div>
-                </div>
-              </el-popover>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <!-- 发送 / 停止按钮 -->
-            <button
-              type="button"
-              class="h-7 px-3 rounded-md text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer disabled:opacity-40"
-              :class="[
-                isStreaming
-                  ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white'
-              ]"
+            <Button
+              size="sm"
+              class="h-7 gap-1.5 text-xs font-medium"
+              :variant="isStreaming ? 'destructive' : 'default'"
               :disabled="!isStreaming && !inputPrompt.trim() && attachments.length === 0"
               @click="isStreaming ? stopGenerating() : sendMessage()"
               :title="isStreaming ? '停止生成' : '发送'"
             >
-              <el-icon class="text-xs"><component :is="isStreaming ? 'VideoPause' : 'Promotion'" /></el-icon>
+              <Square v-if="isStreaming" class="h-3.5 w-3.5 fill-current" />
+              <Send v-else class="h-3.5 w-3.5" />
               <span>{{ isStreaming ? '停止' : '发送' }}</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 角色配置/编辑弹窗 -->
-    <el-dialog
-      v-model="showRoleModal"
-      :title="isEditingExistingRole ? '编辑角色与提示词' : '自定义角色与提示词'"
-      width="440px"
-      align-center
-      destroy-on-close
-    >
-      <div class="space-y-3 py-1">
-        <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">角色名称</label>
-          <el-input v-model="editingRole.name" placeholder="例如：安全审计专家、代码架构师..." />
+    <Dialog :open="showRoleModal" @update:open="showRoleModal = $event">
+      <DialogContent class="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{{ isEditingExistingRole ? '编辑角色与提示词' : '自定义角色与提示词' }}</DialogTitle>
+        </DialogHeader>
+
+        <div class="space-y-3 py-2">
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-foreground/80">角色名称</label>
+            <Input v-model="editingRole.name" placeholder="例如：安全审计专家、代码架构师..." />
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-foreground/80">图标 (Emoji)</label>
+            <Input v-model="editingRole.icon" placeholder="⚡" maxlength="4" class="w-20 text-center" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-foreground/80">角色系统提示词 (System Prompt)</label>
+            <Textarea
+              v-model="editingRole.prompt"
+              :rows="5"
+              placeholder="详细描述该角色的专业背景、回答风格与输出格式规范..."
+              class="resize-none"
+            />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">图标 (Emoji)</label>
-          <el-input v-model="editingRole.icon" placeholder="⚡" maxlength="4" style="width: 80px;" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">角色系统提示词 (System Prompt)</label>
-          <el-input
-            v-model="editingRole.prompt"
-            type="textarea"
-            :rows="5"
-            placeholder="详细描述该角色的专业背景、回答风格与输出格式规范..."
-          />
-        </div>
-      </div>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <el-button @click="showRoleModal = false">取消</el-button>
-          <el-button type="primary" @click="saveCustomRole">保存并启用</el-button>
-        </div>
-      </template>
-    </el-dialog>
+
+        <DialogFooter class="gap-2 sm:gap-0">
+          <Button variant="outline" @click="showRoleModal = false">取消</Button>
+          <Button @click="saveCustomRole">保存并启用</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

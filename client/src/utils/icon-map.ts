@@ -1,165 +1,196 @@
+import type { Component } from 'vue';
+import {
+  Folder, FolderOpen, Bookmark, BookOpen,
+  Code, Monitor, Smartphone, Tablet,
+  Globe, Link, ExternalLink, Home,
+  Wrench, Settings, Zap, Shield,
+  Lock, Unlock, Key, User,
+  Users, Heart, Star,
+  Sun, Moon, Cloud, CloudUpload,
+  CloudDownload, Database, Server, Wifi,
+  BarChart2, LineChart, PieChart, Table,
+  List, LayoutGrid, Palette, Image,
+  Camera, Video, Play,
+  Mic, Volume2, Headphones, Music,
+  FileText, FileEdit,
+  Inbox, Send, Mail, MessageSquare,
+  MessagesSquare, Phone, Map, MapPin,
+  Car, ShoppingCart, ShoppingBag, Wallet,
+  Banknote, CreditCard, Gift, Tag,
+  Tags, Flag, Megaphone,
+  Bell, Calendar, Clock, Timer,
+  GraduationCap, Building2, Briefcase, Hammer,
+  Cpu, Package, Truck, Receipt,
+  Sparkles, CheckCircle2, Trophy, ThumbsUp,
+  Eye, Search, Filter, ArrowUpDown,
+  Download, Upload, Share2, RefreshCw,
+  RotateCcw, History, Trash2,
+  Pencil, Plus, Minus, Check,
+  X, Info, HelpCircle, AlertTriangle,
+} from 'lucide-vue-next';
+
 /**
- * PrimeIcons → Element Plus Icons 映射表
- * 数据库中存储的图标格式为 "pi pi-xxx"，需要映射为 Element Plus 图标组件名
+ * PrimeIcons 类名 → Lucide Icons Vue 组件映射表
+ * 数据库中存储的图标格式为 "pi pi-xxx"，映射为 Lucide 组件
  */
-const iconMap: Record<string, string> = {
+const iconComponentMap: Record<string, Component> = {
   // 文件/文件夹
-  'pi pi-folder': 'Folder',
-  'pi pi-folder-open': 'FolderOpened',
-  'pi pi-file': 'Document',
-  'pi pi-file-edit': 'EditPen',
-  'pi pi-file-pdf': 'Document',
-  'pi pi-file-excel': 'Document',
+  'pi pi-folder': Folder,
+  'pi pi-folder-open': FolderOpen,
+  'pi pi-file': FileText,
+  'pi pi-file-edit': FileEdit,
+  'pi pi-file-pdf': FileText,
+  'pi pi-file-excel': FileText,
 
   // 导航/通用
-  'pi pi-home': 'HomeFilled',
-  'pi pi-bookmark': 'CollectionTag',
-  'pi pi-book': 'Reading',
-  'pi pi-globe': 'ChromeFilled',
-  'pi pi-link': 'Link',
-  'pi pi-external-link': 'Link',
+  'pi pi-home': Home,
+  'pi pi-bookmark': Bookmark,
+  'pi pi-book': BookOpen,
+  'pi pi-globe': Globe,
+  'pi pi-link': Link,
+  'pi pi-external-link': ExternalLink,
 
   // 开发
-  'pi pi-code': 'Monitor',
-  'pi pi-desktop': 'Monitor',
-  'pi pi-mobile': 'Cellphone',
-  'pi pi-tablet': 'Cellphone',
-  'pi pi-server': 'Cpu',
-  'pi pi-database': 'Coin',
-  'pi pi-microchip': 'Cpu',
+  'pi pi-code': Code,
+  'pi pi-desktop': Monitor,
+  'pi pi-mobile': Smartphone,
+  'pi pi-tablet': Tablet,
+  'pi pi-server': Server,
+  'pi pi-database': Database,
+  'pi pi-microchip': Cpu,
 
   // 工具
-  'pi pi-wrench': 'SetUp',
-  'pi pi-cog': 'Setting',
-  'pi pi-bolt': 'Lightning',
-  'pi pi-shield': 'Lock',
-  'pi pi-lock': 'Lock',
-  'pi pi-unlock': 'Unlock',
-  'pi pi-key': 'Key',
-  'pi pi-hammer': 'SetUp',
+  'pi pi-wrench': Wrench,
+  'pi pi-cog': Settings,
+  'pi pi-bolt': Zap,
+  'pi pi-shield': Shield,
+  'pi pi-lock': Lock,
+  'pi pi-unlock': Unlock,
+  'pi pi-key': Key,
+  'pi pi-hammer': Hammer,
 
   // 用户
-  'pi pi-user': 'User',
-  'pi pi-users': 'UserFilled',
+  'pi pi-user': User,
+  'pi pi-users': Users,
 
   // 媒体
-  'pi pi-image': 'Picture',
-  'pi pi-images': 'PictureFilled',
-  'pi pi-camera': 'Camera',
-  'pi pi-video': 'VideoCamera',
-  'pi pi-play': 'VideoPlay',
-  'pi pi-microphone': 'Microphone',
-  'pi pi-volume-up': 'Headset',
-  'pi pi-headphones': 'Headset',
-  'pi pi-music': 'Headset',
+  'pi pi-image': Image,
+  'pi pi-images': Image,
+  'pi pi-camera': Camera,
+  'pi pi-video': Video,
+  'pi pi-play': Play,
+  'pi pi-microphone': Mic,
+  'pi pi-volume-up': Volume2,
+  'pi pi-headphones': Headphones,
+  'pi pi-music': Music,
 
   // 通信
-  'pi pi-inbox': 'Message',
-  'pi pi-send': 'Promotion',
-  'pi pi-envelope': 'Message',
-  'pi pi-comment': 'ChatDotRound',
-  'pi pi-comments': 'ChatLineSquare',
-  'pi pi-phone': 'Phone',
-  'pi pi-bell': 'Bell',
-  'pi pi-megaphone': 'Bell',
+  'pi pi-inbox': Inbox,
+  'pi pi-send': Send,
+  'pi pi-envelope': Mail,
+  'pi pi-comment': MessageSquare,
+  'pi pi-comments': MessagesSquare,
+  'pi pi-phone': Phone,
+  'pi pi-bell': Bell,
+  'pi pi-megaphone': Megaphone,
 
   // 图表
-  'pi pi-chart-bar': 'DataAnalysis',
-  'pi pi-chart-line': 'TrendCharts',
-  'pi pi-chart-pie': 'PieChart',
-  'pi pi-table': 'Grid',
+  'pi pi-chart-bar': BarChart2,
+  'pi pi-chart-line': LineChart,
+  'pi pi-chart-pie': PieChart,
+  'pi pi-table': Table,
 
   // 布局
-  'pi pi-list': 'List',
-  'pi pi-th-large': 'Grid',
+  'pi pi-list': List,
+  'pi pi-th-large': LayoutGrid,
 
   // 设计
-  'pi pi-palette': 'Brush',
+  'pi pi-palette': Palette,
 
   // 天气/自然
-  'pi pi-sun': 'Sunny',
-  'pi pi-moon': 'Moon',
-  'pi pi-cloud': 'Cloudy',
-  'pi pi-cloud-upload': 'Upload',
-  'pi pi-cloud-download': 'Download',
+  'pi pi-sun': Sun,
+  'pi pi-moon': Moon,
+  'pi pi-cloud': Cloud,
+  'pi pi-cloud-upload': CloudUpload,
+  'pi pi-cloud-download': CloudDownload,
 
   // 情感
-  'pi pi-heart': 'Star',
-  'pi pi-star': 'Star',
-  'pi pi-star-fill': 'StarFilled',
+  'pi pi-heart': Heart,
+  'pi pi-star': Star,
+  'pi pi-star-fill': Star,
 
   // 地图/位置
-  'pi pi-map': 'MapLocation',
-  'pi pi-map-marker': 'Location',
+  'pi pi-map': Map,
+  'pi pi-map-marker': MapPin,
 
   // 购物/金融
-  'pi pi-shopping-cart': 'ShoppingCart',
-  'pi pi-shopping-bag': 'GoodsFilled',
-  'pi pi-wallet': 'Wallet',
-  'pi pi-money-bill': 'Money',
-  'pi pi-credit-card': 'Postcard',
-  'pi pi-car': 'Van',
-  'pi pi-truck': 'Van',
+  'pi pi-shopping-cart': ShoppingCart,
+  'pi pi-shopping-bag': ShoppingBag,
+  'pi pi-wallet': Wallet,
+  'pi pi-money-bill': Banknote,
+  'pi pi-credit-card': CreditCard,
+  'pi pi-car': Car,
+  'pi pi-truck': Truck,
 
   // 标签/标记
-  'pi pi-gift': 'Present',
-  'pi pi-tag': 'PriceTag',
-  'pi pi-tags': 'PriceTag',
-  'pi pi-flag': 'Flag',
-  'pi pi-flag-fill': 'Flag',
+  'pi pi-gift': Gift,
+  'pi pi-tag': Tag,
+  'pi pi-tags': Tags,
+  'pi pi-flag': Flag,
+  'pi pi-flag-fill': Flag,
 
   // 时间
-  'pi pi-calendar': 'Calendar',
-  'pi pi-clock': 'Clock',
-  'pi pi-stopwatch': 'Timer',
-  'pi pi-history': 'RefreshLeft',
+  'pi pi-calendar': Calendar,
+  'pi pi-clock': Clock,
+  'pi pi-stopwatch': Timer,
+  'pi pi-history': History,
 
   // 教育/工作
-  'pi pi-graduation-cap': 'School',
-  'pi pi-building': 'OfficeBuilding',
-  'pi pi-briefcase': 'Suitcase',
+  'pi pi-graduation-cap': GraduationCap,
+  'pi pi-building': Building2,
+  'pi pi-briefcase': Briefcase,
 
   // 操作
-  'pi pi-search': 'Search',
-  'pi pi-filter': 'Filter',
-  'pi pi-sort': 'Sort',
-  'pi pi-download': 'Download',
-  'pi pi-upload': 'Upload',
-  'pi pi-share-alt': 'Share',
-  'pi pi-sync': 'Refresh',
-  'pi pi-refresh': 'Refresh',
-  'pi pi-undo': 'RefreshLeft',
-  'pi pi-trash': 'Delete',
-  'pi pi-pencil': 'Edit',
-  'pi pi-plus': 'Plus',
-  'pi pi-minus': 'Minus',
-  'pi pi-check': 'Check',
-  'pi pi-times': 'Close',
-  'pi pi-eye': 'View',
+  'pi pi-search': Search,
+  'pi pi-filter': Filter,
+  'pi pi-sort': ArrowUpDown,
+  'pi pi-download': Download,
+  'pi pi-upload': Upload,
+  'pi pi-share-alt': Share2,
+  'pi pi-sync': RefreshCw,
+  'pi pi-refresh': RefreshCw,
+  'pi pi-undo': RotateCcw,
+  'pi pi-trash': Trash2,
+  'pi pi-pencil': Pencil,
+  'pi pi-plus': Plus,
+  'pi pi-minus': Minus,
+  'pi pi-check': Check,
+  'pi pi-times': X,
+  'pi pi-eye': Eye,
 
   // 信息
-  'pi pi-info-circle': 'InfoFilled',
-  'pi pi-question-circle': 'QuestionFilled',
-  'pi pi-exclamation-triangle': 'WarningFilled',
+  'pi pi-info-circle': Info,
+  'pi pi-question-circle': HelpCircle,
+  'pi pi-exclamation-triangle': AlertTriangle,
 
   // 其他
-  'pi pi-box': 'Box',
-  'pi pi-receipt': 'Tickets',
-  'pi pi-sparkles': 'MagicStick',
-  'pi pi-verified': 'CircleCheckFilled',
-  'pi pi-trophy': 'Trophy',
-  'pi pi-thumbs-up': 'Pointer',
-  'pi pi-wifi': 'Connection',
+  'pi pi-box': Package,
+  'pi pi-receipt': Receipt,
+  'pi pi-sparkles': Sparkles,
+  'pi pi-verified': CheckCircle2,
+  'pi pi-trophy': Trophy,
+  'pi pi-thumbs-up': ThumbsUp,
+  'pi pi-wifi': Wifi,
 };
 
 /**
- * 将 PrimeIcons 类名转换为 Element Plus 图标组件名
+ * 将 PrimeIcons 类名转换为 Lucide Vue 图标组件
  * @param piClass - PrimeIcons 类名，如 "pi pi-folder"
- * @returns Element Plus 图标组件名，如 "Folder"
+ * @returns Lucide Vue 图标组件
  */
-export function mapIcon(piClass: string): string {
-  if (!piClass) return 'Folder';
-  return iconMap[piClass] || 'Folder';
+export function mapIcon(piClass: string): Component {
+  if (!piClass) return Folder;
+  return iconComponentMap[piClass] || Folder;
 }
 
-export default iconMap;
+export default iconComponentMap;

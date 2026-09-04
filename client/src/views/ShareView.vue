@@ -2,14 +2,11 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { shareApi } from '@/api';
-import { ElMessage } from 'element-plus';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-});
+import { toast } from '@/components/ui/sonner';
+import { renderMarkdown, handleCodeCopyClick } from '@/utils/markdown';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, AlertTriangle, Lock, Copy } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -32,12 +29,6 @@ interface ShareItem {
 }
 
 const shareItem = ref<ShareItem | null>(null);
-
-function renderMarkdown(content: string) {
-  if (!content) return '';
-  const rawHtml = marked.parse(content) as string;
-  return DOMPurify.sanitize(rawHtml, { ADD_ATTR: ['target'] });
-}
 
 async function loadShare() {
   loading.value = true;
@@ -67,7 +58,7 @@ async function loadShare() {
 
 async function handleUnlock() {
   if (!password.value.trim()) {
-    ElMessage.warning('请输入提取密码');
+    toast.warning('请输入提取密码');
     return;
   }
   verifying.value = true;
@@ -76,9 +67,9 @@ async function handleUnlock() {
     needPassword.value = false;
     shareItem.value = data.transfer;
     isBurned.value = !!data.is_burned;
-    ElMessage.success('提取成功');
+    toast.success('提取成功');
   } catch (err: any) {
-    ElMessage.error(err.response?.data?.error || '提取密码错误');
+    toast.error(err.response?.data?.error || '提取密码错误');
   } finally {
     verifying.value = false;
   }
@@ -86,7 +77,7 @@ async function handleUnlock() {
 
 function copyContent(content: string) {
   navigator.clipboard.writeText(content);
-  ElMessage.success('已复制到剪贴板');
+  toast.success('已复制到剪贴板');
 }
 
 function formatTime(dateStr: string) {
@@ -101,83 +92,78 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 selection:bg-indigo-500/10">
-    <div class="w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg shadow-subtle p-5 sm:p-7">
+  <div class="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6 selection:bg-primary/10">
+    <div class="w-full max-w-3xl bg-card border border-border rounded-xl shadow-sm p-5 sm:p-7">
       <!-- 加载中 -->
-      <div v-if="loading" class="py-16 flex flex-col items-center justify-center text-slate-400">
-        <el-icon class="is-loading text-2xl mb-2 text-indigo-500"><component is="Loading" /></el-icon>
-        <p class="text-xs text-slate-500 dark:text-slate-400 m-0">正在检索分享内容...</p>
+      <div v-if="loading" class="py-16 flex flex-col items-center justify-center text-muted-foreground">
+        <Loader2 class="h-7 w-7 animate-spin mb-2 text-primary" />
+        <p class="text-xs text-muted-foreground m-0">正在检索分享内容...</p>
       </div>
 
       <!-- 错误/已失效提示 -->
       <div v-else-if="errorMsg" class="py-12 flex flex-col items-center justify-center text-center">
-        <div class="w-10 h-10 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
-          <el-icon class="text-xl"><component is="Warning" /></el-icon>
+        <div class="w-10 h-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-3">
+          <AlertTriangle class="h-5 w-5" />
         </div>
-        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0 mb-1">无法访问此分享</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mb-4 max-w-md">{{ errorMsg }}</p>
-        <button
-          type="button"
-          class="h-8 px-4 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white transition-colors cursor-pointer"
-          @click="router.push('/')"
-        >
+        <h3 class="text-sm font-semibold text-foreground m-0 mb-1">无法访问此分享</h3>
+        <p class="text-xs text-muted-foreground m-0 mb-4 max-w-md">{{ errorMsg }}</p>
+        <Button size="sm" @click="router.push('/')">
           前往 ZenLink 主页
-        </button>
+        </Button>
       </div>
 
       <!-- 密码保护解锁表单 -->
       <div v-else-if="needPassword" class="py-10 flex flex-col items-center justify-center text-center max-w-sm mx-auto">
-        <div class="w-10 h-10 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center mb-3">
-          <el-icon class="text-lg"><component is="Lock" /></el-icon>
+        <div class="w-10 h-10 rounded-full bg-muted text-foreground flex items-center justify-center mb-3">
+          <Lock class="h-5 w-5" />
         </div>
-        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100 m-0 mb-1">该分享已设置访问密码</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 m-0 mb-4">请输入提取码以解锁内容</p>
+        <h3 class="text-sm font-semibold text-foreground m-0 mb-1">该分享已设置访问密码</h3>
+        <p class="text-xs text-muted-foreground m-0 mb-4">请输入提取码以解锁内容</p>
 
         <form class="w-full space-y-3" @submit.prevent="handleUnlock">
-          <input
+          <Input
             v-model="password"
             type="password"
             placeholder="请输入提取密码"
-            class="w-full h-8 px-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-500"
             autofocus
           />
-          <button
+          <Button
             type="submit"
-            class="w-full h-8 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-medium hover:bg-slate-800 dark:hover:bg-white flex items-center justify-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+            class="w-full gap-2"
             :disabled="verifying"
           >
-            <el-icon v-if="verifying" class="is-loading"><component is="Loading" /></el-icon>
+            <Loader2 v-if="verifying" class="h-4 w-4 animate-spin" />
             <span>{{ verifying ? '验证中...' : '提取笔记 / 查看内容' }}</span>
-          </button>
+          </Button>
         </form>
       </div>
 
       <!-- 成功展示内容 -->
       <div v-else-if="shareItem" class="flex flex-col">
         <!-- 阅后即焚警告条 -->
-        <div v-if="isBurned" class="mb-4 p-3 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-          <el-icon class="text-sm flex-shrink-0"><component is="Warning" /></el-icon>
+        <div v-if="isBurned" class="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-2 text-xs text-destructive">
+          <AlertTriangle class="h-4 w-4 shrink-0" />
           <span>此为【阅后即焚】分享，页面关闭后将自动销毁无法再次访问！</span>
         </div>
 
         <!-- 笔记分享视图 -->
         <div class="flex flex-col">
-          <div class="flex items-start justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div class="flex items-start justify-between pb-3 border-b border-border">
             <div>
-              <h1 class="text-base font-semibold text-slate-900 dark:text-slate-100 m-0 leading-snug">
+              <h1 class="text-base font-semibold text-foreground m-0 leading-snug">
                 {{ shareItem.title || '未命名笔记' }}
               </h1>
               <div class="flex items-center gap-2 mt-1">
-                <span class="text-[11px] font-mono text-slate-400 dark:text-slate-500">{{ formatTime(shareItem.created_at) }}</span>
+                <span class="text-[11px] font-mono text-muted-foreground">{{ formatTime(shareItem.created_at) }}</span>
 
                 <!-- 复制全文图标按钮 -->
                 <button
                   type="button"
-                  class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                   title="复制笔记全文"
                   @click="copyContent(shareItem.content || '')"
                 >
-                  <el-icon class="text-xs"><component is="CopyDocument" /></el-icon>
+                  <Copy class="h-3.5 w-3.5" />
                 </button>
 
                 <!-- GitHub 项目链接图标 -->
@@ -185,7 +171,7 @@ onMounted(() => {
                   href="https://github.com/akasls/ZenLink"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="w-5 h-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   title="GitHub 项目主页"
                 >
                   <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24">
@@ -197,7 +183,7 @@ onMounted(() => {
           </div>
 
           <!-- 文章正文 Markdown 渲染 -->
-          <div class="mt-4">
+          <div class="mt-4" @click="handleCodeCopyClick">
             <div class="ai-markdown-body" v-html="renderMarkdown(shareItem.content || '')" />
           </div>
         </div>

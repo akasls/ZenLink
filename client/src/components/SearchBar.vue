@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useSiteStore } from '@/stores/site';
+import { Search } from 'lucide-vue-next';
 
 const modelValue = defineModel<string>({ default: '' });
 const siteStore = useSiteStore();
@@ -236,8 +237,8 @@ onUnmounted(() => {
             : 'bg-slate-50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 focus-within:border-indigo-500/80 focus-within:bg-white dark:focus-within:bg-slate-900 focus-within:ring-2 focus-within:ring-indigo-500/10'
         ]"
       >
-        <div class="pl-2.5 pr-1 text-slate-400 dark:text-slate-500 flex items-center">
-          <el-icon class="text-sm"><component is="Search" /></el-icon>
+        <div class="pl-2.5 pr-1 flex items-center">
+          <Search class="h-4 w-4 text-muted-foreground" />
         </div>
         <input
           v-model="modelValue"

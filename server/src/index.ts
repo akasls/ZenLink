@@ -32,12 +32,25 @@ const fastify = Fastify({
   trustProxy: true,
 });
 
+import { ZodError } from 'zod';
+
 // 全局安全标头
 fastify.addHook('onSend', async (request, reply) => {
   reply.header('X-Content-Type-Options', 'nosniff');
   reply.header('X-Frame-Options', 'SAMEORIGIN');
   reply.header('X-XSS-Protection', '1; mode=block');
   reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
+
+// 全局异常处理：自动转换 Zod 参数验证错误为 400 状态码
+fastify.setErrorHandler((error, request, reply) => {
+  if (error instanceof ZodError) {
+    return reply.status(400).send({
+      error: '参数验证失败',
+      details: error.errors,
+    });
+  }
+  reply.send(error);
 });
 
 // 注册插件
@@ -116,11 +129,15 @@ process.on('unhandledRejection', (reason, promise) => {
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-try {
-  await fastify.listen({ port: PORT, host: HOST });
-  console.log(`\n🚀 ZenLink Server 运行在 http://localhost:${PORT}`);
-  console.log(`📁 数据库位置: server/data/zenlink.db\n`);
-} catch (err) {
-  fastify.log.error(err);
-  process.exit(1);
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    await fastify.listen({ port: PORT, host: HOST });
+    console.log(`\n🚀 ZenLink Server 运行在 http://localhost:${PORT}`);
+    console.log(`📁 数据库位置: server/data/zenlink.db\n`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
 }
+
+export { fastify };

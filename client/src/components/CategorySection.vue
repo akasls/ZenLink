@@ -39,8 +39,8 @@ function onSelectSub(subId: number) {
 <template>
   <section :id="`sec-${category?.id}`" class="scroll-mt-6 space-y-3">
     <div class="flex items-center gap-2">
-      <el-icon class="text-sm text-slate-500 dark:text-slate-400"><component :is="mapIcon(category?.icon)" /></el-icon>
-      <h2 class="text-sm font-semibold text-slate-900 dark:text-slate-100 tracking-tight m-0">{{ category?.name }}</h2>
+      <component :is="mapIcon(category?.icon)" class="h-4 w-4 text-muted-foreground" />
+      <h2 class="text-sm font-semibold text-foreground tracking-tight m-0">{{ category?.name }}</h2>
     </div>
 
     <!-- 二级分类圆角胶囊组件 -->
@@ -60,7 +60,6 @@ function onSelectSub(subId: number) {
       @delete="emit('delete', $event)"
       @reorder="emit('reorder', $event)"
     />
-    <p v-else class="text-xs text-center py-6 text-slate-400 dark:text-slate-500 m-0">暂无书签</p>
+    <p v-else class="text-xs text-center py-6 text-muted-foreground m-0">暂无书签</p>
   </section>
 </template>
-

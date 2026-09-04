@@ -4,7 +4,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useSiteStore } from '@/stores/site';
 import { bookmarkApi, categoryApi } from '@/api';
-import { ElMessage } from 'element-plus';
+import { toast } from '@/components/ui/sonner';
+import { Loader2, FolderOpen, ArrowUp, Plus } from 'lucide-vue-next';
 
 import TheSidebar from '@/components/TheSidebar.vue';
 import SearchBar from '@/components/SearchBar.vue';
@@ -90,18 +91,18 @@ const showAddDialog = ref(false);
 const showEditDialog = ref(false);
 const editingBookmark = ref<any>(null);
 
-const topCategories = computed(() => categories.value.filter(c => !c.parent_id));
+const topCategories = computed(() => categories.value.filter((c) => !c.parent_id));
 
 function getSubCategories(parentId: number) {
-  return categories.value.filter(c => c.parent_id === parentId);
+  return categories.value.filter((c) => c.parent_id === parentId);
 }
 
 function getSectionBookmarks(topCatId: number) {
   const subs = getSubCategories(topCatId);
   const activeId = activeSubCategory.value[topCatId];
-  if (activeId) return bookmarks.value.filter(b => b.category_id === activeId);
-  const allIds = [topCatId, ...subs.map(s => s.id)];
-  return bookmarks.value.filter(b => allIds.includes(b.category_id));
+  if (activeId) return bookmarks.value.filter((b) => b.category_id === activeId);
+  const allIds = [topCatId, ...subs.map((s) => s.id)];
+  return bookmarks.value.filter((b) => allIds.includes(b.category_id));
 }
 
 async function loadCategories() {
@@ -118,7 +119,9 @@ async function loadCategories() {
         activeSubCategory.value[top.id] = null;
       }
     }
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 async function loadBookmarks() {
@@ -128,8 +131,11 @@ async function loadBookmarks() {
     if (searchQuery.value.trim()) params.search = searchQuery.value.trim();
     const { data } = await bookmarkApi.getAll(params);
     bookmarks.value = data.bookmarks;
-  } catch (e) { console.error(e); }
-  finally { loading.value = false; }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
 }
 
 // 监听登录状态变化（登出或登录后立即刷新视图与数据，无需手动刷新网页）
@@ -188,21 +194,38 @@ function toggleSidebar() {
 }
 
 let timer: ReturnType<typeof setTimeout>;
-watch(searchQuery, () => { clearTimeout(timer); timer = setTimeout(loadBookmarks, 300); });
+watch(searchQuery, () => {
+  clearTimeout(timer);
+  timer = setTimeout(loadBookmarks, 300);
+});
 
-function onCopy(bm: any) { navigator.clipboard.writeText(bm.url); ElMessage.success('已复制'); }
-function onEdit(bm: any) { editingBookmark.value = { ...bm }; showEditDialog.value = true; }
-async function onDelete(bm: any) { try { await bookmarkApi.delete(bm.id); ElMessage.success('已删除'); loadBookmarks(); } catch { ElMessage.error('删除失败'); } }
+function onCopy(bm: any) {
+  navigator.clipboard.writeText(bm.url);
+  toast.success('已复制');
+}
+function onEdit(bm: any) {
+  editingBookmark.value = { ...bm };
+  showEditDialog.value = true;
+}
+async function onDelete(bm: any) {
+  try {
+    await bookmarkApi.delete(bm.id);
+    toast.success('已删除');
+    loadBookmarks();
+  } catch {
+    toast.error('删除失败');
+  }
+}
 function onSaved() {
   showAddDialog.value = false;
   showEditDialog.value = false;
   loadBookmarks();
-  ElMessage.success('已保存');
+  toast.success('已保存');
 }
 
 async function onReorder(items: any[]) {
   try {
-    await bookmarkApi.reorder(items.map(b => b.id));
+    await bookmarkApi.reorder(items.map((b) => b.id));
     for (let i = 0; i < items.length; i++) {
       items[i].sort_order = i + 1;
     }
@@ -244,7 +267,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen w-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 flex relative selection:bg-indigo-500/10">
+  <div class="min-h-screen w-full bg-background text-foreground flex relative selection:bg-primary/10">
     <!-- 左侧侧边栏 (包含顶部应用入口与分类导航) -->
     <TheSidebar
       :collapsed="sidebarCollapsed"
@@ -278,8 +301,8 @@ onUnmounted(() => {
           <div v-if="!loading">
             <div v-if="searchQuery.trim()">
               <div class="flex items-center gap-2 mb-3">
-                <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">搜索结果</span>
-                <span class="text-[11px] font-mono text-slate-400 dark:text-slate-500">({{ bookmarks.length }})</span>
+                <span class="text-xs font-semibold text-foreground/80">搜索结果</span>
+                <span class="text-[11px] font-mono text-muted-foreground">({{ bookmarks.length }})</span>
               </div>
               <BookmarkGrid
                 v-if="bookmarks.length"
@@ -290,8 +313,9 @@ onUnmounted(() => {
                 @delete="onDelete"
                 @reorder="onReorder"
               />
-              <div v-else class="py-12 flex flex-col items-center justify-center text-slate-400">
-                <el-empty description="未找到匹配书签" />
+              <div v-else class="py-16 flex flex-col items-center justify-center text-muted-foreground">
+                <FolderOpen class="h-10 w-10 mb-2 stroke-[1.5] text-muted-foreground/50" />
+                <p class="text-xs text-muted-foreground m-0">未找到匹配书签</p>
               </div>
             </div>
 
@@ -313,16 +337,16 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div v-else class="text-center py-20 flex flex-col items-center justify-center text-slate-400">
-            <el-icon class="is-loading text-2xl mb-2 text-slate-500"><component is="Loading" /></el-icon>
-            <span class="text-xs text-slate-400">正在加载数据...</span>
+          <div v-else class="text-center py-20 flex flex-col items-center justify-center text-muted-foreground">
+            <Loader2 class="h-7 w-7 animate-spin mb-2 text-primary" />
+            <span class="text-xs text-muted-foreground">正在加载数据...</span>
           </div>
         </div>
 
         <!-- 站点底部版权 -->
-        <footer class="mt-auto border-t border-slate-200/80 dark:border-slate-800 py-6 px-4 text-center">
-          <p class="text-xs text-slate-400 dark:text-slate-500 leading-relaxed m-0">
-            Copyright &copy; 2026 <strong class="font-medium text-slate-700 dark:text-slate-300">{{ siteStore.siteName || 'ZenLink' }}</strong> · {{ siteStore.siteDesc || '干净简洁的导航！' }}
+        <footer class="mt-auto border-t border-border py-6 px-4 text-center">
+          <p class="text-xs text-muted-foreground leading-relaxed m-0">
+            Copyright &copy; 2026 <strong class="font-medium text-foreground">{{ siteStore.siteName || 'ZenLink' }}</strong> · {{ siteStore.siteDesc || '干净简洁的导航！' }}
           </p>
         </footer>
       </div>
@@ -346,27 +370,22 @@ onUnmounted(() => {
       >
         <button
           v-if="showBackToTop"
-          class="w-8 h-8 rounded-md bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/80 flex items-center justify-center transition-all cursor-pointer"
+          class="w-8 h-8 rounded-md bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground hover:bg-accent flex items-center justify-center transition-all cursor-pointer"
           @click="scrollTop"
           title="返回顶部"
         >
-          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="currentColor">
-            <path d="M12 3.5L4.5 19.8l7.5-3.6 7.5 3.6L12 3.5z"/>
-          </svg>
+          <ArrowUp class="h-4 w-4" />
         </button>
       </transition>
 
       <!-- 添加书签 -->
       <button
         v-if="authStore.isLoggedIn"
-        class="w-8 h-8 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-sm hover:bg-slate-800 dark:hover:bg-white flex items-center justify-center transition-all cursor-pointer"
+        class="w-8 h-8 rounded-md bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 flex items-center justify-center transition-all cursor-pointer"
         @click="showAddDialog = true"
         title="添加书签"
       >
-        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
+        <Plus class="h-4 w-4" />
       </button>
     </div>
 
@@ -376,5 +395,3 @@ onUnmounted(() => {
     <LoginDialog v-model:visible="showLoginDialog" :target-view="pendingTargetView" @success="onLoginSuccess" />
   </div>
 </template>
-
-

@@ -3,8 +3,11 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { authApi } from '@/api';
-import { ElMessage } from 'element-plus';
+import { toast } from '@/components/ui/sonner';
 import { startAuthentication } from '@simplewebauthn/browser';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { User, Lock, Key, Fingerprint, Loader2 } from 'lucide-vue-next';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -37,14 +40,14 @@ async function handleLogin() {
 
     if (result.requireTotp) {
       errors.totp = '该账户已开启两步验证，请输入 6 位 TOTP 动态码';
-      ElMessage.warning('该账户已开启两步验证，请输入 6 位动态验证码');
+      toast.warning('该账户已开启两步验证，请输入 6 位动态验证码');
     } else {
-      ElMessage.success('登录成功，欢迎回来');
+      toast.success('登录成功，欢迎回来');
       router.push('/');
     }
   } catch (err: any) {
     const message = err.response?.data?.error || '登录失败';
-    ElMessage.error(message);
+    toast.error(message);
   } finally {
     loading.value = false;
   }
@@ -57,11 +60,11 @@ async function handlePasskeyLogin() {
     const { data: options } = await authApi.getWebAuthnLoginOptions();
     const credential = await startAuthentication(options);
     await authStore.loginWithPasskey(credential);
-    ElMessage.success('通过 Passkey 验证登录成功');
+    toast.success('通过 Passkey 验证登录成功');
     router.push('/');
   } catch (err: any) {
     const message = err.response?.data?.error || err.message || 'Passkey 登录失败';
-    ElMessage.error(message);
+    toast.error(message);
   } finally {
     passkeyLoading.value = false;
   }
@@ -69,94 +72,106 @@ async function handlePasskeyLogin() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-8">
+  <div class="min-h-screen flex items-center justify-center bg-background px-4 py-8">
     <div class="w-full max-w-sm">
       <!-- Logo -->
-      <div class="text-center mb-5">
+      <div class="text-center mb-6">
         <router-link to="/" class="inline-flex items-center gap-2 no-underline">
-          <div class="w-9 h-9 bg-slate-900 dark:bg-slate-100 rounded-md flex items-center justify-center shadow-subtle text-white dark:text-slate-900 font-bold text-sm">
+          <div class="w-10 h-10 bg-primary text-primary-foreground rounded-lg flex items-center justify-center shadow font-bold text-base">
             <span>Z</span>
           </div>
         </router-link>
-        <h1 class="text-base font-semibold text-slate-900 dark:text-slate-100 mt-3 m-0">登录 ZenLink</h1>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-0">管理你的个人书签、笔记与 AI 助手</p>
+        <h1 class="text-lg font-semibold tracking-tight mt-3">登录 ZenLink</h1>
+        <p class="text-xs text-muted-foreground mt-1">管理你的个人书签、笔记与 AI 助手</p>
       </div>
 
       <!-- 登录表单卡片 -->
-      <div class="bg-white dark:bg-slate-900 rounded-lg shadow-subtle border border-slate-200/80 dark:border-slate-800 p-5">
-        <el-form @submit.prevent="handleLogin" class="space-y-3.5">
-          <el-form-item :error="errors.username">
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">用户名</label>
-            <el-input
-              v-model="form.username"
-              placeholder="请输入用户名"
-              :prefix-icon="'User' as any"
-              autofocus
-            />
-          </el-form-item>
+      <div class="bg-card rounded-xl shadow-sm border border-border p-6">
+        <form @submit.prevent="handleLogin" class="space-y-4">
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-foreground/80">用户名</label>
+            <div class="relative">
+              <User class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                v-model="form.username"
+                placeholder="请输入用户名"
+                class="pl-9"
+                autofocus
+              />
+            </div>
+            <p v-if="errors.username" class="text-xs text-destructive">{{ errors.username }}</p>
+          </div>
 
-          <el-form-item :error="errors.password">
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">密码</label>
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="请输入密码"
-              show-password
-              :prefix-icon="'Lock' as any"
-            />
-          </el-form-item>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-foreground/80">密码</label>
+            <div class="relative">
+              <Lock class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                v-model="form.password"
+                type="password"
+                placeholder="请输入密码"
+                class="pl-9"
+              />
+            </div>
+            <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
+          </div>
 
           <!-- TOTP 输入框 -->
-          <el-form-item :error="errors.totp">
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">两步验证码 (未启用2FA可留空)</label>
-            <el-input
-              v-model="form.totpCode"
-              placeholder="6 位动态验证码 (未开启 2FA 请留空)"
-              maxlength="6"
-              :prefix-icon="'Key' as any"
-            />
-          </el-form-item>
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-foreground/80">两步验证码 (未启用2FA可留空)</label>
+            <div class="relative">
+              <Key class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                v-model="form.totpCode"
+                placeholder="6 位动态验证码"
+                maxlength="6"
+                class="pl-9"
+              />
+            </div>
+            <p v-if="errors.totp" class="text-xs text-destructive">{{ errors.totp }}</p>
+          </div>
 
-          <button
+          <Button
             type="submit"
-            class="w-full h-8 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-medium text-xs hover:bg-slate-800 dark:hover:bg-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50"
+            class="w-full gap-2"
             :disabled="loading"
             @click.prevent="handleLogin"
           >
-            <el-icon v-if="loading" class="is-loading mr-1.5"><component is="Loading" /></el-icon>
+            <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
             <span>{{ loading ? '登录中...' : '立即登录' }}</span>
-          </button>
-        </el-form>
+          </Button>
 
-        <div class="relative my-3.5 text-center after:content-[''] after:absolute after:top-1/2 after:left-0 after:right-0 after:h-px after:bg-slate-200/80 dark:after:bg-slate-800">
-          <span class="relative z-10 bg-white dark:bg-slate-900 px-2 text-[11px] text-slate-400">
-            或使用生物识别
-          </span>
-        </div>
+          <div class="relative my-3 text-center after:content-[''] after:absolute after:top-1/2 after:left-0 after:right-0 after:h-px after:bg-border">
+            <span class="relative z-10 bg-card px-2 text-[11px] text-muted-foreground">
+              或使用生物识别
+            </span>
+          </div>
 
-        <!-- Passkey 登录 -->
-        <button
-          type="button"
-          class="w-full h-8 rounded-md border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-          :disabled="passkeyLoading"
-          @click="handlePasskeyLogin"
-        >
-          <el-icon class="text-sm"><component :is="passkeyLoading ? 'Loading' : 'Key'" /></el-icon>
-          <span>{{ passkeyLoading ? '验证中...' : '使用 Passkey 登录' }}</span>
-        </button>
+          <!-- Passkey 登录 -->
+          <Button
+            type="button"
+            variant="outline"
+            class="w-full gap-2"
+            :disabled="passkeyLoading"
+            @click="handlePasskeyLogin"
+          >
+            <Loader2 v-if="passkeyLoading" class="h-4 w-4 animate-spin" />
+            <Fingerprint v-else class="h-4 w-4" />
+            <span>{{ passkeyLoading ? '验证中...' : '使用 Passkey 登录' }}</span>
+          </Button>
 
-        <p class="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-2.5 mb-0">
-          支持指纹、Face ID 或 Windows Hello 硬件密钥
-        </p>
+          <p class="text-[11px] text-muted-foreground text-center mt-2 mb-0">
+            支持指纹、Face ID 或 Windows Hello 硬件密钥
+          </p>
+        </form>
       </div>
 
       <!-- 返回首页 -->
       <div class="text-center mt-4">
-        <router-link to="/" class="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 no-underline transition-colors">
+        <router-link to="/" class="text-xs text-muted-foreground hover:text-foreground no-underline transition-colors">
           ← 返回导航主页
         </router-link>
       </div>
     </div>
   </div>
 </template>
-

@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS notes (
   content TEXT DEFAULT '',
   category_id INTEGER,
   is_pinned INTEGER NOT NULL DEFAULT 0,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   tags TEXT DEFAULT '[]',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -136,3 +137,10 @@ CREATE TABLE IF NOT EXISTS storage_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- 系统全局基础配置表 (站点名称, 副标题, Logo, 默认搜索引擎, 主题色, 背景图等)
+CREATE TABLE IF NOT EXISTS system_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+

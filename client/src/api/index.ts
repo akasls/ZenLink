@@ -237,7 +237,7 @@ export const settingsApi = {
   get() {
     return api.get('/settings');
   },
-  save(data: { site_name?: string; site_desc?: string; default_engine?: string }) {
+  save(data: Record<string, any>) {
     return api.post('/settings', data);
   },
 };

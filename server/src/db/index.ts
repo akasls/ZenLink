@@ -56,6 +56,31 @@ export async function initDatabase(): Promise<void> {
 
 let saveTimer: NodeJS.Timeout | null = null;
 let isSaving = false;
+let hasPendingSave = false;
+
+async function executeSave(): Promise<void> {
+  if (isSaving) {
+    hasPendingSave = true;
+    return;
+  }
+  isSaving = true;
+  hasPendingSave = false;
+
+  try {
+    const data = db.export();
+    const tempPath = `${DB_PATH}.tmp`;
+    await fsPromises.writeFile(tempPath, Buffer.from(data));
+    await fsPromises.rename(tempPath, DB_PATH);
+  } catch (e) {
+    console.error('❌ 异步持久化数据库失败:', e);
+  } finally {
+    isSaving = false;
+    if (hasPendingSave) {
+      hasPendingSave = false;
+      executeSave();
+    }
+  }
+}
 
 /**
  * 将内存中的数据库安全、原子化、防抖持久化到文件
@@ -67,6 +92,7 @@ export function saveDatabase(immediate = false): void {
       clearTimeout(saveTimer);
       saveTimer = null;
     }
+    hasPendingSave = false;
     try {
       const data = db.export();
       const tempPath = `${DB_PATH}.tmp`;
@@ -78,21 +104,13 @@ export function saveDatabase(immediate = false): void {
     return;
   }
 
-  if (saveTimer) return;
-  saveTimer = setTimeout(async () => {
+  if (saveTimer) {
+    return;
+  }
+
+  saveTimer = setTimeout(() => {
     saveTimer = null;
-    if (isSaving) return;
-    isSaving = true;
-    try {
-      const data = db.export();
-      const tempPath = `${DB_PATH}.tmp`;
-      await fsPromises.writeFile(tempPath, Buffer.from(data));
-      await fsPromises.rename(tempPath, DB_PATH);
-    } catch (e) {
-      console.error('❌ 异步持久化数据库失败:', e);
-    } finally {
-      isSaving = false;
-    }
+    executeSave();
   }, 500);
 }
 

@@ -1,8 +1,27 @@
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from 'vue';
-import { ElMessage } from 'element-plus';
 import { bookmarkApi } from '@/api';
 import { getAvatarChar, getAvatarColor } from '@/utils/avatar';
+import { toast } from '@/components/ui/sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Sparkles, Loader2, Check } from 'lucide-vue-next';
 
 interface Category {
   id: number;
@@ -38,19 +57,26 @@ const saving = ref(false);
 const errors = reactive<Record<string, string>>({});
 const previewError = ref(false);
 
+const categoryStringValue = computed({
+  get: () => (form.categoryId != null ? String(form.categoryId) : 'none'),
+  set: (val: string) => {
+    form.categoryId = val === 'none' ? null : Number(val);
+  },
+});
+
 // 带有 └ 标记的二级分类层级选项
 const categoryOptions = computed(() => {
   const options: { id: number; name: string }[] = [];
-  const tops = props.categories.filter(c => !c.parent_id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const tops = props.categories.filter((c) => !c.parent_id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
   for (const top of tops) {
     options.push({ id: top.id, name: top.name });
-    const subs = props.categories.filter(c => c.parent_id === top.id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const subs = props.categories.filter((c) => c.parent_id === top.id).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     for (const sub of subs) {
       options.push({ id: sub.id, name: `  └ ${sub.name}` });
     }
   }
   for (const c of props.categories) {
-    if (!options.some(o => o.id === c.id)) {
+    if (!options.some((o) => o.id === c.id)) {
       options.push({ id: c.id, name: c.name });
     }
   }
@@ -66,9 +92,12 @@ const faviconPreviewSrc = computed(() => {
   return '';
 });
 
-watch(() => [form.favicon, form.url], () => {
-  previewError.value = false;
-});
+watch(
+  () => [form.favicon, form.url],
+  () => {
+    previewError.value = false;
+  }
+);
 
 function resetForm() {
   form.url = '';
@@ -82,9 +111,12 @@ function resetForm() {
   Object.keys(errors).forEach((key) => delete errors[key]);
 }
 
-watch(() => props.visible, (val) => {
-  if (!val) resetForm();
-});
+watch(
+  () => props.visible,
+  (val) => {
+    if (!val) resetForm();
+  }
+);
 
 // AI 智能解析 (自动精简标题 + 提炼描述 + 抓取图标)
 async function fetchMeta() {
@@ -122,14 +154,14 @@ async function fetchMeta() {
     if (meta.favicon) form.favicon = meta.favicon;
 
     if (aiUsed && (hasTitle || hasDesc)) {
-      ElMessage.success('AI 已智能解析并提炼标题与简介');
+      toast.success('AI 已智能解析并提炼标题与简介');
     } else if (scraped && (hasTitle || hasDesc)) {
-      ElMessage.success('已自动抓取网站元数据并清洗');
+      toast.success('已自动抓取网站元数据并清洗');
     } else {
-      ElMessage.info('受目标站点网络或防爬限制未能抓取到详情，已根据网址生成推测标题');
+      toast.info('受目标站点限制未能抓取到详情，已推测生成标题');
     }
   } catch {
-    ElMessage.warning('未能获取到该网址信息，请手动填写');
+    toast.warning('未能获取到该网址信息，请手动填写');
   } finally {
     fetching.value = false;
   }
@@ -137,9 +169,19 @@ async function fetchMeta() {
 
 function validate(): boolean {
   Object.keys(errors).forEach((key) => delete errors[key]);
-  if (!form.url.trim()) errors.url = 'URL 不能为空';
-  else {
-    try { new URL(form.url); } catch { errors.url = '请输入有效的 URL'; }
+  let u = form.url.trim();
+  if (!u) {
+    errors.url = 'URL 不能为空';
+  } else {
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      u = 'https://' + u;
+      form.url = u;
+    }
+    try {
+      new URL(form.url);
+    } catch {
+      errors.url = '请输入有效的 URL';
+    }
   }
   if (!form.title.trim()) errors.title = '标题不能为空';
   return Object.keys(errors).length === 0;
@@ -163,9 +205,10 @@ async function handleSave() {
       categoryId: form.categoryId,
       isPrivate: form.isPrivate,
     });
+    toast.success('导航链接添加成功');
     emit('saved');
   } catch (err: any) {
-    ElMessage.error(err.response?.data?.error || '保存失败，请重试');
+    toast.error(err.response?.data?.error || '保存失败，请重试');
   } finally {
     saving.value = false;
   }
@@ -173,109 +216,137 @@ async function handleSave() {
 </script>
 
 <template>
-  <el-dialog
-    :model-value="visible"
-    @update:model-value="emit('update:visible', $event)"
-    title="添加导航链接"
-    width="480px"
-    align-center
-    :close-on-click-modal="false"
-    destroy-on-close
-  >
-    <el-form label-position="top" class="space-y-3">
-      <!-- 网址 + AI 智能解析 -->
-      <el-form-item label="网址链接 *" :error="errors.url">
-        <div class="flex gap-2 w-full">
-          <el-input
-            v-model="form.url"
-            placeholder="https://example.com"
-            class="flex-1"
-            @keyup.enter="fetchMeta"
-          />
-          <el-button
-            type="primary"
-            plain
-            :loading="fetching"
-            @click="fetchMeta"
-            title="通过 AI 解析提炼简洁标题与中文简介"
-          >
-            <span>AI 解析</span>
-          </el-button>
+  <Dialog :open="visible" @update:open="emit('update:visible', $event)">
+    <DialogContent class="sm:max-w-[480px]">
+      <DialogHeader>
+        <DialogTitle>添加导航链接</DialogTitle>
+      </DialogHeader>
+
+      <div class="space-y-4 py-2">
+        <!-- 网址 + AI 智能解析 -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-foreground/80 flex justify-between">
+            <span>网址链接 <span class="text-destructive">*</span></span>
+            <span v-if="errors.url" class="text-destructive text-xs">{{ errors.url }}</span>
+          </label>
+          <div class="flex gap-2">
+            <Input
+              v-model="form.url"
+              placeholder="https://example.com"
+              class="flex-1"
+              @keyup.enter="fetchMeta"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              :disabled="fetching"
+              class="shrink-0 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              @click="fetchMeta"
+              title="通过 AI 解析提炼简洁标题与中文简介"
+            >
+              <Loader2 v-if="fetching" class="h-4 w-4 animate-spin" />
+              <Sparkles v-else class="h-4 w-4 text-primary" />
+              <span>AI 解析</span>
+            </Button>
+          </div>
         </div>
-      </el-form-item>
 
-      <!-- 标题 -->
-      <el-form-item label="链接标题 *" :error="errors.title">
-        <el-input v-model="form.title" placeholder="如：哔哩哔哩 / GitHub" />
-      </el-form-item>
+        <!-- 标题 -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-foreground/80 flex justify-between">
+            <span>链接标题 <span class="text-destructive">*</span></span>
+            <span v-if="errors.title" class="text-destructive text-xs">{{ errors.title }}</span>
+          </label>
+          <Input v-model="form.title" placeholder="如：哔哩哔哩 / GitHub" />
+        </div>
 
-      <!-- 描述 -->
-      <el-form-item label="网站简介">
-        <el-input
-          v-model="form.description"
-          type="textarea"
-          placeholder="简短描述该网站（可选）"
-          :rows="2"
-          resize="none"
-        />
-      </el-form-item>
+        <!-- 描述 -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-foreground/80">网站简介</label>
+          <Textarea
+            v-model="form.description"
+            placeholder="简短描述该网站（可选）"
+            :rows="2"
+            class="resize-none"
+          />
+        </div>
 
-      <!-- 图标与分类 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <!-- 图标 -->
-        <el-form-item label="网站图标">
-          <div class="flex items-center gap-2 w-full">
-            <el-input v-model="form.favicon" placeholder="图标地址 (留空将自动从网址抓取)" class="flex-1" />
-            <div class="w-6 h-6 flex items-center justify-center rounded-full overflow-hidden flex-shrink-0">
-              <img
-                v-if="!previewError && faviconPreviewSrc"
-                :src="faviconPreviewSrc"
-                class="w-full h-full object-contain rounded-full"
-                alt=""
-                @error="previewError = true"
+        <!-- 图标与分类 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- 图标 -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-foreground/80">网站图标</label>
+            <div class="flex items-center gap-2">
+              <Input
+                v-model="form.favicon"
+                placeholder="留空自动抓取"
+                class="flex-1 text-xs"
               />
-              <div
-                v-else
-                class="w-full h-full flex items-center justify-center text-white text-xs font-bold rounded-full"
-                :style="{ backgroundColor: getAvatarColor(form.title || form.url) }"
-              >
-                {{ getAvatarChar(form.title, form.url) }}
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-muted/40 overflow-hidden shrink-0">
+                <img
+                  v-if="!previewError && faviconPreviewSrc"
+                  :src="faviconPreviewSrc"
+                  class="w-5 h-5 object-contain"
+                  alt=""
+                  @error="previewError = true"
+                />
+                <div
+                  v-else
+                  class="w-full h-full flex items-center justify-center text-white text-xs font-bold"
+                  :style="{ backgroundColor: getAvatarColor(form.title || form.url) }"
+                >
+                  {{ getAvatarChar(form.title, form.url) }}
+                </div>
               </div>
             </div>
           </div>
-        </el-form-item>
 
-        <!-- 分类 (二级分类带 └ 前缀) -->
-        <el-form-item label="所属分类">
-          <el-select v-model="form.categoryId" placeholder="选择分类" clearable class="w-full">
-            <el-option
-              v-for="opt in categoryOptions"
-              :key="opt.id"
-              :label="opt.name"
-              :value="opt.id"
-            />
-          </el-select>
-        </el-form-item>
+          <!-- 分类 -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-foreground/80">所属分类</label>
+            <Select v-model="categoryStringValue">
+              <SelectTrigger class="w-full">
+                <SelectValue placeholder="选择分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">未分类</SelectItem>
+                <SelectItem
+                  v-for="opt in categoryOptions"
+                  :key="opt.id"
+                  :value="String(opt.id)"
+                >
+                  {{ opt.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <!-- 备用链接 -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-medium text-foreground/80">备用链接</label>
+          <Input v-model="form.backupUrl" placeholder="如镜像站或备用地址（可选）" />
+        </div>
+
+        <!-- 私有开关 -->
+        <div class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 p-3">
+          <div class="space-y-0.5">
+            <div class="text-sm font-medium">仅管理员可见</div>
+            <div class="text-xs text-muted-foreground">作为私有导航书签，未登录访客将不可见</div>
+          </div>
+          <Switch :checked="form.isPrivate" @update:checked="form.isPrivate = $event" />
+        </div>
       </div>
 
-      <!-- 备用链接 -->
-      <el-form-item label="备用链接">
-        <el-input v-model="form.backupUrl" placeholder="如镜像站或备用地址（可选）" />
-      </el-form-item>
-
-      <!-- 私有开关 -->
-      <el-form-item>
-        <el-checkbox v-model="form.isPrivate">仅管理员登录后可见（私有书签）</el-checkbox>
-      </el-form-item>
-    </el-form>
-
-    <template #footer>
-      <div class="flex justify-end gap-2">
-        <el-button @click="emit('update:visible', false)">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="handleSave">
-          <el-icon class="mr-1"><component is="Check" /></el-icon>确认添加
-        </el-button>
-      </div>
-    </template>
-  </el-dialog>
+      <DialogFooter class="gap-2 sm:gap-0">
+        <Button variant="outline" @click="emit('update:visible', false)">取消</Button>
+        <Button :disabled="saving" class="gap-1.5" @click="handleSave">
+          <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
+          <Check v-else class="h-4 w-4" />
+          <span>确认添加</span>
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
