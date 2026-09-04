@@ -34,6 +34,15 @@
 
     --radius: 0.5rem;
 
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 94%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-ring: 239 84% 67%;
+
     --zl-bg: #f8fafc;
     --zl-card: #ffffff;
     --zl-text-main: #09090b;
@@ -73,6 +82,15 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 239 84% 67%;
+
+    --sidebar-background: 240 10% 5%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 12%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 14%;
+    --sidebar-ring: 239 84% 67%;
 
     --zl-bg: #09090b;
     --zl-card: #111113;

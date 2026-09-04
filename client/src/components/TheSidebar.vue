@@ -1,31 +1,35 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { mapIcon } from '@/utils/icon-map';
 import { useSiteStore } from '@/stores/site';
 import { useThemeStore } from '@/stores/theme';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarRail,
+  useSidebar,
+} from '@/components/ui/sidebar';
 import {
   ChevronRight,
+  Compass,
   Bot,
   FileText,
   Settings,
   Sun,
   Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 
 const siteStore = useSiteStore();
 const themeStore = useThemeStore();
@@ -36,11 +40,10 @@ interface Category {
   icon: string;
   is_private: number;
   parent_id: number | null;
+  sort_order?: number;
 }
 
 const props = defineProps<{
-  collapsed: boolean;
-  mobileOpen: boolean;
   categories: Category[];
   selectedCategoryId: number | null;
   currentView: 'home' | 'admin' | 'notes' | 'ai';
@@ -52,23 +55,19 @@ const emit = defineEmits<{
   selectSubCategory: [topId: number, subId: number];
   changeView: [view: 'home' | 'admin' | 'notes' | 'ai'];
   login: [targetView?: string];
-  closeMobile: [];
-  toggleCollapse: [];
 }>();
 
-const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-function onResize() {
-  isMobile.value = window.innerWidth < 768;
-}
-onMounted(() => window.addEventListener('resize', onResize));
-onUnmounted(() => window.removeEventListener('resize', onResize));
+const { isMobile, setOpenMobile } = useSidebar();
 
-const isExpanded = computed(() => {
-  if (isMobile.value) {
-    return props.mobileOpen;
+const expandedCatIds = ref<Set<number>>(new Set());
+
+function toggleSubCats(catId: number) {
+  if (expandedCatIds.value.has(catId)) {
+    expandedCatIds.value.delete(catId);
+  } else {
+    expandedCatIds.value.add(catId);
   }
-  return !props.collapsed;
-});
+}
 
 const topCats = computed(() =>
   (props.categories || [])
@@ -85,7 +84,7 @@ function getSubCats(parentId: number) {
 function handleSelectCategory(id: number) {
   emit('selectCategory', id);
   emit('changeView', 'home');
-  emit('closeMobile');
+  if (isMobile.value) setOpenMobile(false);
   nextTick(() => {
     const el = document.getElementById(`sec-${id}`);
     if (el) {
@@ -97,7 +96,7 @@ function handleSelectCategory(id: number) {
 function handleSelectSubCategory(topId: number, subId: number) {
   emit('selectSubCategory', topId, subId);
   emit('changeView', 'home');
-  emit('closeMobile');
+  if (isMobile.value) setOpenMobile(false);
   nextTick(() => {
     const el = document.getElementById(`sec-${topId}`);
     if (el) {
@@ -108,7 +107,7 @@ function handleSelectSubCategory(topId: number, subId: number) {
 
 function handleLogoClick() {
   emit('changeView', 'home');
-  emit('closeMobile');
+  if (isMobile.value) setOpenMobile(false);
   nextTick(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
@@ -119,11 +118,11 @@ function handleLogoClick() {
 function handleChangeView(view: 'home' | 'admin' | 'notes' | 'ai') {
   if (view !== 'home' && !props.isLoggedIn) {
     emit('login', view);
-    emit('closeMobile');
+    if (isMobile.value) setOpenMobile(false);
     return;
   }
   emit('changeView', view);
-  emit('closeMobile');
+  if (isMobile.value) setOpenMobile(false);
 }
 
 function handleSettings() {
@@ -132,269 +131,156 @@ function handleSettings() {
   } else {
     emit('login', 'admin');
   }
-  emit('closeMobile');
-}
-
-function handleToggleCollapse() {
-  if (props.mobileOpen) {
-    emit('closeMobile');
-  } else {
-    emit('toggleCollapse');
-  }
+  if (isMobile.value) setOpenMobile(false);
 }
 </script>
 
 <template>
-  <!-- 移动端遮罩层 -->
-  <transition
-    enter-active-class="transition-opacity duration-200 ease-out"
-    enter-from-class="opacity-0"
-    enter-to-class="opacity-100"
-    leave-active-class="transition-opacity duration-150 ease-in"
-    leave-from-class="opacity-100"
-    leave-to-class="opacity-0"
-  >
-    <div
-      v-if="mobileOpen"
-      class="fixed inset-0 bg-background/80 backdrop-blur-xs z-40 md:hidden"
-      @click="emit('closeMobile')"
-    ></div>
-  </transition>
+  <Sidebar collapsible="icon" variant="sidebar">
+    <!-- Header: Workspace / Logo -->
+    <SidebarHeader>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            size="lg"
+            tooltip="返回首页"
+            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
+            @click="handleLogoClick"
+          >
+            <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-xs overflow-hidden shrink-0">
+              <img v-if="siteStore.siteLogo" :src="siteStore.siteLogo" class="size-full object-cover" alt="logo" />
+              <span v-else>{{ (siteStore.siteName || 'Z').trim().charAt(0) }}</span>
+            </div>
+            <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
+              <span class="truncate font-semibold text-foreground">{{ siteStore.siteName || 'ZenLink' }}</span>
+              <span class="truncate text-[11px] text-muted-foreground">{{ siteStore.siteDesc || '优雅极简导航' }}</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarHeader>
 
-  <aside
-    class="fixed top-0 left-0 bottom-0 h-screen bg-card border-r border-border flex flex-col z-50 transition-all duration-200 ease-in-out select-none"
-    :class="[
-      isExpanded ? 'w-52' : 'w-12 md:w-14',
-      mobileOpen ? 'w-52 shadow-xl' : ''
-    ]"
-  >
-    <!-- Header: 展开显示 Logo + 标题 + 收起键；折叠显示居中切换键 -->
-    <div class="h-12 px-2.5 flex items-center justify-between border-b border-border shrink-0">
-      <!-- 展开状态 -->
-      <template v-if="isExpanded">
-        <div class="flex items-center gap-2 cursor-pointer flex-1 min-w-0 pr-1 group" @click="handleLogoClick" title="返回导航页顶部">
-          <div class="w-6 h-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center shrink-0 overflow-hidden font-bold text-xs">
-            <img v-if="siteStore.siteLogo" :src="siteStore.siteLogo" class="w-full h-full object-cover rounded-md" alt="logo" />
-            <span v-else>{{ (siteStore.siteName || 'Z').trim().charAt(0) }}</span>
-          </div>
-          <span class="text-xs font-semibold text-foreground/90 truncate group-hover:text-foreground transition-colors">
-            {{ siteStore.siteName || 'ZenLink' }}
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          class="text-muted-foreground hover:text-foreground"
-          @click="handleToggleCollapse"
-          title="收起侧边栏"
-        >
-          <PanelLeftClose class="h-3.5 w-3.5" />
-        </Button>
-      </template>
+    <!-- Content: Apps & Categories -->
+    <SidebarContent class="px-2">
+      <!-- 核心应用 Group -->
+      <SidebarGroup>
+        <SidebarGroupLabel>快捷入口</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                :is-active="currentView === 'home'"
+                tooltip="网址导航"
+                class="cursor-pointer"
+                @click="handleChangeView('home')"
+              >
+                <Compass class="size-4 shrink-0" />
+                <span>网址导航</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
 
-      <!-- 折叠状态 -->
-      <template v-else>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="w-full text-muted-foreground hover:text-foreground"
-          @click="handleToggleCollapse"
-          title="展开侧边栏"
-        >
-          <PanelLeftOpen class="h-4 w-4" />
-        </Button>
-      </template>
-    </div>
+            <SidebarMenuItem v-if="siteStore.enableNotes">
+              <SidebarMenuButton
+                :is-active="currentView === 'notes'"
+                tooltip="在线笔记"
+                class="cursor-pointer"
+                @click="handleChangeView('notes')"
+              >
+                <FileText class="size-4 shrink-0" />
+                <span>在线笔记</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
 
-    <!-- 网址分类导航列表 -->
-    <ScrollArea class="flex-1 px-1.5 py-2">
-      <div class="space-y-0.5">
-        <template v-for="cat in topCats" :key="cat.id">
-          <!-- 1. 折叠状态且存在二级分类：悬浮展示二级弹层 -->
-          <Popover v-if="collapsed && !isMobile && getSubCats(cat.id).length > 0">
-            <PopoverTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="w-full transition-all group relative cursor-pointer"
-                :class="[
-                  selectedCategoryId === cat.id && currentView === 'home'
-                    ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
-                ]"
+            <SidebarMenuItem v-if="siteStore.enableAi">
+              <SidebarMenuButton
+                :is-active="currentView === 'ai'"
+                tooltip="AI 助手"
+                class="cursor-pointer"
+                @click="handleChangeView('ai')"
+              >
+                <Bot class="size-4 shrink-0" />
+                <span>AI 助手</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <!-- 网址分类 Group -->
+      <SidebarGroup>
+        <SidebarGroupLabel>网站分类</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem v-for="cat in topCats" :key="cat.id">
+              <SidebarMenuButton
+                :is-active="selectedCategoryId === cat.id && currentView === 'home'"
+                :tooltip="cat.name"
+                class="cursor-pointer"
                 @click="handleSelectCategory(cat.id)"
               >
-                <component :is="mapIcon(cat?.icon)" class="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
+                <component :is="mapIcon(cat?.icon)" class="size-4 shrink-0" />
+                <span class="truncate">{{ cat.name }}</span>
+              </SidebarMenuButton>
 
-            <PopoverContent side="right" align="start" class="w-40 p-1.5 shadow-lg">
-              <div class="flex flex-col gap-0.5">
-                <div
-                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-semibold hover:bg-accent cursor-pointer transition-colors"
-                  :class="selectedCategoryId === cat.id && currentView === 'home' ? 'text-primary' : 'text-foreground'"
-                  @click="handleSelectCategory(cat.id)"
-                  title="跳转至该分类"
-                >
-                  <component :is="mapIcon(cat?.icon)" class="h-3.5 w-3.5" />
-                  <span>{{ cat.name }}</span>
-                </div>
-                <Separator class="my-1" />
-              <div class="flex flex-col gap-0.5 max-h-56 overflow-y-auto">
-                <div
-                  v-for="sub in getSubCats(cat.id)"
-                  :key="sub.id"
-                  class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer transition-colors"
-                  @click="handleSelectSubCategory(cat.id, sub.id)"
-                >
-                  <ChevronRight class="h-3 w-3 text-muted-foreground" />
-                  <span class="truncate">{{ sub.name }}</span>
-                </div>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+              <SidebarMenuAction
+                v-if="getSubCats(cat.id).length > 0"
+                :class="[
+                  'cursor-pointer transition-transform duration-200',
+                  expandedCatIds.has(cat.id) ? 'rotate-90' : '',
+                ]"
+                @click.stop="toggleSubCats(cat.id)"
+                title="展开/收起子分类"
+              >
+                <ChevronRight class="size-3.5" />
+              </SidebarMenuAction>
 
-        <!-- 2. 普通状态或展开状态 -->
-        <Tooltip
-          v-else
-          :delay-duration="300"
-          :disabled="isExpanded"
-        >
-          <TooltipTrigger as-child>
-            <Button
-              variant="ghost"
-              class="w-full h-8 transition-all group cursor-pointer"
-              :class="[
-                isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center p-0',
-                selectedCategoryId === cat.id && currentView === 'home'
-                  ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
-              ]"
-              @click="handleSelectCategory(cat.id)"
-            >
-              <component
-                :is="mapIcon(cat?.icon)"
-                class="h-4 w-4 shrink-0 transition-colors"
-                :class="selectedCategoryId === cat.id && currentView === 'home' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
-              />
-              <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">{{ cat.name }}</span>
-              <ChevronRight
-                v-if="isExpanded"
-                class="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-              />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right" class="text-xs">
-            {{ cat.name }}
-          </TooltipContent>
-        </Tooltip>
-        </template>
-      </div>
-    </ScrollArea>
+              <!-- 子分类下拉列表 -->
+              <SidebarMenuSub v-if="getSubCats(cat.id).length > 0 && expandedCatIds.has(cat.id)">
+                <SidebarMenuSubItem v-for="sub in getSubCats(cat.id)" :key="sub.id">
+                  <SidebarMenuSubButton
+                    class="cursor-pointer"
+                    @click="handleSelectSubCategory(cat.id, sub.id)"
+                  >
+                    <span class="truncate">{{ sub.name }}</span>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              </SidebarMenuSub>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
 
-    <!-- 底部上方的扩展应用 (AI对话 / 在线笔记) -->
-    <div v-if="siteStore.enableAi || siteStore.enableNotes" class="p-1.5 border-t border-border space-y-0.5 shrink-0">
-      <Tooltip v-if="siteStore.enableAi" :delay-duration="300" :disabled="isExpanded">
-        <TooltipTrigger as-child>
-          <Button
-            variant="ghost"
-            class="w-full h-8 transition-all group cursor-pointer"
-            :class="[
-              isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center p-0',
-              currentView === 'ai'
-                ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
-            ]"
-            @click="handleChangeView('ai')"
+    <!-- Footer: 系统设置与主题模式 -->
+    <SidebarFooter>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            :is-active="currentView === 'admin'"
+            tooltip="系统设置"
+            class="cursor-pointer"
+            @click="handleSettings"
           >
-            <Bot
-              class="h-4 w-4 shrink-0 transition-colors"
-              :class="currentView === 'ai' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
-            />
-            <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">AI 助手</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right" class="text-xs">AI 助手</TooltipContent>
-      </Tooltip>
+            <Settings class="size-4 shrink-0" />
+            <span>系统设置</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
 
-      <Tooltip v-if="siteStore.enableNotes" :delay-duration="300" :disabled="isExpanded">
-        <TooltipTrigger as-child>
-          <Button
-            variant="ghost"
-            class="w-full h-8 transition-all group cursor-pointer"
-            :class="[
-              isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center p-0',
-              currentView === 'notes'
-                ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
-            ]"
-            @click="handleChangeView('notes')"
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            tooltip="切换主题"
+            class="cursor-pointer"
+            @click="themeStore.toggle($event)"
           >
-            <FileText
-              class="h-4 w-4 shrink-0 transition-colors"
-              :class="currentView === 'notes' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
-            />
-            <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">在线笔记</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right" class="text-xs">在线笔记</TooltipContent>
-      </Tooltip>
-    </div>
+            <Sun v-if="themeStore.isDark" class="size-4 shrink-0" />
+            <Moon v-else class="size-4 shrink-0" />
+            <span>{{ themeStore.isDark ? '浅色模式' : '暗黑模式' }}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarFooter>
 
-    <!-- Footer: 系统设置与主题切换 -->
-    <div class="p-1.5 border-t border-border shrink-0">
-      <div v-if="isExpanded" class="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          class="flex-1 h-8 px-2.5 justify-start gap-2 text-xs font-medium transition-all cursor-pointer"
-          :class="[
-            currentView === 'admin'
-              ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
-          ]"
-          @click="handleSettings"
-          title="系统设置"
-        >
-          <Settings
-            class="h-4 w-4 shrink-0 transition-colors"
-            :class="currentView === 'admin' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
-          />
-          <span class="truncate">系统设置</span>
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          class="text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
-          @click="themeStore.toggle($event)"
-          :title="themeStore.isDark ? '切换至浅色模式' : '切换至暗黑模式'"
-        >
-          <Sun v-if="themeStore.isDark" class="h-4 w-4" />
-          <Moon v-else class="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div v-else class="flex flex-col items-center gap-1">
-        <Tooltip :delay-duration="300">
-          <TooltipTrigger as-child>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="w-full transition-all cursor-pointer"
-              :class="[
-                currentView === 'admin'
-                  ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
-              ]"
-              @click="handleSettings"
-            >
-              <Settings class="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right" class="text-xs">系统设置</TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
-  </aside>
+    <!-- Edge Rail for expanding / resizing / toggling -->
+    <SidebarRail />
+  </Sidebar>
 </template>
