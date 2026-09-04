@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import {
   Plus,
   Pencil,
@@ -34,6 +35,7 @@ import {
   ArrowDown,
   MessageSquare,
   Tickets,
+  X,
 } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -853,14 +855,15 @@ onUnmounted(() => {
           v-model:open="mobileChapterPopoverVisible"
         >
           <PopoverTrigger as-child>
-            <button
-              type="button"
-              class="h-7 px-2 rounded-md border border-input bg-background hover:bg-accent text-xs font-medium text-foreground md:hidden flex items-center gap-1 cursor-pointer transition-colors"
+            <Button
+              variant="outline"
+              size="sm"
+              class="h-7 text-xs font-medium md:hidden gap-1"
               title="快速跳转历史提问"
             >
               <Tickets class="h-3.5 w-3.5 text-muted-foreground" />
               <span>章节 ({{ userQuestions.length }})</span>
-            </button>
+            </Button>
           </PopoverTrigger>
 
           <PopoverContent align="end" class="w-60 p-2 shadow-lg">
@@ -885,15 +888,16 @@ onUnmounted(() => {
         </Popover>
 
         <!-- 新建会话按钮 -->
-        <button
-          type="button"
-          class="h-7 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-7 text-xs font-medium gap-1"
           title="发起新会话"
           @click="createNewConversation"
         >
           <Plus class="h-3.5 w-3.5" />
           <span>新建对话</span>
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -933,42 +937,46 @@ onUnmounted(() => {
                   <div :class="{ 'line-clamp-6': isLongMessage(msg.content) && !expandedMsgMap[index] }">
                     {{ msg.content }}
                   </div>
-                  <button
+                  <Button
                     v-if="isLongMessage(msg.content)"
-                    type="button"
-                    class="mt-1 text-[11px] text-primary hover:underline cursor-pointer"
+                    variant="link"
+                    size="xs"
+                    class="p-0 h-auto text-[11px] text-primary mt-1 cursor-pointer"
                     @click="toggleMsgExpand(index)"
                   >
                     {{ expandedMsgMap[index] ? '收起 ▴' : '展开全文 ▾' }}
-                  </button>
+                  </Button>
                 </div>
 
                 <!-- 用户操作栏 -->
-                <div v-if="!isStreaming" class="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                <div v-if="!isStreaming" class="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground"
                     @click="startEditMsg(index, msg)"
                     title="编辑提问"
                   >
                     <Pencil class="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground"
                     @click="copyMessage(msg.content)"
                     title="复制文本"
                   >
                     <Copy class="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     @click="deleteMessage(index)"
                     title="删除消息"
                   >
                     <Trash2 class="h-3.5 w-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </template>
@@ -992,31 +1000,34 @@ onUnmounted(() => {
                 </div>
 
                 <!-- AI 操作栏 -->
-                <div v-if="msg.content && !isStreaming" class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                <div v-if="msg.content && !isStreaming" class="flex items-center gap-0.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground"
                     @click="regenerateMessage(index)"
                     title="重新生成"
                   >
                     <RotateCw class="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground"
                     @click="copyMessage(msg.content)"
                     title="复制回复"
                   >
                     <Copy class="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     @click="deleteMessage(index)"
                     title="删除回复"
                   >
                     <Trash2 class="h-3.5 w-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </template>
@@ -1026,22 +1037,23 @@ onUnmounted(() => {
 
       <!-- 3. 底部输入卡片 -->
       <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
-        <div class="bg-card border border-border rounded-xl shadow-sm flex flex-col focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden">
+        <Card class="shadow-sm flex flex-col focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden border-border p-0 gap-0">
           <!-- 上部快捷工具栏 -->
           <div class="px-3 py-1.5 border-b border-border/70 flex items-center justify-between bg-muted/30 text-xs">
             <div class="flex items-center gap-2">
               <!-- 对话列表 Popover -->
               <Popover v-model:open="convPopoverVisible">
                 <PopoverTrigger as-child>
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer font-medium transition-colors"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1 font-medium cursor-pointer"
                     title="切换或管理对话"
                   >
                     <MessageSquare class="h-3.5 w-3.5" />
                     <span>对话历史</span>
                     <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                  </button>
+                  </Button>
                 </PopoverTrigger>
 
                 <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
@@ -1052,14 +1064,14 @@ onUnmounted(() => {
                         placeholder="搜索历史对话..."
                         class="h-7 text-xs flex-1"
                       />
-                      <button
-                        type="button"
-                        class="w-7 h-7 rounded bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shrink-0"
+                      <Button
+                        size="icon-xs"
+                        class="h-7 w-7 shrink-0 cursor-pointer"
                         title="发起新对话"
                         @click="createNewConversation"
                       >
                         <Plus class="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </div>
 
                     <div class="max-h-48 overflow-y-auto space-y-0.5">
@@ -1077,9 +1089,9 @@ onUnmounted(() => {
                         <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
                           <span class="text-xs shrink-0">{{ getRoleIcon(conv.role_id) }}</span>
                           <div v-if="editingConvId === conv.id" class="flex-1" @click.stop>
-                            <input
+                            <Input
                               v-model="editingConvTitle"
-                              class="w-full bg-background border border-border rounded px-1.5 py-0.5 text-xs outline-none"
+                              class="h-6 text-xs"
                               @keydown.enter="saveEditTitle(conv)"
                               @keydown.esc="cancelEditTitle"
                               @blur="saveEditTitle(conv)"
@@ -1088,22 +1100,22 @@ onUnmounted(() => {
                           <span v-else class="truncate">{{ conv.title }}</span>
                         </div>
 
-                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-                          <button type="button" class="text-muted-foreground hover:text-foreground cursor-pointer" title="重命名" @click.stop="startEditTitle(conv)">
+                        <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-foreground" title="重命名" @click.stop="startEditTitle(conv)">
                             <Pencil class="h-3 w-3" />
-                          </button>
-                          <button type="button" class="text-muted-foreground hover:text-destructive cursor-pointer" title="删除" @click.stop="deleteConversation(conv.id, $event)">
+                          </Button>
+                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="删除" @click.stop="deleteConversation(conv.id, $event)">
                             <Trash2 class="h-3 w-3" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
                       <div v-if="filteredConversations.length === 0" class="text-center py-3 text-xs text-muted-foreground">暂无对话</div>
                     </div>
 
                     <div v-if="conversations.length > 0" class="pt-1.5 border-t border-border text-center">
-                      <button type="button" class="text-[11px] text-destructive hover:underline cursor-pointer" @click="clearAllConversations">
+                      <Button variant="ghost" size="xs" class="text-[11px] text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer" @click="clearAllConversations">
                         清空所有对话
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </PopoverContent>
@@ -1114,15 +1126,16 @@ onUnmounted(() => {
               <!-- 角色选择 Popover -->
               <Popover v-model:open="rolePopoverVisible">
                 <PopoverTrigger as-child>
-                  <button
-                    type="button"
-                    class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer font-medium transition-colors"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1 font-medium cursor-pointer"
                     title="选择或自定义角色提示词"
                   >
                     <span class="text-xs">{{ currentRole?.icon || '🤖' }}</span>
                     <span>{{ currentRole?.name || '默认助手' }}</span>
                     <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                  </button>
+                  </Button>
                 </PopoverTrigger>
 
                 <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
@@ -1133,14 +1146,14 @@ onUnmounted(() => {
                         placeholder="搜索角色预设..."
                         class="h-7 text-xs flex-1"
                       />
-                      <button
-                        type="button"
-                        class="w-7 h-7 rounded bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shrink-0"
+                      <Button
+                        size="icon-xs"
+                        class="h-7 w-7 shrink-0 cursor-pointer"
                         title="添加新角色"
                         @click="openAddRoleModal"
                       >
                         <Plus class="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </div>
 
                     <div class="max-h-48 overflow-y-auto space-y-1">
@@ -1161,13 +1174,13 @@ onUnmounted(() => {
                           <div class="text-[10px] text-muted-foreground truncate">{{ r.prompt }}</div>
                         </div>
 
-                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-                          <button type="button" class="text-muted-foreground hover:text-foreground cursor-pointer" title="编辑" @click="openEditRoleModal(r, $event)">
+                        <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-foreground" title="编辑" @click="openEditRoleModal(r, $event)">
                             <Pencil class="h-3 w-3" />
-                          </button>
-                          <button type="button" class="text-muted-foreground hover:text-destructive cursor-pointer" title="删除" @click="deleteRole(r.id, $event)">
+                          </Button>
+                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="删除" @click="deleteRole(r.id, $event)">
                             <Trash2 class="h-3 w-3" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1177,16 +1190,17 @@ onUnmounted(() => {
             </div>
 
             <!-- 右侧返回底部按钮 -->
-            <button
+            <Button
               v-if="showScrollBottomBtn"
-              type="button"
-              class="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              variant="ghost"
+              size="xs"
+              class="gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
               title="返回底部"
               @click="scrollToBottomSmooth"
             >
               <ArrowDown class="h-3.5 w-3.5" />
               <span>回到底部</span>
-            </button>
+            </Button>
           </div>
 
           <!-- 附件预览 -->
@@ -1194,7 +1208,7 @@ onUnmounted(() => {
             <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-background border border-border text-xs">
               <span>{{ att.isImage ? '🖼️' : '📎' }}</span>
               <span class="max-w-[120px] truncate text-[11px]">{{ att.name }}</span>
-              <button type="button" class="text-muted-foreground hover:text-destructive text-xs cursor-pointer" @click="removeAttachment(idx)">×</button>
+              <X class="h-2.5 w-2.5 text-muted-foreground hover:text-destructive cursor-pointer shrink-0 transition-colors" @click="removeAttachment(idx)" />
             </div>
           </div>
 
@@ -1204,9 +1218,9 @@ onUnmounted(() => {
               <Pencil class="h-3.5 w-3.5" />
               <span>正在编辑提问 #{{ editingMsgIndex + 1 }}</span>
             </div>
-            <button type="button" class="text-xs hover:underline cursor-pointer" @click="cancelEditingMsg">
+            <Button variant="link" size="xs" class="p-0 h-auto text-xs text-amber-600 dark:text-amber-400 cursor-pointer" @click="cancelEditingMsg">
               取消编辑
-            </button>
+            </Button>
           </div>
 
           <!-- 输入文本框 -->
@@ -1224,26 +1238,28 @@ onUnmounted(() => {
           <!-- 底部发送与模型切换行 -->
           <div class="px-3 py-1.5 flex items-center justify-between border-t border-border/60 bg-muted/20">
             <div class="flex items-center gap-1.5">
-              <button
-                type="button"
-                class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                class="text-muted-foreground hover:text-foreground cursor-pointer"
                 title="上传附件/图片"
                 @click="fileInputRef?.click()"
               >
                 <Paperclip class="h-3.5 w-3.5" />
-              </button>
+              </Button>
               <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
 
               <!-- 模型选择 Popover -->
               <Popover v-model:open="modelPopoverVisible">
                 <PopoverTrigger as-child>
-                  <button
-                    type="button"
-                    class="h-6 px-2 rounded border border-input bg-background text-[11px] font-medium text-foreground hover:bg-accent flex items-center gap-1 transition-colors cursor-pointer"
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    class="h-6 gap-1 text-[11px] font-medium text-foreground cursor-pointer"
                   >
                     <span>{{ selectedModel || '暂无模型' }}</span>
                     <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                  </button>
+                  </Button>
                 </PopoverTrigger>
 
                 <PopoverContent side="top" align="start" class="w-60 p-2 shadow-lg">
@@ -1270,9 +1286,9 @@ onUnmounted(() => {
                       </div>
                     </div>
                     <div class="pt-1 border-t border-border flex justify-end">
-                      <button type="button" class="text-[11px] text-primary hover:underline cursor-pointer" @click="setDefaultModel">
+                      <Button variant="link" size="xs" class="p-0 h-auto text-[11px] text-primary cursor-pointer" @click="setDefaultModel">
                         设为默认
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </PopoverContent>
@@ -1293,7 +1309,7 @@ onUnmounted(() => {
               <span>{{ isStreaming ? '停止' : '发送' }}</span>
             </Button>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
 

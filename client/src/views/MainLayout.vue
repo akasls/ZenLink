@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useSiteStore } from '@/stores/site';
 import { bookmarkApi, categoryApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
+import { Button } from '@/components/ui/button';
 import { Loader2, FolderOpen, ArrowUp, Plus } from 'lucide-vue-next';
 
 import TheSidebar from '@/components/TheSidebar.vue';
@@ -368,25 +369,28 @@ onUnmounted(() => {
         leave-from-class="opacity-100 translate-y-0 scale-100"
         leave-to-class="opacity-0 translate-y-2 scale-90"
       >
-        <button
+        <Button
           v-if="showBackToTop"
-          class="w-8 h-8 rounded-md bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground hover:bg-accent flex items-center justify-center transition-all cursor-pointer"
+          variant="outline"
+          size="icon"
+          class="shadow-sm cursor-pointer"
           @click="scrollTop"
           title="返回顶部"
         >
           <ArrowUp class="h-4 w-4" />
-        </button>
+        </Button>
       </transition>
 
       <!-- 添加书签 -->
-      <button
+      <Button
         v-if="authStore.isLoggedIn"
-        class="w-8 h-8 rounded-md bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 flex items-center justify-center transition-all cursor-pointer"
+        size="icon"
+        class="shadow-sm cursor-pointer"
         @click="showAddDialog = true"
         title="添加书签"
       >
         <Plus class="h-4 w-4" />
-      </button>
+      </Button>
     </div>
 
     <!-- 弹窗列表 -->

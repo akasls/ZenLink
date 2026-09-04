@@ -20,7 +20,10 @@ import {
   Settings,
   Sun,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
@@ -178,32 +181,28 @@ function handleToggleCollapse() {
             {{ siteStore.siteName || 'ZenLink' }}
           </span>
         </div>
-        <button
-          class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          class="text-muted-foreground hover:text-foreground"
           @click="handleToggleCollapse"
           title="收起侧边栏"
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-            <path d="M9 3v18"/>
-            <path d="m16 15-3-3 3-3"/>
-          </svg>
-        </button>
+          <PanelLeftClose class="h-3.5 w-3.5" />
+        </Button>
       </template>
 
       <!-- 折叠状态 -->
       <template v-else>
-        <button
-          class="w-full h-8 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        <Button
+          variant="ghost"
+          size="icon"
+          class="w-full text-muted-foreground hover:text-foreground"
           @click="handleToggleCollapse"
           title="展开侧边栏"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-            <path d="M9 3v18"/>
-            <path d="m14 9 3 3-3 3"/>
-          </svg>
-        </button>
+          <PanelLeftOpen class="h-4 w-4" />
+        </Button>
       </template>
     </div>
 
@@ -214,8 +213,10 @@ function handleToggleCollapse() {
           <!-- 1. 折叠状态且存在二级分类：悬浮展示二级弹层 -->
           <Popover v-if="collapsed && !isMobile && getSubCats(cat.id).length > 0">
             <PopoverTrigger as-child>
-              <button
-                class="w-full h-8 rounded-md flex items-center justify-center transition-all group relative cursor-pointer"
+              <Button
+                variant="ghost"
+                size="icon"
+                class="w-full transition-all group relative cursor-pointer"
                 :class="[
                   selectedCategoryId === cat.id && currentView === 'home'
                     ? 'bg-primary/10 text-primary font-semibold shadow-xs'
@@ -224,7 +225,7 @@ function handleToggleCollapse() {
                 @click="handleSelectCategory(cat.id)"
               >
                 <component :is="mapIcon(cat?.icon)" class="h-4 w-4" />
-              </button>
+              </Button>
             </PopoverTrigger>
 
             <PopoverContent side="right" align="start" class="w-40 p-1.5 shadow-lg">
@@ -261,10 +262,11 @@ function handleToggleCollapse() {
           :disabled="isExpanded"
         >
           <TooltipTrigger as-child>
-            <button
-              class="w-full h-8 rounded-md flex items-center transition-all group cursor-pointer"
+            <Button
+              variant="ghost"
+              class="w-full h-8 transition-all group cursor-pointer"
               :class="[
-                isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center',
+                isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center p-0',
                 selectedCategoryId === cat.id && currentView === 'home'
                   ? 'bg-primary/10 text-primary font-semibold shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
@@ -281,7 +283,7 @@ function handleToggleCollapse() {
                 v-if="isExpanded"
                 class="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
               />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="right" class="text-xs">
             {{ cat.name }}
@@ -295,10 +297,11 @@ function handleToggleCollapse() {
     <div v-if="siteStore.enableAi || siteStore.enableNotes" class="p-1.5 border-t border-border space-y-0.5 shrink-0">
       <Tooltip v-if="siteStore.enableAi" :delay-duration="300" :disabled="isExpanded">
         <TooltipTrigger as-child>
-          <button
-            class="w-full h-8 rounded-md flex items-center transition-all group cursor-pointer"
+          <Button
+            variant="ghost"
+            class="w-full h-8 transition-all group cursor-pointer"
             :class="[
-              isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center',
+              isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center p-0',
               currentView === 'ai'
                 ? 'bg-primary/10 text-primary font-semibold shadow-xs'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
@@ -310,17 +313,18 @@ function handleToggleCollapse() {
               :class="currentView === 'ai' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
             />
             <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">AI 助手</span>
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="right" class="text-xs">AI 助手</TooltipContent>
       </Tooltip>
 
       <Tooltip v-if="siteStore.enableNotes" :delay-duration="300" :disabled="isExpanded">
         <TooltipTrigger as-child>
-          <button
-            class="w-full h-8 rounded-md flex items-center transition-all group cursor-pointer"
+          <Button
+            variant="ghost"
+            class="w-full h-8 transition-all group cursor-pointer"
             :class="[
-              isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center',
+              isExpanded ? 'px-2.5 gap-2 justify-start' : 'justify-center p-0',
               currentView === 'notes'
                 ? 'bg-primary/10 text-primary font-semibold shadow-xs'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
@@ -332,7 +336,7 @@ function handleToggleCollapse() {
               :class="currentView === 'notes' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
             />
             <span v-if="isExpanded" class="text-xs truncate flex-1 text-left">在线笔记</span>
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="right" class="text-xs">在线笔记</TooltipContent>
       </Tooltip>
@@ -341,8 +345,9 @@ function handleToggleCollapse() {
     <!-- Footer: 系统设置与主题切换 -->
     <div class="p-1.5 border-t border-border shrink-0">
       <div v-if="isExpanded" class="flex items-center gap-1">
-        <button
-          class="flex-1 h-8 rounded-md px-2.5 flex items-center gap-2 text-xs font-medium transition-all cursor-pointer"
+        <Button
+          variant="ghost"
+          class="flex-1 h-8 px-2.5 justify-start gap-2 text-xs font-medium transition-all cursor-pointer"
           :class="[
             currentView === 'admin'
               ? 'bg-primary/10 text-primary font-semibold shadow-xs'
@@ -356,23 +361,27 @@ function handleToggleCollapse() {
             :class="currentView === 'admin' ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
           />
           <span class="truncate">系统设置</span>
-        </button>
+        </Button>
 
-        <button
-          class="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0 cursor-pointer"
+        <Button
+          variant="ghost"
+          size="icon"
+          class="text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
           @click="themeStore.toggle($event)"
           :title="themeStore.isDark ? '切换至浅色模式' : '切换至暗黑模式'"
         >
           <Sun v-if="themeStore.isDark" class="h-4 w-4" />
           <Moon v-else class="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       <div v-else class="flex flex-col items-center gap-1">
         <Tooltip :delay-duration="300">
           <TooltipTrigger as-child>
-            <button
-              class="w-full h-8 rounded-md flex items-center justify-center transition-all cursor-pointer"
+            <Button
+              variant="ghost"
+              size="icon"
+              class="w-full transition-all cursor-pointer"
               :class="[
                 currentView === 'admin'
                   ? 'bg-primary/10 text-primary font-semibold shadow-xs'
@@ -381,7 +390,7 @@ function handleToggleCollapse() {
               @click="handleSettings"
             >
               <Settings class="h-4 w-4" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="right" class="text-xs">系统设置</TooltipContent>
         </Tooltip>

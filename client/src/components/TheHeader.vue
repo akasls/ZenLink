@@ -65,14 +65,15 @@ onMounted(() => {
     <div class="h-full px-4 flex items-center justify-between max-w-7xl mx-auto">
       <!-- 左侧：Logo 品牌 -->
       <div class="flex items-center gap-3">
-        <button
-          type="button"
-          class="md:hidden w-7 h-7 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
+        <Button
+          variant="outline"
+          size="icon-sm"
+          class="md:hidden"
           @click="emit('toggleSidebar')"
           title="切换菜单"
         >
           <Menu class="h-4 w-4" />
-        </button>
+        </Button>
 
         <div class="flex items-center gap-2 cursor-pointer select-none" @click="switchApp({ id: 'home', path: '/' })">
           <div class="w-6 h-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs overflow-hidden">

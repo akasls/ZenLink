@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { Button } from '@/components/ui/button';
 import { Compass, FileText, Bot } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -27,11 +28,11 @@ function switchTab(path: string) {
 
 <template>
   <nav class="md:hidden fixed bottom-0 left-0 right-0 h-12 bg-background/95 backdrop-blur border-t border-border z-40 flex items-center justify-around px-2">
-    <button
+    <Button
       v-for="tab in tabs"
       :key="tab.id"
-      type="button"
-      class="flex-1 flex flex-col items-center justify-center h-full gap-0.5 transition-colors cursor-pointer"
+      variant="ghost"
+      class="flex-1 flex flex-col items-center justify-center h-full gap-0.5 rounded-none p-0 cursor-pointer"
       :class="[
         currentView === tab.id
           ? 'text-foreground font-semibold'
@@ -41,6 +42,6 @@ function switchTab(path: string) {
     >
       <component :is="tab.icon" class="h-4 w-4" />
       <span class="text-[10px] tracking-tight leading-none">{{ tab.name }}</span>
-    </button>
+    </Button>
   </nav>
 </template>

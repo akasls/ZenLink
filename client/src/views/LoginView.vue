@@ -7,6 +7,7 @@ import { toast } from '@/components/ui/sonner';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { User, Lock, Key, Fingerprint, Loader2 } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -86,85 +87,87 @@ async function handlePasskeyLogin() {
       </div>
 
       <!-- 登录表单卡片 -->
-      <div class="bg-card rounded-xl shadow-sm border border-border p-6">
-        <form @submit.prevent="handleLogin" class="space-y-4">
-          <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-foreground/80">用户名</label>
-            <div class="relative">
-              <User class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                v-model="form.username"
-                placeholder="请输入用户名"
-                class="pl-9"
-                autofocus
-              />
+      <Card class="shadow-sm border-border">
+        <CardContent class="p-6">
+          <form @submit.prevent="handleLogin" class="space-y-4">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-foreground/80">用户名</label>
+              <div class="relative">
+                <User class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  v-model="form.username"
+                  placeholder="请输入用户名"
+                  class="pl-9"
+                  autofocus
+                />
+              </div>
+              <p v-if="errors.username" class="text-xs text-destructive">{{ errors.username }}</p>
             </div>
-            <p v-if="errors.username" class="text-xs text-destructive">{{ errors.username }}</p>
-          </div>
 
-          <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-foreground/80">密码</label>
-            <div class="relative">
-              <Lock class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                v-model="form.password"
-                type="password"
-                placeholder="请输入密码"
-                class="pl-9"
-              />
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-foreground/80">密码</label>
+              <div class="relative">
+                <Lock class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  v-model="form.password"
+                  type="password"
+                  placeholder="请输入密码"
+                  class="pl-9"
+                />
+              </div>
+              <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
             </div>
-            <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
-          </div>
 
-          <!-- TOTP 输入框 -->
-          <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-foreground/80">两步验证码 (未启用2FA可留空)</label>
-            <div class="relative">
-              <Key class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                v-model="form.totpCode"
-                placeholder="6 位动态验证码"
-                maxlength="6"
-                class="pl-9"
-              />
+            <!-- TOTP 输入框 -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-foreground/80">两步验证码 (未启用2FA可留空)</label>
+              <div class="relative">
+                <Key class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  v-model="form.totpCode"
+                  placeholder="6 位动态验证码"
+                  maxlength="6"
+                  class="pl-9"
+                />
+              </div>
+              <p v-if="errors.totp" class="text-xs text-destructive">{{ errors.totp }}</p>
             </div>
-            <p v-if="errors.totp" class="text-xs text-destructive">{{ errors.totp }}</p>
-          </div>
 
-          <Button
-            type="submit"
-            class="w-full gap-2"
-            :disabled="loading"
-            @click.prevent="handleLogin"
-          >
-            <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
-            <span>{{ loading ? '登录中...' : '立即登录' }}</span>
-          </Button>
+            <Button
+              type="submit"
+              class="w-full gap-2"
+              :disabled="loading"
+              @click.prevent="handleLogin"
+            >
+              <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
+              <span>{{ loading ? '登录中...' : '立即登录' }}</span>
+            </Button>
 
-          <div class="relative my-3 text-center after:content-[''] after:absolute after:top-1/2 after:left-0 after:right-0 after:h-px after:bg-border">
-            <span class="relative z-10 bg-card px-2 text-[11px] text-muted-foreground">
-              或使用生物识别
-            </span>
-          </div>
+            <div class="relative my-3 text-center after:content-[''] after:absolute after:top-1/2 after:left-0 after:right-0 after:h-px after:bg-border">
+              <span class="relative z-10 bg-card px-2 text-[11px] text-muted-foreground">
+                或使用生物识别
+              </span>
+            </div>
 
-          <!-- Passkey 登录 -->
-          <Button
-            type="button"
-            variant="outline"
-            class="w-full gap-2"
-            :disabled="passkeyLoading"
-            @click="handlePasskeyLogin"
-          >
-            <Loader2 v-if="passkeyLoading" class="h-4 w-4 animate-spin" />
-            <Fingerprint v-else class="h-4 w-4" />
-            <span>{{ passkeyLoading ? '验证中...' : '使用 Passkey 登录' }}</span>
-          </Button>
+            <!-- Passkey 登录 -->
+            <Button
+              type="button"
+              variant="outline"
+              class="w-full gap-2"
+              :disabled="passkeyLoading"
+              @click="handlePasskeyLogin"
+            >
+              <Loader2 v-if="passkeyLoading" class="h-4 w-4 animate-spin" />
+              <Fingerprint v-else class="h-4 w-4" />
+              <span>{{ passkeyLoading ? '验证中...' : '使用 Passkey 登录' }}</span>
+            </Button>
 
-          <p class="text-[11px] text-muted-foreground text-center mt-2 mb-0">
-            支持指纹、Face ID 或 Windows Hello 硬件密钥
-          </p>
-        </form>
-      </div>
+            <p class="text-[11px] text-muted-foreground text-center mt-2 mb-0">
+              支持指纹、Face ID 或 Windows Hello 硬件密钥
+            </p>
+          </form>
+        </CardContent>
+      </Card>
 
       <!-- 返回首页 -->
       <div class="text-center mt-4">

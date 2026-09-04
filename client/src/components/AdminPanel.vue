@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -1406,23 +1407,25 @@ onMounted(() => {
                     </div>
 
                     <div class="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        type="button"
-                        class="w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer"
-                        :class="aiSettings.model === m ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground'"
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        class="cursor-pointer"
+                        :class="aiSettings.model === m ? 'text-amber-500 hover:text-amber-500' : 'text-muted-foreground hover:text-foreground'"
                         @click.stop="setDefaultModel(m)"
                         :title="aiSettings.model === m ? '当前默认模型' : '点击设为默认模型'"
                       >
                         <Star class="h-3.5 w-3.5" :class="aiSettings.model === m ? 'fill-amber-500 text-amber-500' : ''" />
-                      </button>
-                      <button
-                        type="button"
-                        class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        class="text-muted-foreground hover:text-destructive cursor-pointer"
                         @click.stop="removeModel(m)"
                         title="删除此模型"
                       >
                         <X class="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1668,50 +1671,32 @@ onMounted(() => {
               <!-- 1. 外观深浅模式 -->
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-foreground/90">外观主题</label>
-                <div class="inline-flex rounded-lg border border-border bg-muted/80 p-1">
-                  <button
-                    type="button"
-                    class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                    :class="themeStore.mode === 'system' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
-                    @click="themeStore.setMode('system')"
-                  >
-                    跟随系统
-                  </button>
-                  <button
-                    type="button"
-                    class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                    :class="themeStore.mode === 'light' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
-                    @click="themeStore.setMode('light')"
-                  >
-                    日间浅色
-                  </button>
-                  <button
-                    type="button"
-                    class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                    :class="themeStore.mode === 'dark' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
-                    @click="themeStore.setMode('dark')"
-                  >
-                    夜间深色
-                  </button>
-                </div>
+                <Tabs :model-value="themeStore.mode" @update:model-value="(val) => themeStore.setMode(val as any)">
+                  <TabsList class="h-8">
+                    <TabsTrigger value="system" class="text-xs px-3">跟随系统</TabsTrigger>
+                    <TabsTrigger value="light" class="text-xs px-3">日间浅色</TabsTrigger>
+                    <TabsTrigger value="dark" class="text-xs px-3">夜间深色</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </div>
 
               <!-- 2. 主品牌色 -->
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-foreground/90">系统主品牌色 (实时生效)</label>
                 <div class="flex items-center gap-2 flex-wrap">
-                  <button
+                  <Button
                     v-for="p in colorPresets"
                     :key="p.color"
-                    type="button"
-                    class="group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/80 bg-card hover:bg-accent/60 transition-all cursor-pointer text-xs"
-                    :class="{ 'border-primary ring-2 ring-primary/20 font-semibold text-foreground': siteForm.themePrimaryColor === p.color }"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 rounded-full gap-1.5 px-2.5 text-xs cursor-pointer"
+                    :class="{ 'border-primary ring-2 ring-primary/20 font-semibold text-foreground bg-accent/60': siteForm.themePrimaryColor === p.color }"
                     @click="selectThemeColor(p.color)"
                   >
                     <span class="w-3 h-3 rounded-full shrink-0 shadow-xs" :style="{ backgroundColor: p.color }"></span>
                     <span class="text-[11px]">{{ p.name }}</span>
                     <Check v-if="siteForm.themePrimaryColor === p.color" class="h-3 w-3 text-primary shrink-0" />
-                  </button>
+                  </Button>
 
                   <div class="flex items-center gap-2 ml-1">
                     <input
@@ -1783,15 +1768,16 @@ onMounted(() => {
                     <div class="w-10 h-10 rounded-md bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
                       <img v-if="siteForm.siteLogo" :src="siteForm.siteLogo" alt="Logo" class="w-full h-full object-cover" />
                       <span v-else class="font-bold text-sm text-foreground">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
-                      <button
+                      <Button
                         v-if="siteForm.siteLogo"
-                        type="button"
-                        class="absolute inset-0 bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                        variant="ghost"
+                        size="icon"
+                        class="absolute inset-0 w-full h-full bg-black/60 text-white rounded-none hover:bg-black/80 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                         title="清除"
                         @click="clearCustomLogo"
                       >
                         <Trash2 class="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
 
                     <div class="flex-1 space-y-1 min-w-0">
@@ -2127,11 +2113,9 @@ onMounted(() => {
             </select>
           </div>
           <label class="flex items-center gap-2 cursor-pointer text-xs select-none pt-1">
-            <input
-              type="checkbox"
+            <Checkbox
               :checked="editingBookmark.is_private === 1"
-              class="rounded border-input text-primary focus:ring-ring h-4 w-4"
-              @change="editingBookmark.is_private = ($event.target as HTMLInputElement).checked ? 1 : 0"
+              @update:checked="editingBookmark.is_private = $event ? 1 : 0"
             />
             <span>私有书签（仅登录后可见）</span>
           </label>
@@ -2172,11 +2156,9 @@ onMounted(() => {
             </select>
           </div>
           <label class="flex items-center gap-2 cursor-pointer text-xs select-none pt-1">
-            <input
-              type="checkbox"
+            <Checkbox
               :checked="editingCategory.is_private === 1"
-              class="rounded border-input text-primary focus:ring-ring h-4 w-4"
-              @change="editingCategory.is_private = ($event.target as HTMLInputElement).checked ? 1 : 0"
+              @update:checked="editingCategory.is_private = $event ? 1 : 0"
             />
             <span>私有分类</span>
           </label>

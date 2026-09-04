@@ -28,6 +28,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
   Search,
   Plus,
@@ -1258,116 +1262,110 @@ watch(
       <template v-if="!selectedNote">
         <!-- 移动端展开搜索模式 -->
         <div v-if="isMobile && isMobileSearchOpen" class="flex-1 flex items-center gap-2">
-          <div class="flex-1 flex items-center bg-background border border-input rounded-md px-2.5 py-1">
-            <Search class="h-3.5 w-3.5 text-muted-foreground mr-1.5 shrink-0" />
-            <input
+          <div class="relative flex-1">
+            <Search class="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Input
               v-model="searchQuery"
               type="text"
               placeholder="搜索笔记标题、内容或标签..."
-              class="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+              class="h-8 pl-8 pr-7 text-xs"
               autofocus
               @input="loadNotes"
             />
-            <button
+            <Button
               v-if="searchQuery"
-              type="button"
-              class="text-muted-foreground text-xs hover:text-foreground px-1"
+              variant="ghost"
+              size="icon-xs"
+              class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               @click="searchQuery = ''; loadNotes()"
-            >×</button>
+            >×</Button>
           </div>
-          <button
-            type="button"
-            class="text-xs text-muted-foreground px-2 py-1 hover:text-foreground"
+          <Button
+            variant="ghost"
+            size="sm"
+            class="text-xs"
             @click="isMobileSearchOpen = false; searchQuery = ''; loadNotes()"
-          >取消</button>
+          >取消</Button>
         </div>
 
         <!-- 正常顶栏模式 -->
         <template v-else>
           <div class="flex-1 min-w-0 pr-2">
             <div class="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
-              <button
-                type="button"
-                class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer"
-                :class="[
-                  selectedTag === null
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                ]"
+              <Button
+                :variant="selectedTag === null ? 'default' : 'secondary'"
+                size="xs"
+                class="whitespace-nowrap cursor-pointer"
                 @click="filterByTag(null)"
               >
                 <span>全部</span>
                 <span class="text-[10px] opacity-70 font-mono">({{ totalNoteCount }})</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 v-for="tag in availableTags"
                 :key="tag.name"
-                type="button"
-                class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1 cursor-pointer"
-                :class="[
-                  selectedTag === tag.name
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                ]"
+                :variant="selectedTag === tag.name ? 'default' : 'secondary'"
+                size="xs"
+                class="whitespace-nowrap cursor-pointer"
                 @click="filterByTag(tag.name)"
               >
                 <span>#{{ tag.name }}</span>
                 <span class="text-[10px] opacity-70 font-mono">({{ tag.count }})</span>
-              </button>
+              </Button>
             </div>
           </div>
 
           <div class="shrink-0 flex items-center gap-2">
             <!-- PC 搜索框 -->
-            <div v-if="!isMobile" class="flex items-center bg-background border border-input rounded-md px-2.5 py-1 w-44 focus-within:w-56 transition-all duration-150">
-              <Search class="h-3.5 w-3.5 text-muted-foreground mr-1.5 shrink-0" />
-              <input
+            <div v-if="!isMobile" class="relative w-44 focus-within:w-56 transition-all duration-150">
+              <Search class="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Input
                 v-model="searchQuery"
                 type="text"
                 placeholder="搜索笔记..."
-                class="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+                class="h-7 pl-8 pr-7 text-xs"
                 @input="loadNotes"
               />
-              <button
+              <Button
                 v-if="searchQuery"
-                type="button"
-                class="text-muted-foreground text-xs hover:text-foreground px-1"
+                variant="ghost"
+                size="icon-xs"
+                class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 @click="searchQuery = ''; loadNotes()"
-              >×</button>
+              >×</Button>
             </div>
 
             <!-- PC 新建按钮 -->
-            <button
+            <Button
               v-if="!isMobile"
-              type="button"
-              class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 flex items-center gap-1 transition-colors cursor-pointer"
+              size="sm"
+              class="h-7 gap-1"
               title="新建空白笔记"
               @click="createNote"
             >
               <Plus class="h-3.5 w-3.5" />
               <span>新建笔记</span>
-            </button>
+            </Button>
 
             <!-- 移动端搜索与新建图标按钮 -->
             <template v-else>
-              <button
-                type="button"
-                class="w-7 h-7 rounded-md border border-input bg-background flex items-center justify-center text-muted-foreground"
+              <Button
+                variant="outline"
+                size="icon-sm"
                 title="搜索笔记"
                 @click="isMobileSearchOpen = true"
               >
                 <Search class="h-3.5 w-3.5" />
-              </button>
+              </Button>
 
-              <button
-                type="button"
-                class="w-7 h-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center"
+              <Button
+                size="icon-sm"
                 title="新建笔记"
                 @click="createNote"
               >
                 <Plus class="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </template>
           </div>
         </template>
@@ -1375,20 +1373,20 @@ watch(
 
       <!-- 场景 B：编辑视图顶部 -->
       <template v-else>
-        <div class="flex-1 min-w-0 flex items-center gap-2.5">
-          <button
-            type="button"
-            class="w-7 h-7 rounded-md border border-input bg-background hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        <div class="flex-1 min-w-0 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon-sm"
             title="返回笔记列表"
             @click="selectedNote = null; loadTags(); loadNotes()"
           >
             <ArrowLeft class="h-3.5 w-3.5" />
-          </button>
+          </Button>
 
-          <input
+          <Input
             v-model="editTitle"
             type="text"
-            class="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none border-b border-transparent focus:border-border py-0.5 transition-colors"
+            class="flex-1 h-7 border-0 bg-transparent text-sm font-semibold focus-visible:ring-1 focus-visible:ring-border px-2"
             placeholder="输入笔记标题..."
             @blur="saveNote"
           />
@@ -1396,80 +1394,63 @@ watch(
 
         <div class="shrink-0 flex items-center gap-1.5 pl-2">
           <!-- 模式切换 Tabs -->
-          <div class="flex items-center gap-0.5 p-0.5 rounded-md bg-muted/60 border border-border/60">
-            <button
-              type="button"
-              class="px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 cursor-pointer"
-              :class="[
-                viewMode === 'split' || viewMode === 'edit'
-                  ? 'bg-card text-foreground font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              ]"
-              @click="setEditMode"
-              title="编辑模式"
-            >
-              <Pencil class="h-3 w-3" />
-              <span>编辑</span>
-            </button>
+          <Tabs :model-value="viewMode === 'preview' ? 'preview' : 'edit'" @update:model-value="(val) => val === 'preview' ? setPreviewMode() : setEditMode()">
+            <TabsList class="h-7 p-0.5">
+              <TabsTrigger value="edit" class="text-xs px-2.5 h-6 gap-1">
+                <Pencil class="h-3 w-3" />
+                <span>编辑</span>
+              </TabsTrigger>
+              <TabsTrigger value="preview" class="text-xs px-2.5 h-6 gap-1">
+                <Eye class="h-3 w-3" />
+                <span>预览</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-            <button
-              type="button"
-              class="px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 cursor-pointer"
-              :class="[
-                viewMode === 'preview'
-                  ? 'bg-card text-foreground font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              ]"
-              @click="setPreviewMode"
-              title="纯预览模式"
-            >
-              <Eye class="h-3 w-3" />
-              <span>预览</span>
-            </button>
+          <!-- 标签管理 -->
+          <Popover v-model:open="isTagPopoverVisible">
+            <PopoverTrigger as-child>
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-7 text-xs gap-1"
+                :class="{ 'bg-accent text-accent-foreground font-semibold': isTagPopoverVisible }"
+                title="管理文章标签"
+              >
+                <Tag class="h-3 w-3" />
+                <span>标签{{ editTags.length ? ` (${editTags.length})` : '' }}</span>
+              </Button>
+            </PopoverTrigger>
 
-            <!-- 标签管理 -->
-            <Popover v-model:open="isTagPopoverVisible">
-              <PopoverTrigger as-child>
-                <button
-                  type="button"
-                  class="px-2.5 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 cursor-pointer text-muted-foreground hover:text-foreground"
-                  :class="{ '!bg-card !text-foreground !font-semibold': isTagPopoverVisible }"
-                  title="管理文章标签"
-                >
-                  <Tag class="h-3 w-3" />
-                  <span>标签{{ editTags.length ? ` (${editTags.length})` : '' }}</span>
-                </button>
-              </PopoverTrigger>
-
-              <PopoverContent align="end" class="w-64 p-3 shadow-lg">
-                <div class="space-y-2.5">
-                  <div class="text-xs font-semibold text-foreground flex items-center justify-between">
-                    <span>文章标签 ({{ editTags.length }})</span>
-                  </div>
-                  <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-                    <span
-                      v-for="tag in editTags"
-                      :key="tag"
-                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[11px] font-medium text-foreground"
-                    >
-                      #{{ tag }}
-                      <button type="button" class="text-muted-foreground hover:text-destructive text-xs leading-none cursor-pointer" title="删除" @click="removeTag(tag)">×</button>
-                    </span>
-                    <span v-if="!editTags.length" class="text-xs text-muted-foreground">暂无标签，在下方输入添加</span>
-                  </div>
-                  <div class="pt-2 border-t border-border flex items-center gap-1.5">
-                    <Input
-                      v-model="newTagInput"
-                      placeholder="新标签名..."
-                      class="h-7 text-xs flex-1"
-                      @keydown.enter="addTag"
-                    />
-                    <Button size="sm" class="h-7 px-2.5 text-xs" @click="addTag">添加</Button>
-                  </div>
+            <PopoverContent align="end" class="w-64 p-3 shadow-lg">
+              <div class="space-y-2.5">
+                <div class="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>文章标签 ({{ editTags.length }})</span>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                  <Badge
+                    v-for="tag in editTags"
+                    :key="tag"
+                    variant="secondary"
+                    class="gap-1 text-[11px] font-normal"
+                  >
+                    #{{ tag }}
+                    <X class="h-2.5 w-2.5 text-muted-foreground hover:text-destructive cursor-pointer shrink-0 transition-colors" title="删除" @click.stop="removeTag(tag)" />
+                  </Badge>
+                  <span v-if="!editTags.length" class="text-xs text-muted-foreground">暂无标签，在下方输入添加</span>
+                </div>
+                <div class="pt-2 border-t border-border flex items-center gap-1.5">
+                  <Input
+                    v-model="newTagInput"
+                    placeholder="新标签名..."
+                    class="h-7 text-xs flex-1"
+                    @keydown.enter="addTag"
+                  />
+                  <Button size="sm" class="h-7 px-2.5 text-xs" @click="addTag">添加</Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </template>
     </div>
@@ -1497,10 +1478,10 @@ watch(
 
         <!-- 笔记卡片网格 -->
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          <div
+          <Card
             v-for="(n, idx) in filteredNotes"
             :key="n.id"
-            class="group relative flex flex-col justify-between p-3.5 bg-card border border-border/80 rounded-xl shadow-xs hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-40 select-none overflow-hidden"
+            class="group relative flex flex-col justify-between p-3.5 shadow-xs hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-40 select-none overflow-hidden"
             :class="{
               'opacity-50 scale-95': draggedNoteIndex === idx,
               'ring-2 ring-primary': dragOverNoteIndex === idx
@@ -1519,31 +1500,34 @@ watch(
               </span>
 
               <!-- 悬浮操作按钮 -->
-              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" @click.stop>
-                <button
-                  type="button"
-                  class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+              <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" @click.stop>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  class="text-muted-foreground hover:text-foreground"
                   title="分享此笔记"
                   @click="openShareModal(n, $event)"
                 >
                   <Share2 class="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  class="text-muted-foreground hover:text-foreground"
                   title="复制内容"
                   @click="copyNoteContent(n.content, $event)"
                 >
                   <Copy class="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   title="删除笔记"
                   @click="deleteNote(n, $event)"
                 >
                   <Trash2 class="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -1556,17 +1540,18 @@ watch(
             <div class="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
               <div class="flex items-center gap-1 overflow-hidden pr-2" @click.stop>
                 <template v-if="n.tags && n.tags.length">
-                  <span
+                  <Badge
                     v-for="t in n.tags"
                     :key="t"
-                    class="px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground truncate hover:text-foreground cursor-pointer"
+                    variant="secondary"
+                    class="px-1.5 py-0 text-[10px] truncate hover:text-foreground cursor-pointer font-normal"
                     @click="filterByTag(t)"
-                  >#{{ t }}</span>
+                  >#{{ t }}</Badge>
                 </template>
               </div>
               <span class="font-mono shrink-0">{{ formatDate(n.updated_at) }}</span>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 
@@ -1577,15 +1562,16 @@ watch(
           <!-- 1. AI 写作下拉 -->
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <button
-                type="button"
-                class="h-6 px-2 rounded border border-input bg-background text-xs font-medium text-primary hover:bg-primary/10 flex items-center gap-1 transition-colors cursor-pointer"
+              <Button
+                variant="outline"
+                size="xs"
+                class="gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
                 title="AI 智能写作助手"
               >
                 <Loader2 v-if="isAiWorking" class="h-3.5 w-3.5 animate-spin" />
                 <Sparkles v-else class="h-3.5 w-3.5 text-primary" />
                 <span class="text-[11px]">AI 助手</span>
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" class="w-44">
               <DropdownMenuItem @click="handleAiCommand('title_and_tags')">
@@ -1624,14 +1610,14 @@ watch(
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div class="h-3.5 w-px bg-border mx-1"></div>
+          <Separator orientation="vertical" class="h-3.5 mx-1" />
 
           <!-- 2. 标题下拉 -->
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs font-bold transition-colors cursor-pointer" title="插入标题">
-                <span>H</span>
-              </button>
+              <Button variant="ghost" size="icon-xs" title="插入标题">
+                <span class="font-bold text-xs">H</span>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" class="w-36">
               <DropdownMenuItem @click="insertHeading('1')"><span class="font-bold mr-2">H1</span> 一级标题</DropdownMenuItem>
@@ -1644,50 +1630,56 @@ watch(
           </DropdownMenu>
 
           <!-- 3. 加粗/斜体/删除线 -->
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs font-bold transition-colors cursor-pointer" @click="insertWrap('**', '**', '加粗文本')" title="加粗">B</button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs italic font-serif transition-colors cursor-pointer" @click="insertWrap('*', '*', '斜体文本')" title="斜体">I</button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs line-through transition-colors cursor-pointer" @click="insertWrap('~~', '~~', '删除文本')" title="删除线">S</button>
+          <Button variant="ghost" size="icon-xs" @click="insertWrap('**', '**', '加粗文本')" title="加粗">
+            <span class="font-bold text-xs">B</span>
+          </Button>
+          <Button variant="ghost" size="icon-xs" @click="insertWrap('*', '*', '斜体文本')" title="斜体">
+            <span class="italic font-serif text-xs">I</span>
+          </Button>
+          <Button variant="ghost" size="icon-xs" @click="insertWrap('~~', '~~', '删除文本')" title="删除线">
+            <span class="line-through text-xs">S</span>
+          </Button>
 
-          <div class="h-3.5 w-px bg-border mx-1"></div>
+          <Separator orientation="vertical" class="h-3.5 mx-1" />
 
           <!-- 4. 块级工具 -->
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="insertBlockPrefix('> ')" title="引用块"><Quote class="h-3.5 w-3.5" /></button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="insertBlockPrefix('- [ ] ')" title="待办清单"><CheckSquare class="h-3.5 w-3.5" /></button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="insertBlockPrefix('- ')" title="无序列表"><List class="h-3.5 w-3.5" /></button>
+          <Button variant="ghost" size="icon-xs" @click="insertBlockPrefix('> ')" title="引用块"><Quote class="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon-xs" @click="insertBlockPrefix('- [ ] ')" title="待办清单"><CheckSquare class="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon-xs" @click="insertBlockPrefix('- ')" title="无序列表"><List class="h-3.5 w-3.5" /></Button>
 
-          <div class="h-3.5 w-px bg-border mx-1"></div>
+          <Separator orientation="vertical" class="h-3.5 mx-1" />
 
           <!-- 5. 代码/表格/链接 -->
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-[11px] font-mono transition-colors cursor-pointer" @click="insertWrap('\n```\n', '\n```\n', '代码内容')" title="代码块">&lt;/&gt;</button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="insertTable" title="插入表格"><Table class="h-3.5 w-3.5" /></button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="insertLink" title="插入链接"><Link class="h-3.5 w-3.5" /></button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="insertWrap('\n---\n', '', '')" title="分割线"><Minus class="h-3.5 w-3.5" /></button>
+          <Button variant="ghost" size="icon-xs" @click="insertWrap('\n```\n', '\n```\n', '代码内容')" title="代码块"><span class="text-[11px] font-mono">&lt;/&gt;</span></Button>
+          <Button variant="ghost" size="icon-xs" @click="insertTable" title="插入表格"><Table class="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon-xs" @click="insertLink" title="插入链接"><Link class="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon-xs" @click="insertWrap('\n---\n', '', '')" title="分割线"><Minus class="h-3.5 w-3.5" /></Button>
 
-          <div class="h-3.5 w-px bg-border mx-1"></div>
+          <Separator orientation="vertical" class="h-3.5 mx-1" />
 
           <!-- 6. 撤销/重做/清除格式 -->
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="undoText" title="撤销 (Ctrl+Z)">
+          <Button variant="ghost" size="icon-xs" @click="undoText" title="撤销 (Ctrl+Z)">
             <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C20.91 11.23 17.11 8 12.5 8z"/></svg>
-          </button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="redoText" title="重做 (Ctrl+Y)">
+          </Button>
+          <Button variant="ghost" size="icon-xs" @click="redoText" title="重做 (Ctrl+Y)">
             <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.61 0-8.41 3.23-9.57 7.22l2.37.78c1.05-3.19 4.06-5.5 7.6-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
-          </button>
-          <button type="button" class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer" @click="clearFormatting" title="清除格式">
+          </Button>
+          <Button variant="ghost" size="icon-xs" @click="clearFormatting" title="清除格式">
             <X class="h-3.5 w-3.5" />
-          </button>
+          </Button>
 
           <!-- 7. 上传图片附件 -->
-          <div class="h-3.5 w-px bg-border mx-1"></div>
-          <button
-            type="button"
-            class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground text-xs transition-colors cursor-pointer"
+          <Separator orientation="vertical" class="h-3.5 mx-1" />
+          <Button
+            variant="ghost"
+            size="icon-xs"
             :disabled="uploadingNoteFile"
             @click="triggerNoteFileUpload"
             title="上传图片或附件"
           >
             <Loader2 v-if="uploadingNoteFile" class="h-3.5 w-3.5 animate-spin" />
             <Paperclip v-else class="h-3.5 w-3.5" />
-          </button>
+          </Button>
           <input ref="noteFileInputRef" type="file" hidden @change="onNoteFileChange" />
         </div>
 
@@ -1761,32 +1753,12 @@ watch(
           <DialogTitle>分享笔记「{{ targetNoteForShare?.title || '未命名' }}」</DialogTitle>
         </DialogHeader>
 
-        <div class="mb-3 flex items-center gap-1 border-b border-border pb-2">
-          <button
-            type="button"
-            class="px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer"
-            :class="[
-              activeShareTab === 'create'
-                ? 'bg-primary text-primary-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            ]"
-            @click="activeShareTab = 'create'"
-          >
-            创建新分享
-          </button>
-          <button
-            type="button"
-            class="px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer"
-            :class="[
-              activeShareTab === 'history'
-                ? 'bg-primary text-primary-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            ]"
-            @click="activeShareTab = 'history'"
-          >
-            历史分享 ({{ noteShareHistory.length }})
-          </button>
-        </div>
+        <Tabs :model-value="activeShareTab" @update:model-value="(val) => activeShareTab = val as 'create' | 'history'" class="mb-3">
+          <TabsList class="h-8">
+            <TabsTrigger value="create" class="text-xs px-3">创建新分享</TabsTrigger>
+            <TabsTrigger value="history" class="text-xs px-3">历史分享 ({{ noteShareHistory.length }})</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <!-- 创建分享 -->
         <div v-if="activeShareTab === 'create'">
@@ -1962,13 +1934,14 @@ watch(
         class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
         alt="Preview"
       />
-      <button
-        type="button"
-        class="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-accent transition-colors"
+      <Button
+        variant="ghost"
+        size="icon"
+        class="absolute top-4 right-4 text-muted-foreground hover:text-foreground rounded-full hover:bg-accent"
         @click="showImgViewer = false"
       >
         <X class="h-6 w-6" />
-      </button>
+      </Button>
     </div>
   </div>
 </template>

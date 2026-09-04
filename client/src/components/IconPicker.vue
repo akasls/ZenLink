@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Search, ChevronDown } from 'lucide-vue-next';
 
@@ -65,15 +66,16 @@ function getIconLabel(icon: string): string {
 <template>
   <div>
     <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="h-8 px-2.5 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-8 px-2.5 text-xs font-medium gap-1.5"
         @click="showPicker = true"
       >
         <component :is="mapIcon(modelValue)" class="h-3.5 w-3.5 text-muted-foreground" />
         <span class="text-xs">{{ getIconLabel(modelValue) || '选择图标' }}</span>
         <ChevronDown class="h-3 w-3 text-muted-foreground" />
-      </button>
+      </Button>
     </div>
 
     <Dialog :open="showPicker" @update:open="showPicker = $event">
@@ -100,18 +102,14 @@ function getIconLabel(icon: string): string {
               :delay-duration="200"
             >
               <TooltipTrigger as-child>
-                <button
-                  type="button"
-                  class="w-9 h-9 flex items-center justify-center rounded-md border transition-all cursor-pointer"
-                  :class="[
-                    modelValue === icon
-                      ? 'bg-primary text-primary-foreground border-primary font-bold shadow-xs'
-                      : 'bg-card border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent',
-                  ]"
+                <Button
+                  :variant="modelValue === icon ? 'default' : 'outline'"
+                  size="icon-sm"
+                  class="w-9 h-9"
                   @click="selectIcon(icon)"
                 >
                   <component :is="mapIcon(icon)" class="h-4 w-4" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="top" class="text-xs">
                 {{ getIconLabel(icon) }}
