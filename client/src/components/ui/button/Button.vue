@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Primitive, type PrimitiveProps } from 'radix-vue';
+import { Primitive } from 'radix-vue';
 import { cn } from '@/utils/cn';
 
 const buttonVariants = cva(
@@ -35,7 +35,9 @@ const buttonVariants = cva(
 
 type ButtonVariants = VariantProps<typeof buttonVariants>;
 
-interface Props extends /* @vue-ignore */ PrimitiveProps {
+interface Props {
+  as?: string | object;
+  asChild?: boolean;
   variant?: ButtonVariants['variant'];
   size?: ButtonVariants['size'];
   class?: HTMLAttributes['class'];
@@ -43,6 +45,7 @@ interface Props extends /* @vue-ignore */ PrimitiveProps {
 
 const props = withDefaults(defineProps<Props>(), {
   as: 'button',
+  asChild: false,
 });
 </script>
 
