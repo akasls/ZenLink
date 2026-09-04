@@ -352,7 +352,7 @@ onUnmounted(() => {
         @select-note="(n) => notesPanelRef?.selectNote(n)"
         @filter-note-tag="(t) => notesPanelRef?.filterByTag(t)"
         @filter-note-category="(catId) => notesPanelRef?.filterByCategory(catId)"
-        @create-note-category="notesPanelRef?.openManageCategories()"
+        @create-note-category="notesPanelRef?.loadCategories(); notesPanelRef?.loadNotes()"
         @new-ai-chat="aiChatPanelRef?.createNewConversation()"
         @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
         @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"

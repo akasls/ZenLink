@@ -41,7 +41,6 @@ import {
   Tag,
   Folder,
   FolderOpen,
-  ChevronDown,
   Loader2,
   FileText,
   Share2,
@@ -85,6 +84,7 @@ const authStore = useAuthStore();
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 const isMobileSearchOpen = ref(false);
+const isSearchOpen = ref(false);
 
 function onResize() {
   const mobile = window.innerWidth < 768;
@@ -278,12 +278,6 @@ const noteCategoriesWithCount = computed(() => {
     const count = notes.value.filter(n => n.category_id === c.id).length;
     return { ...c, count };
   });
-});
-
-const selectedCategoryFilterName = computed(() => {
-  if (selectedCategoryId.value === null) return '全部分类';
-  const found = noteCategories.value.find(c => c.id === selectedCategoryId.value);
-  return found ? found.name : '全部分类';
 });
 
 const currentNoteCategoryName = computed(() => {
@@ -1405,187 +1399,109 @@ watch(
 
 <template>
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
-    <!-- ==================== 1. 顶部控制栏 ==================== -->
-    <div class="h-12 px-3 sm:px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full">
+    <!-- ==================== 1. 顶部控制栏 (无背景色) ==================== -->
+    <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
       <!-- 场景 A：列表视图顶部 -->
       <template v-if="!selectedNote">
-        <!-- 移动端展开搜索模式 -->
-        <div v-if="isMobile && isMobileSearchOpen" class="flex-1 flex items-center gap-2">
-          <div class="relative flex-1">
+        <!-- 左上角显示标题笔记列表 -->
+        <div class="flex items-center gap-2 select-none min-w-0">
+          <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate">
+            笔记列表
+          </h1>
+        </div>
+
+        <!-- 右上角显示搜索、标签和新建图标 -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- 搜索图标与展开输入框 -->
+          <div v-if="isSearchOpen || searchQuery" class="relative flex items-center">
             <Search class="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索笔记标题、内容或标签..."
-              class="h-8 pl-8 pr-7 text-xs"
+              placeholder="搜索笔记..."
+              class="h-8 pl-8 pr-7 text-xs w-36 sm:w-52 bg-background/90"
               autofocus
               @input="loadNotes"
+              @keydown.esc="isSearchOpen = false; searchQuery = ''; loadNotes()"
             />
             <Button
-              v-if="searchQuery"
               variant="ghost"
-              size="icon-xs"
-              class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              @click="searchQuery = ''; loadNotes()"
-            >×</Button>
+              size="icon"
+              class="size-6 absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              @click="isSearchOpen = false; searchQuery = ''; loadNotes()"
+            >
+              <X class="h-3.5 w-3.5" />
+            </Button>
           </div>
           <Button
+            v-else
             variant="ghost"
-            size="sm"
-            class="text-xs"
-            @click="isMobileSearchOpen = false; searchQuery = ''; loadNotes()"
-          >取消</Button>
-        </div>
+            size="icon"
+            class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer"
+            title="搜索笔记"
+            @click="isSearchOpen = true"
+          >
+            <Search class="size-4" />
+          </Button>
 
-        <!-- 正常顶栏模式：采用极简可展开的分类与标签组件 -->
-        <template v-else>
-          <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
-            <!-- 1. 笔记分类筛选组件 (点击展开) -->
-            <Popover>
-              <PopoverTrigger as-child>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-7 text-xs gap-1.5 cursor-pointer font-normal border-border/70 shrink-0"
-                >
-                  <Folder class="h-3.5 w-3.5 text-muted-foreground" />
-                  <span class="max-w-[70px] sm:max-w-[120px] truncate">{{ selectedCategoryFilterName }}</span>
-                  <ChevronDown class="h-3 w-3 text-muted-foreground opacity-60" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" class="w-56 p-2 shadow-lg">
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
-                    <span>按分类筛选</span>
-                    <button class="text-primary hover:underline text-[11px] cursor-pointer" @click="openManageCategories">+ 管理分类</button>
-                  </div>
-                  <div class="max-h-56 overflow-y-auto space-y-0.5">
-                    <div
-                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                      :class="{ 'bg-accent font-medium text-foreground': selectedCategoryId === null }"
-                      @click="filterByCategory(null)"
-                    >
-                      <div class="flex items-center gap-2 min-w-0">
-                        <Folder class="size-3.5 text-muted-foreground shrink-0" />
-                        <span class="truncate">全部分类</span>
-                      </div>
-                      <span class="text-[10px] text-muted-foreground font-mono">({{ totalNoteCount }})</span>
-                    </div>
-                    <div
-                      v-for="cat in noteCategoriesWithCount"
-                      :key="cat.id"
-                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                      :class="{ 'bg-accent font-medium text-foreground': selectedCategoryId === cat.id }"
-                      @click="filterByCategory(cat.id)"
-                    >
-                      <div class="flex items-center gap-2 min-w-0">
-                        <FolderOpen class="size-3.5 text-muted-foreground shrink-0" />
-                        <span class="truncate">{{ cat.name }}</span>
-                      </div>
-                      <span class="text-[10px] text-muted-foreground font-mono">({{ cat.count || 0 }})</span>
-                    </div>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <!-- 2. 标签筛选组件 (点击展开) -->
-            <Popover>
-              <PopoverTrigger as-child>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-7 text-xs gap-1.5 cursor-pointer font-normal border-border/70 shrink-0"
-                >
-                  <Tag class="h-3.5 w-3.5 text-muted-foreground" />
-                  <span class="max-w-[70px] sm:max-w-[120px] truncate">{{ selectedTag ? '#' + selectedTag : '全部标签' }}</span>
-                  <ChevronDown class="h-3 w-3 text-muted-foreground opacity-60" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" class="w-60 p-2 shadow-lg">
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
-                    <span>按标签筛选</span>
-                    <button v-if="selectedTag" class="text-muted-foreground hover:text-foreground text-[10px] cursor-pointer" @click="filterByTag(null)">清除筛选</button>
-                  </div>
-                  <div class="max-h-56 overflow-y-auto space-y-0.5">
-                    <div
-                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                      :class="{ 'bg-accent font-medium text-foreground': selectedTag === null }"
-                      @click="filterByTag(null)"
-                    >
-                      <span class="truncate">全部标签</span>
-                      <span class="text-[10px] text-muted-foreground font-mono">({{ totalNoteCount }})</span>
-                    </div>
-                    <div
-                      v-for="tag in availableTags"
-                      :key="tag.name"
-                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                      :class="{ 'bg-accent font-medium text-foreground': selectedTag === tag.name }"
-                      @click="filterByTag(tag.name)"
-                    >
-                      <span class="truncate">#{{ tag.name }}</span>
-                      <span class="text-[10px] text-muted-foreground font-mono">({{ tag.count }})</span>
-                    </div>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div class="shrink-0 flex items-center gap-2">
-            <!-- PC 搜索框 -->
-            <div v-if="!isMobile" class="relative w-44 focus-within:w-56 transition-all duration-150">
-              <Search class="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <Input
-                v-model="searchQuery"
-                type="text"
-                placeholder="搜索笔记..."
-                class="h-7 pl-8 pr-7 text-xs"
-                @input="loadNotes"
-              />
+          <!-- 标签筛选组件 (点击展开) -->
+          <Popover>
+            <PopoverTrigger as-child>
               <Button
-                v-if="searchQuery"
                 variant="ghost"
-                size="icon-xs"
-                class="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                @click="searchQuery = ''; loadNotes()"
-              >×</Button>
-            </div>
-
-            <!-- PC 新建按钮 -->
-            <Button
-              v-if="!isMobile"
-              size="sm"
-              class="h-7 gap-1"
-              title="新建空白笔记"
-              @click="createNote"
-            >
-              <Plus class="h-3.5 w-3.5" />
-              <span>新建笔记</span>
-            </Button>
-
-            <!-- 移动端搜索与新建图标按钮 -->
-            <template v-else>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                title="搜索笔记"
-                @click="isMobileSearchOpen = true"
+                size="icon"
+                class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer relative"
+                :class="{ 'text-primary bg-primary/10': selectedTag }"
+                title="按标签筛选"
               >
-                <Search class="h-3.5 w-3.5" />
+                <Tag class="size-4" />
+                <span v-if="selectedTag" class="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary" />
               </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" class="w-56 p-2 shadow-lg">
+              <div class="space-y-1">
+                <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
+                  <span>按标签筛选</span>
+                  <button
+                    v-if="selectedTag"
+                    class="text-muted-foreground hover:text-foreground text-[10px] cursor-pointer"
+                    @click="filterByTag(null)"
+                  >清除筛选</button>
+                </div>
+                <div class="max-h-56 overflow-y-auto space-y-0.5 scrollbar-none">
+                  <div
+                    class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    :class="{ 'bg-accent font-medium text-foreground': selectedTag === null }"
+                    @click="filterByTag(null)"
+                  >
+                    <span class="truncate">全部标签</span>
+                    <span class="text-[10px] text-muted-foreground font-mono">({{ totalNoteCount }})</span>
+                  </div>
+                  <div
+                    v-for="tag in availableTags"
+                    :key="tag.name"
+                    class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    :class="{ 'bg-accent font-medium text-foreground': selectedTag === tag.name }"
+                    @click="filterByTag(tag.name)"
+                  >
+                    <span class="truncate">#{{ tag.name }}</span>
+                    <span class="text-[10px] text-muted-foreground font-mono">({{ tag.count }})</span>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-              <Button
-                size="icon-sm"
-                title="新建笔记"
-                @click="createNote"
-              >
-                <Plus class="h-3.5 w-3.5" />
-              </Button>
-            </template>
-          </div>
-        </template>
+          <!-- 新建笔记图标按钮 -->
+          <Button
+            size="icon"
+            class="size-8 rounded-md cursor-pointer shadow-xs"
+            title="新建笔记"
+            @click="createNote"
+          >
+            <Plus class="size-4" />
+          </Button>
+        </div>
       </template>
 
       <!-- 场景 B：编辑视图顶部 -->

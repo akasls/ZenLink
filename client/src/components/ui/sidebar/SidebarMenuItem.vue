@@ -10,7 +10,7 @@ const props = defineProps<{
 <template>
   <li
     data-sidebar="menu-item"
-    :class="cn('group/menu-item relative list-none', props.class)"
+    :class="cn('group/menu-item relative list-none group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-full', props.class)"
   >
     <slot />
   </li>

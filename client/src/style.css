@@ -142,6 +142,24 @@
   background: #475569;
 }
 
+/* Hide scrollbars inside sidebar completely */
+[data-sidebar],
+[data-sidebar] *,
+[data-sidebar="content"],
+[data-sidebar="sidebar"],
+[data-sidebar="content"] * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+[data-sidebar]::-webkit-scrollbar,
+[data-sidebar] *::-webkit-scrollbar,
+[data-sidebar="content"]::-webkit-scrollbar,
+[data-sidebar="sidebar"]::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* ===== Markdown Prose Styles (.ai-markdown-body) ===== */
 .ai-markdown-body {
   font-size: 12px;
