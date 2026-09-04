@@ -122,7 +122,7 @@ const emit = defineEmits<{
   deleteAiChat: [id: string];
 }>();
 
-const { isMobile, state, setOpenMobile } = useSidebar();
+const { isMobile, setOpenMobile } = useSidebar();
 
 const expandedCatIds = ref<Set<number>>(new Set());
 
@@ -280,7 +280,7 @@ function handleDeleteAiChat(id: string) {
                   class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
                   tooltip="切换工作空间与模式"
                 >
-                  <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-xs overflow-hidden shrink-0">
+                  <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-semibold text-sm shadow-xs overflow-hidden shrink-0">
                     <component :is="activeModeIcon" class="size-4" />
                   </div>
                   <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
@@ -292,77 +292,51 @@ function handleDeleteAiChat(id: string) {
               </DropdownMenuTrigger>
 
               <DropdownMenuContent
-                class="w-60 rounded-xl p-1.5 shadow-lg"
+                class="w-56 rounded-lg p-1.5 shadow-md"
                 align="start"
-                :side="isMobile ? 'bottom' : (state === 'collapsed' ? 'right' : 'bottom')"
-                :side-offset="6"
+                :side="isMobile ? 'bottom' : 'right'"
+                :side-offset="8"
               >
-                <DropdownMenuLabel class="text-xs text-muted-foreground px-2 py-1">
-                  功能模式切换
+                <DropdownMenuLabel class="text-xs text-muted-foreground px-2 py-1.5 font-medium">
+                  功能模式
                 </DropdownMenuLabel>
 
                 <DropdownMenuItem
-                  class="gap-2.5 p-2 rounded-lg cursor-pointer font-medium text-xs"
-                  :class="{ 'bg-primary/10 text-primary font-semibold': currentView === 'home' }"
+                  class="gap-2.5 p-2 rounded-md cursor-pointer text-xs"
+                  :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'home' }"
                   @click="handleSwitchMode('home')"
                 >
-                  <div class="flex size-7 items-center justify-center rounded-md border bg-background shrink-0">
-                    <Compass class="size-4" />
+                  <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
+                    <Compass class="size-3.5 text-foreground" />
                   </div>
-                  <div class="flex flex-col min-w-0 flex-1">
-                    <span class="truncate leading-none mb-0.5">网址导航</span>
-                    <span class="text-[10px] text-muted-foreground font-normal">网站聚合与快捷收录</span>
-                  </div>
+                  <span class="truncate flex-1 font-medium">网址导航</span>
                   <DropdownMenuShortcut>⌘1</DropdownMenuShortcut>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
                   v-if="siteStore.enableNotes"
-                  class="gap-2.5 p-2 rounded-lg cursor-pointer font-medium text-xs"
-                  :class="{ 'bg-primary/10 text-primary font-semibold': currentView === 'notes' }"
+                  class="gap-2.5 p-2 rounded-md cursor-pointer text-xs"
+                  :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'notes' }"
                   @click="handleSwitchMode('notes')"
                 >
-                  <div class="flex size-7 items-center justify-center rounded-md border bg-background shrink-0">
-                    <FileText class="size-4 text-amber-500" />
+                  <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
+                    <FileText class="size-3.5 text-foreground" />
                   </div>
-                  <div class="flex flex-col min-w-0 flex-1">
-                    <span class="truncate leading-none mb-0.5">在线笔记</span>
-                    <span class="text-[10px] text-muted-foreground font-normal">Markdown 与 AI 写作协同</span>
-                  </div>
+                  <span class="truncate flex-1 font-medium">在线笔记</span>
                   <DropdownMenuShortcut>⌘2</DropdownMenuShortcut>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
                   v-if="siteStore.enableAi"
-                  class="gap-2.5 p-2 rounded-lg cursor-pointer font-medium text-xs"
-                  :class="{ 'bg-primary/10 text-primary font-semibold': currentView === 'ai' }"
+                  class="gap-2.5 p-2 rounded-md cursor-pointer text-xs"
+                  :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'ai' }"
                   @click="handleSwitchMode('ai')"
                 >
-                  <div class="flex size-7 items-center justify-center rounded-md border bg-background shrink-0">
-                    <Bot class="size-4 text-indigo-500" />
+                  <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
+                    <Bot class="size-3.5 text-foreground" />
                   </div>
-                  <div class="flex flex-col min-w-0 flex-1">
-                    <span class="truncate leading-none mb-0.5">AI 对话助手</span>
-                    <span class="text-[10px] text-muted-foreground font-normal">智能多模型对话与问答</span>
-                  </div>
+                  <span class="truncate flex-1 font-medium">AI 对话助手</span>
                   <DropdownMenuShortcut>⌘3</DropdownMenuShortcut>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator class="my-1" />
-
-                <DropdownMenuItem
-                  class="gap-2.5 p-2 rounded-lg cursor-pointer text-xs"
-                  :class="{ 'bg-primary/10 text-primary font-semibold': currentView === 'admin' }"
-                  @click="handleSettings"
-                >
-                  <div class="flex size-7 items-center justify-center rounded-md border bg-background shrink-0">
-                    <Settings class="size-4 text-muted-foreground" />
-                  </div>
-                  <div class="flex flex-col min-w-0 flex-1">
-                    <span class="truncate leading-none mb-0.5">系统管理设置</span>
-                    <span class="text-[10px] text-muted-foreground font-normal">分类管理与站点配置</span>
-                  </div>
-                  <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -573,10 +547,10 @@ function handleDeleteAiChat(id: string) {
             </DropdownMenuTrigger>
 
             <DropdownMenuContent
-              class="w-56 rounded-xl p-1.5 shadow-lg"
-              align="start"
-              :side="isMobile ? 'top' : (state === 'collapsed' ? 'right' : 'top')"
-              :side-offset="6"
+              class="w-56 rounded-lg p-1.5 shadow-md"
+              align="end"
+              :side="isMobile ? 'top' : 'right'"
+              :side-offset="8"
             >
               <DropdownMenuLabel class="text-xs text-muted-foreground px-2 py-1">
                 偏好设置与账户

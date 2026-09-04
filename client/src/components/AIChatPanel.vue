@@ -869,7 +869,7 @@ onUnmounted(() => {
 <template>
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
     <!-- 1. 顶栏 -->
-    <div class="h-12 pl-12 md:pl-4 pr-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full">
+    <div class="h-12 px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full">
       <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
         <span class="text-xs font-semibold text-foreground/90 truncate" :title="currentConversationTitle">
           {{ currentConversationTitle }}

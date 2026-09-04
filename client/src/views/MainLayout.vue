@@ -11,6 +11,15 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import {
   Loader2,
   FolderOpen,
@@ -41,6 +50,13 @@ const pendingTargetView = ref<string>('');
 const currentView = ref<'home' | 'admin' | 'notes' | 'ai'>(
   (route.meta.view as any) || 'home'
 );
+
+const currentViewTitle = computed(() => {
+  if (currentView.value === 'notes') return '在线笔记';
+  if (currentView.value === 'ai') return 'AI 对话助手';
+  if (currentView.value === 'admin') return '系统管理设置';
+  return '网址导航';
+});
 
 const dailyQuote = ref('');
 
@@ -327,11 +343,6 @@ onUnmounted(() => {
 <template>
   <SidebarProvider>
     <div class="flex min-h-svh w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-      <!-- 移动端悬浮快捷抽屉开关 (干净利落，无顶栏时移动端轻松唤起) -->
-      <div class="fixed top-3 left-3 z-30 md:hidden">
-        <SidebarTrigger class="h-8 w-8 bg-background/90 border border-border/80 shadow-md backdrop-blur rounded-lg flex items-center justify-center text-foreground hover:bg-accent cursor-pointer" />
-      </div>
-
       <!-- Canonical Shadcn Vue Sidebar (动态自适应三大模式 + TeamSwitcher + NavUser) -->
       <TheSidebar
         :categories="categories"
@@ -356,15 +367,48 @@ onUnmounted(() => {
         @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
       />
 
-      <!-- Canonical Shadcn Vue Inset Main Content (无顶栏，沉浸式极简画布) -->
+      <!-- Canonical Shadcn Vue Inset Main Content -->
       <SidebarInset>
+        <!-- Canonical Shadcn Inset Header with SidebarTrigger & Breadcrumbs -->
+        <header class="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border/80 bg-background/95 backdrop-blur sticky top-0 z-20 px-4 transition-[width,height] ease-linear">
+          <div class="flex items-center gap-2 min-w-0">
+            <SidebarTrigger class="-ml-1 text-muted-foreground hover:text-foreground cursor-pointer" />
+            <Separator orientation="vertical" class="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem class="hidden sm:inline-flex">
+                  <BreadcrumbLink class="cursor-pointer text-xs font-normal text-muted-foreground hover:text-foreground" @click="onChangeAppView('home')">
+                    {{ siteStore.siteName || 'ZenLink' }}
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator class="hidden sm:inline-flex" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage class="text-xs font-medium text-foreground">{{ currentViewTitle }}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- 网址导航模式：添加书签快捷按钮 -->
+            <Button
+              v-if="currentView === 'home' && authStore.isLoggedIn"
+              variant="outline"
+              size="sm"
+              class="h-7 text-xs gap-1 cursor-pointer border-border/80"
+              @click="showAddDialog = true"
+            >
+              <Plus class="h-3.5 w-3.5" />
+              <span class="hidden sm:inline">添加书签</span>
+            </Button>
+          </div>
+        </header>
+
         <div class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden">
           <!-- 1. 网址导航功能主视图 -->
           <div v-show="currentView === 'home'" class="flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden">
-            <!-- 搜索框组件 (移动端为左上角悬浮按键保留呼吸空间) -->
-            <div class="pt-4 md:pt-0">
-              <SearchBar v-model="searchQuery" />
-            </div>
+            <!-- 搜索框组件 -->
+            <SearchBar v-model="searchQuery" />
 
             <!-- 每日一言灵感条 (优雅融入搜索栏下方) -->
             <div v-if="dailyQuote" class="py-2 px-4 text-center border-b border-border/40 bg-muted/20">
