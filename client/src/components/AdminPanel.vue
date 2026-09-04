@@ -32,8 +32,6 @@ import {
 } from '@/components/ui/select';
 import {
   LogOut,
-  Bookmark,
-  Folder,
   Cpu,
   ShieldCheck,
   Settings,
@@ -71,8 +69,19 @@ import { getAvatarChar, getAvatarColor } from '@/utils/avatar';
 const authStore = useAuthStore();
 const themeStore = useThemeStore();
 const siteStore = useSiteStore();
-const props = defineProps<{ categories: any[] }>();
-const emit = defineEmits<{ refresh: [] }>();
+const props = withDefaults(
+  defineProps<{
+    categories: any[];
+    activeTab?: 'bookmarks' | 'categories' | 'ai' | 'security' | 'site';
+  }>(),
+  {
+    activeTab: 'bookmarks',
+  }
+);
+const emit = defineEmits<{
+  refresh: [];
+  'update:activeTab': [tab: 'bookmarks' | 'categories' | 'ai' | 'security' | 'site'];
+}>();
 
 const rowImgErrors = ref<Record<number, boolean>>({});
 const modalImgError = ref(false);
@@ -84,7 +93,24 @@ function onResize() {
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
 
-const activeTab = ref<'bookmarks' | 'categories' | 'ai' | 'security' | 'site'>('bookmarks');
+const activeTab = ref<'bookmarks' | 'categories' | 'ai' | 'security' | 'site'>(props.activeTab || 'bookmarks');
+watch(() => props.activeTab, (val) => {
+  if (val) activeTab.value = val;
+});
+watch(activeTab, (val) => {
+  emit('update:activeTab', val);
+});
+
+const activeTabTitle = computed(() => {
+  switch (activeTab.value) {
+    case 'bookmarks': return '书签管理';
+    case 'categories': return '分类管理';
+    case 'ai': return 'AI 模型配置';
+    case 'security': return '安全与认证';
+    case 'site': return '系统常规设置';
+    default: return '系统管理';
+  }
+});
 
 // ==========================================
 // 1. 书签管理 (默认 30 条 + 分页 + 拖拽排序)
@@ -960,21 +986,25 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col min-h-screen bg-background text-foreground">
-    <!-- 1. 顶栏 -->
-    <div class="h-12 px-4 border-b border-border bg-card flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-foreground tracking-tight">系统管理中心</span>
+    <!-- 1. 顶部控制栏 (无背景色、无边框) -->
+    <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-30 w-full min-w-0 max-w-full bg-transparent">
+      <!-- 左上角显示标题 -->
+      <div class="flex items-center gap-2 select-none min-w-0">
+        <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate">
+          {{ activeTabTitle }}
+        </h1>
       </div>
-      <div class="flex items-center gap-2">
+
+      <!-- 右上角显示退出登录图标 -->
+      <div class="flex items-center gap-2 shrink-0">
         <Button
-          variant="outline"
-          size="sm"
-          class="h-7 px-2.5 rounded-md text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          variant="ghost"
+          size="icon"
+          class="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer"
+          title="退出登录"
           @click="handleLogout()"
-          title="退出管理账户"
         >
-          <LogOut class="h-3.5 w-3.5 mr-1" />
-          <span>退出登录</span>
+          <LogOut class="size-4" />
         </Button>
       </div>
     </div>
@@ -982,33 +1012,13 @@ onMounted(() => {
     <!-- 2. 主体自适应工作区 -->
     <div class="flex-1 p-4 sm:p-5 max-w-5xl w-full mx-auto space-y-4">
       <Tabs v-model="activeTab" class="w-full space-y-4">
-        <!-- 页面内部一级 Tab 菜单栏 -->
-        <TabsList class="grid grid-cols-5 w-full h-9 p-1 bg-muted">
-          <TabsTrigger value="bookmarks" class="gap-1.5 text-xs font-medium">
-            <Bookmark class="h-3.5 w-3.5" />
-            <span class="hidden sm:inline">书签管理</span>
-            <span class="sm:hidden">书签</span>
-          </TabsTrigger>
-          <TabsTrigger value="categories" class="gap-1.5 text-xs font-medium">
-            <Folder class="h-3.5 w-3.5" />
-            <span class="hidden sm:inline">分类管理</span>
-            <span class="sm:hidden">分类</span>
-          </TabsTrigger>
-          <TabsTrigger value="ai" class="gap-1.5 text-xs font-medium">
-            <Cpu class="h-3.5 w-3.5" />
-            <span class="hidden sm:inline">AI 模型</span>
-            <span class="sm:hidden">AI</span>
-          </TabsTrigger>
-          <TabsTrigger value="security" class="gap-1.5 text-xs font-medium">
-            <ShieldCheck class="h-3.5 w-3.5" />
-            <span class="hidden sm:inline">安全中心</span>
-            <span class="sm:hidden">安全</span>
-          </TabsTrigger>
-          <TabsTrigger value="site" class="gap-1.5 text-xs font-medium">
-            <Settings class="h-3.5 w-3.5" />
-            <span class="hidden sm:inline">站点设置</span>
-            <span class="sm:hidden">设置</span>
-          </TabsTrigger>
+        <!-- 页面内部一级 Tab 菜单栏 (由侧边栏承载导航，此处隐藏) -->
+        <TabsList class="hidden">
+          <TabsTrigger value="bookmarks">书签管理</TabsTrigger>
+          <TabsTrigger value="categories">分类管理</TabsTrigger>
+          <TabsTrigger value="ai">AI 模型</TabsTrigger>
+          <TabsTrigger value="security">安全中心</TabsTrigger>
+          <TabsTrigger value="site">站点设置</TabsTrigger>
         </TabsList>
 
         <!-- Tab 1：书签管理 -->

@@ -159,6 +159,8 @@ const aiData = ref<{
   activeConversationId: null,
 });
 
+const selectedAdminTab = ref<'bookmarks' | 'categories' | 'ai' | 'security' | 'site'>('bookmarks');
+
 function onNotesStateChange(state: any) {
   notesData.value = state;
 }
@@ -344,6 +346,7 @@ onUnmounted(() => {
         :selected-note-id="notesData.selectedNoteId"
         :ai-conversations="aiData.conversations"
         :active-ai-conversation-id="aiData.activeConversationId"
+        :selected-admin-tab="selectedAdminTab"
         @select-category="onSelectTopCategory"
         @select-sub-category="onSelectSubCategory"
         @change-view="onChangeAppView"
@@ -356,6 +359,8 @@ onUnmounted(() => {
         @new-ai-chat="aiChatPanelRef?.createNewConversation()"
         @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
         @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
+        @rename-ai-chat="(id, title) => { const c = aiData.conversations.find((x: any) => x.id === id); if (c) c.title = title; }"
+        @select-admin-tab="(tab) => selectedAdminTab = (tab as any)"
         @add-bookmark="showAddDialog = true"
       />
 
@@ -433,7 +438,13 @@ onUnmounted(() => {
           </div>
 
           <!-- 2. 在线笔记、AI助手与系统设置面板 (无缝保活) -->
-          <AdminPanel v-if="currentView === 'admin'" :categories="categories" @refresh="loadCategories(); loadBookmarks()" />
+          <AdminPanel
+            v-if="currentView === 'admin'"
+            :categories="categories"
+            :active-tab="selectedAdminTab"
+            @update:active-tab="(tab) => selectedAdminTab = tab"
+            @refresh="loadCategories(); loadBookmarks()"
+          />
           <NotesPanel ref="notesPanelRef" v-show="currentView === 'notes'" :active="currentView === 'notes'" @state-change="onNotesStateChange" />
           <AIChatPanel ref="aiChatPanelRef" v-show="currentView === 'ai'" :active="currentView === 'ai'" @state-change="onAiStateChange" />
         </div>

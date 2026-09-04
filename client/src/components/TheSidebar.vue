@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { noteCategoryApi } from '@/api';
+import { noteCategoryApi, aiApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
 import { confirmBox } from '@/utils/confirm';
 import {
@@ -62,6 +62,9 @@ import {
   User,
   LogOut,
   LogIn,
+  Bookmark,
+  Cpu,
+  ShieldCheck,
 } from 'lucide-vue-next';
 
 const siteStore = useSiteStore();
@@ -120,6 +123,7 @@ const props = withDefaults(
     selectedNoteId?: number | null;
     aiConversations?: ConversationItem[];
     activeAiConversationId?: string | null;
+    selectedAdminTab?: string;
   }>(),
   {
     notes: () => [],
@@ -130,6 +134,7 @@ const props = withDefaults(
     selectedNoteId: null,
     aiConversations: () => [],
     activeAiConversationId: null,
+    selectedAdminTab: 'bookmarks',
   }
 );
 
@@ -147,6 +152,8 @@ const emit = defineEmits<{
   newAiChat: [];
   selectAiChat: [id: string];
   deleteAiChat: [id: string];
+  renameAiChat: [id: string, title: string];
+  selectAdminTab: [tab: string];
 }>();
 
 const { isMobile, setOpenMobile } = useSidebar();
@@ -270,6 +277,46 @@ function handleDeleteAiChat(id: string) {
   emit('deleteAiChat', id);
 }
 
+// AI 会话标题编辑状态与弹窗
+const showEditConversationModal = ref(false);
+const editingConversation = ref<ConversationItem | null>(null);
+const editConversationTitle = ref('');
+
+function openEditConversation(conv: ConversationItem) {
+  editingConversation.value = conv;
+  editConversationTitle.value = conv.title || '';
+  showEditConversationModal.value = true;
+}
+
+async function handleSaveEditConversation() {
+  if (!editingConversation.value) return;
+  const title = editConversationTitle.value.trim();
+  if (!title) return;
+  try {
+    await aiApi.updateConversation(editingConversation.value.id, { title });
+    toast.success('已更新会话名称');
+    editingConversation.value.title = title;
+    showEditConversationModal.value = false;
+    emit('renameAiChat', editingConversation.value.id, title);
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || '更新会话标题失败');
+  }
+}
+
+// 系统设置管理 Tab 项
+const adminTabs = [
+  { value: 'bookmarks', label: '书签管理', icon: Bookmark },
+  { value: 'categories', label: '分类管理', icon: Folder },
+  { value: 'ai', label: 'AI 模型配置', icon: Cpu },
+  { value: 'security', label: '安全与认证', icon: ShieldCheck },
+  { value: 'site', label: '系统常规设置', icon: Settings },
+];
+
+function handleSelectAdminTab(tab: string) {
+  emit('selectAdminTab', tab);
+  if (isMobile.value) setOpenMobile(false);
+}
+
 // 笔记分类管理状态与弹窗
 const showCreateCategoryModal = ref(false);
 const showEditCategoryModal = ref(false);
@@ -373,7 +420,7 @@ async function handleDeleteCategory(cat: any) {
     <!-- Content: 动态内容分组 (按当前所处功能模式展示) -->
     <SidebarContent class="px-2 py-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 scrollbar-none">
       <!-- ================= 模式 1：网址导航侧边栏 ================= -->
-      <template v-if="currentView === 'home' || currentView === 'admin'">
+      <template v-if="currentView === 'home'">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -512,7 +559,7 @@ async function handleDeleteCategory(cat: any) {
                 <SidebarMenuButton
                   :is-active="activeAiConversationId === conv.id"
                   :tooltip="conv.title || '新会话'"
-                  class="cursor-pointer group/chat-item"
+                  class="cursor-pointer pr-14 group/chat-item"
                   @click="handleSelectAiChat(conv.id)"
                 >
                   <MessageSquare
@@ -522,21 +569,63 @@ async function handleDeleteCategory(cat: any) {
                   <span class="truncate text-xs">{{ conv.title || '新会话' }}</span>
                 </SidebarMenuButton>
 
-                <!-- 删除对话按钮 (常驻显示) -->
-                <SidebarMenuAction
-                  class="cursor-pointer text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  title="删除该对话"
-                  @click.stop.prevent="handleDeleteAiChat(conv.id)"
-                  @pointerdown.stop
-                >
-                  <Trash2 class="size-3.5" />
-                </SidebarMenuAction>
+                <!-- 对话管理操作 (三个点图标：编辑标题、删除) -->
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <SidebarMenuAction
+                      class="cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                      title="对话操作"
+                      @click.stop.prevent
+                      @pointerdown.stop
+                    >
+                      <MoreHorizontal class="size-3.5" />
+                    </SidebarMenuAction>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" :side="isMobile ? 'top' : 'right'" class="w-28 p-1 shadow-md">
+                    <DropdownMenuItem class="text-xs cursor-pointer gap-2" @click.stop="openEditConversation(conv)">
+                      <Pencil class="size-3.5 shrink-0 text-muted-foreground" />
+                      <span>编辑标题</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      class="text-xs cursor-pointer gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                      @click.stop="handleDeleteAiChat(conv.id)"
+                    >
+                      <Trash2 class="size-3.5 shrink-0" />
+                      <span>删除对话</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </SidebarMenuItem>
             </SidebarMenu>
 
             <div v-else class="py-6 text-center text-xs text-muted-foreground/70">
               暂无历史对话
             </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </template>
+
+      <!-- ================= 模式 4：系统设置侧边栏 (显示各设置 Tab) ================= -->
+      <template v-else-if="currentView === 'admin'">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem v-for="tab in adminTabs" :key="tab.value">
+                <SidebarMenuButton
+                  :is-active="selectedAdminTab === tab.value"
+                  :tooltip="tab.label"
+                  class="cursor-pointer"
+                  @click="handleSelectAdminTab(tab.value)"
+                >
+                  <component
+                    :is="tab.icon"
+                    class="size-4 shrink-0 transition-colors"
+                    :class="selectedAdminTab === tab.value ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
+                  />
+                  <span class="truncate">{{ tab.label }}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </template>
@@ -700,6 +789,30 @@ async function handleDeleteCategory(cat: any) {
         <DialogFooter class="gap-2 sm:gap-0">
           <Button variant="outline" @click="showEditCategoryModal = false">取消</Button>
           <Button :disabled="!editCategoryName.trim()" @click="handleSaveEditCategory">保存修改</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 编辑会话标题弹窗 -->
+    <Dialog :open="showEditConversationModal" @update:open="showEditConversationModal = $event">
+      <DialogContent class="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Pencil class="size-4 text-primary" />
+            编辑会话标题
+          </DialogTitle>
+        </DialogHeader>
+        <div class="py-2">
+          <Input
+            v-model="editConversationTitle"
+            placeholder="输入新的会话标题..."
+            autofocus
+            @keydown.enter.prevent="handleSaveEditConversation"
+          />
+        </div>
+        <DialogFooter class="gap-2 sm:gap-0">
+          <Button variant="outline" @click="showEditConversationModal = false">取消</Button>
+          <Button :disabled="!editConversationTitle.trim()" @click="handleSaveEditConversation">保存修改</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

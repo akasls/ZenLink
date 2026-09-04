@@ -868,15 +868,17 @@ onUnmounted(() => {
 
 <template>
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-    <!-- 1. 顶栏 -->
-    <div class="h-12 px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full">
-      <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
-        <span class="text-xs font-semibold text-foreground/90 truncate" :title="currentConversationTitle">
-          {{ currentConversationTitle }}
-        </span>
+    <!-- 1. 顶部控制栏 (无背景色、无边框) -->
+    <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
+      <!-- 左上角显示标题 -->
+      <div class="flex items-center gap-2 select-none min-w-0">
+        <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate" :title="currentConversationTitle">
+          {{ currentConversationTitle || 'AI 对话' }}
+        </h1>
       </div>
 
-      <div class="shrink-0 flex items-center gap-1.5">
+      <!-- 右上角显示新建AI对话图标及章节跳转 -->
+      <div class="flex items-center gap-1.5 shrink-0">
         <!-- 移动端章节跳转 Popover -->
         <Popover
           v-if="userQuestions.length >= 2"
@@ -884,13 +886,12 @@ onUnmounted(() => {
         >
           <PopoverTrigger as-child>
             <Button
-              variant="outline"
-              size="sm"
-              class="h-7 text-xs font-medium md:hidden gap-1"
+              variant="ghost"
+              size="icon"
+              class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer md:hidden"
               title="快速跳转历史提问"
             >
-              <Tickets class="h-3.5 w-3.5 text-muted-foreground" />
-              <span>章节 ({{ userQuestions.length }})</span>
+              <Tickets class="size-4" />
             </Button>
           </PopoverTrigger>
 
@@ -915,16 +916,15 @@ onUnmounted(() => {
           </PopoverContent>
         </Popover>
 
-        <!-- 新建会话按钮 -->
+        <!-- 新建AI对话图标 -->
         <Button
-          variant="outline"
-          size="sm"
-          class="h-7 text-xs font-medium gap-1"
-          title="发起新会话"
+          variant="ghost"
+          size="icon"
+          class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer"
+          title="新建AI对话"
           @click="createNewConversation"
         >
-          <Plus class="h-3.5 w-3.5" />
-          <span>新建对话</span>
+          <Plus class="size-4" />
         </Button>
       </div>
     </div>
