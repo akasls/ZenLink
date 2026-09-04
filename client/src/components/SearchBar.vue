@@ -2,6 +2,8 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useSiteStore } from '@/stores/site';
 import { Search } from 'lucide-vue-next';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 const modelValue = defineModel<string>({ default: '' });
 const siteStore = useSiteStore();
@@ -41,8 +43,9 @@ const customBgStyle = computed(() => {
   return {};
 });
 
-function selectEngine(engine: SearchEngine) {
-  selectedEngine.value = engine;
+function onEngineTabChange(val: string | number) {
+  const found = searchEngines.find(e => e.id === String(val));
+  if (found) selectedEngine.value = found;
 }
 
 function handleSearch() {
@@ -200,33 +203,26 @@ onUnmounted(() => {
 
     <div class="relative z-10 w-full max-w-xl flex flex-col items-center gap-3.5">
       <!-- 搜索引擎切换 Tabs -->
-      <div
-        class="flex items-center gap-1 p-0.5 rounded-lg border shadow-xs"
-        :class="[
-          isCustomBg
-            ? 'bg-slate-900/70 border-white/15'
-            : 'bg-muted/70 border-border/70 backdrop-blur-sm'
-        ]"
-      >
-        <button
-          v-for="eng in searchEngines"
-          :key="eng.id"
-          type="button"
-          class="px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer"
+      <Tabs :model-value="selectedEngine.id" @update:model-value="onEngineTabChange">
+        <TabsList
           :class="[
-            selectedEngine.id === eng.id
-              ? (isCustomBg
-                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'bg-card text-foreground font-semibold shadow-xs')
-              : (isCustomBg
-                  ? 'text-slate-300 hover:text-white hover:bg-white/10'
-                  : 'text-muted-foreground hover:text-foreground')
+            isCustomBg
+              ? 'bg-black/50 border-white/15 text-white/70'
+              : 'bg-muted/70 border-border/70 backdrop-blur-sm'
           ]"
-          @click="selectEngine(eng)"
         >
-          {{ eng.name }}
-        </button>
-      </div>
+          <TabsTrigger
+            v-for="eng in searchEngines"
+            :key="eng.id"
+            :value="eng.id"
+            :class="[
+              isCustomBg && 'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=inactive]:text-white/80'
+            ]"
+          >
+            {{ eng.name }}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <!-- 搜索框 (现代简约高质感) -->
       <div
@@ -253,19 +249,15 @@ onUnmounted(() => {
           @keyup.enter="handleSearch"
           autocomplete="off"
         />
-        <button
-          type="button"
-          class="h-7.5 px-3.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all cursor-pointer flex-shrink-0 shadow-xs active:scale-[0.98]"
-          :class="[
-            isCustomBg
-              ? 'bg-white text-slate-900 hover:bg-slate-100 font-semibold'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90 font-semibold'
-          ]"
+        <Button
+          size="sm"
+          class="h-8 px-4 font-semibold shrink-0"
+          :variant="isCustomBg ? 'secondary' : 'default'"
           @click="handleSearch"
           title="搜索 (Enter)"
         >
           <span>搜索</span>
-        </button>
+        </Button>
       </div>
     </div>
   </div>

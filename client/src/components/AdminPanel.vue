@@ -18,6 +18,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import {
   LogOut,
   Bookmark,
@@ -148,9 +152,10 @@ async function loadBookmarks() {
 
 function initBookmarkSortable() {
   nextTick(() => {
-    if (!bookmarkListRef.value) return;
+    const el = (bookmarkListRef.value as any)?.$el || bookmarkListRef.value;
+    if (!el) return;
     if (bookmarkSortable) bookmarkSortable.destroy();
-    bookmarkSortable = Sortable.create(bookmarkListRef.value, {
+    bookmarkSortable = Sortable.create(el, {
       animation: 150,
       handle: '.bm-drag',
       onEnd: async (evt) => {
@@ -950,978 +955,1067 @@ onMounted(() => {
     <!-- 1. 顶栏 -->
     <div class="h-12 px-4 border-b border-border bg-card flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
       <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-foreground">系统管理中心</span>
+        <span class="text-xs font-semibold text-foreground tracking-tight">系统管理中心</span>
       </div>
       <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-destructive/10 hover:text-destructive text-muted-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-7 px-2.5 rounded-md text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           @click="handleLogout()"
           title="退出管理账户"
         >
-          <LogOut class="h-3.5 w-3.5" />
+          <LogOut class="h-3.5 w-3.5 mr-1" />
           <span>退出登录</span>
-        </button>
+        </Button>
       </div>
     </div>
 
     <!-- 2. 主体自适应工作区 -->
     <div class="flex-1 p-4 sm:p-5 max-w-5xl w-full mx-auto space-y-4">
-      <!-- 页面内部一级 Tab 菜单栏 -->
-      <div class="flex items-center gap-1 p-1 bg-muted rounded-lg border border-border/60 overflow-x-auto scrollbar-none">
-        <button
-          type="button"
-          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-          :class="[
-            activeTab === 'bookmarks'
-              ? 'bg-background text-foreground font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          ]"
-          @click="activeTab = 'bookmarks'"
-        >
-          <Bookmark class="h-3.5 w-3.5" />
-          <span>书签管理</span>
-        </button>
+      <Tabs v-model="activeTab" class="w-full space-y-4">
+        <!-- 页面内部一级 Tab 菜单栏 -->
+        <TabsList class="grid grid-cols-5 w-full h-9 p-1 bg-muted">
+          <TabsTrigger value="bookmarks" class="gap-1.5 text-xs font-medium">
+            <Bookmark class="h-3.5 w-3.5" />
+            <span class="hidden sm:inline">书签管理</span>
+            <span class="sm:hidden">书签</span>
+          </TabsTrigger>
+          <TabsTrigger value="categories" class="gap-1.5 text-xs font-medium">
+            <Folder class="h-3.5 w-3.5" />
+            <span class="hidden sm:inline">分类管理</span>
+            <span class="sm:hidden">分类</span>
+          </TabsTrigger>
+          <TabsTrigger value="ai" class="gap-1.5 text-xs font-medium">
+            <Cpu class="h-3.5 w-3.5" />
+            <span class="hidden sm:inline">AI 模型</span>
+            <span class="sm:hidden">AI</span>
+          </TabsTrigger>
+          <TabsTrigger value="security" class="gap-1.5 text-xs font-medium">
+            <ShieldCheck class="h-3.5 w-3.5" />
+            <span class="hidden sm:inline">安全中心</span>
+            <span class="sm:hidden">安全</span>
+          </TabsTrigger>
+          <TabsTrigger value="site" class="gap-1.5 text-xs font-medium">
+            <Settings class="h-3.5 w-3.5" />
+            <span class="hidden sm:inline">站点设置</span>
+            <span class="sm:hidden">设置</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <button
-          type="button"
-          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-          :class="[
-            activeTab === 'categories'
-              ? 'bg-background text-foreground font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          ]"
-          @click="activeTab = 'categories'"
-        >
-          <Folder class="h-3.5 w-3.5" />
-          <span>分类管理</span>
-        </button>
-
-        <button
-          type="button"
-          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-          :class="[
-            activeTab === 'ai'
-              ? 'bg-background text-foreground font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          ]"
-          @click="activeTab = 'ai'"
-        >
-          <Cpu class="h-3.5 w-3.5" />
-          <span>AI 模型</span>
-        </button>
-
-        <button
-          type="button"
-          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-          :class="[
-            activeTab === 'security'
-              ? 'bg-background text-foreground font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          ]"
-          @click="activeTab = 'security'"
-        >
-          <ShieldCheck class="h-3.5 w-3.5" />
-          <span>安全中心</span>
-        </button>
-
-        <button
-          type="button"
-          class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-          :class="[
-            activeTab === 'site'
-              ? 'bg-background text-foreground font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          ]"
-          @click="activeTab = 'site'"
-        >
-          <Settings class="h-3.5 w-3.5" />
-          <span>站点设置</span>
-        </button>
-      </div>
-
-      <!-- Tab 1：书签管理 -->
-      <div v-if="activeTab === 'bookmarks'" class="space-y-3">
-        <!-- 统一单行工具栏 -->
-        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap bg-card p-2.5 rounded-lg border border-border shadow-subtle">
-          <!-- 1. 搜索框 -->
-          <div class="flex-1 flex items-center bg-background border border-border rounded-md px-2.5 py-1 min-w-[180px]">
-            <Search class="h-3.5 w-3.5 text-muted-foreground mr-1.5 flex-shrink-0" />
-            <input
-              v-model="bookmarkFilter"
-              type="text"
-              class="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
-              placeholder="搜索书签标题或网址..."
-            />
-          </div>
-
-          <!-- 2. 分类下拉 -->
-          <select
-            v-model="bookmarkCategoryFilter"
-            class="h-7 w-36 rounded-md border border-border bg-card px-2 text-xs text-foreground/90 outline-none flex-shrink-0"
-          >
-            <option
-              v-for="opt in categoryFilterOptions"
-              :key="opt.id"
-              :value="opt.id"
-            >
-              {{ opt.name }}
-            </option>
-          </select>
-
-          <!-- 3. 添加按钮 -->
-          <button
-            type="button"
-            class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
-            @click="openBookmarkDialog()"
-          >
-            <Plus class="h-3.5 w-3.5" />
-            <span>添加书签</span>
-          </button>
-        </div>
-
-        <!-- 链接列表 -->
-        <div v-if="loadingBookmarks" class="py-12 text-center text-muted-foreground">
-          <Loader2 class="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-        </div>
-        <div v-else-if="!filteredBookmarks.length" class="py-12 bg-card border border-border rounded-lg">
-          <div class="text-center text-xs text-muted-foreground">暂无符合条件的导航书签</div>
-        </div>
-        <div v-else class="space-y-2">
-          <div ref="bookmarkListRef" class="space-y-1.5">
-            <div
-              v-for="bm in paginatedBookmarks"
-              :key="bm.id"
-              class="group flex items-center justify-between px-3 py-2 bg-card hover:bg-accent/60 border border-border rounded-md transition-colors"
-            >
-              <!-- 左侧：拖拽 + 图标 + 标题 + 分类 + 私有锁 -->
-              <div class="flex items-center gap-2.5 flex-1 min-w-0 pr-2">
-                <span class="bm-drag text-muted-foreground hover:text-foreground cursor-grab flex items-center" title="拖拽排序">
-                  <GripVertical class="h-3.5 w-3.5" />
-                </span>
-                <div class="w-5 h-5 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                  <img
-                    v-if="!rowImgErrors[bm.id]"
-                    :src="getAdminRowFavicon(bm)"
-                    class="w-full h-full object-contain"
-                    alt=""
-                    @error="rowImgErrors[bm.id] = true"
-                  />
-                  <div
-                    v-else
-                    class="w-full h-full flex items-center justify-center text-white text-[9px] font-bold uppercase"
-                    :style="{ backgroundColor: getAvatarColor(bm.title || bm.url) }"
-                  >
-                    {{ getAvatarChar(bm.title, bm.url) }}
-                  </div>
-                </div>
-
-                <span class="text-xs font-medium text-foreground truncate" :title="bm.title">{{ bm.title }}</span>
-                <span class="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex-shrink-0 font-normal">
-                  {{ getCategoryName(bm.category_id) }}
-                </span>
-                <Lock v-if="bm.is_private" class="h-3 w-3 text-amber-500 flex-shrink-0" title="私有书签" />
-              </div>
-
-              <!-- 右侧操作 (编辑 + 删除) -->
-              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-                  @click="openBookmarkDialog(bm)"
-                  title="编辑书签"
-                >
-                  <Pencil class="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                  @click="confirmDeleteBookmark(bm)"
-                  title="删除书签"
-                >
-                  <Trash2 class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 分页栏 -->
-          <div v-if="filteredBookmarks.length > pageSize" class="flex items-center justify-between pt-3 border-t border-border text-xs text-muted-foreground">
-            <div class="text-[11px] text-muted-foreground">
-              共 <strong class="font-semibold text-foreground/90">{{ filteredBookmarks.length }}</strong> 条 · 第 <strong class="font-semibold text-foreground/90">{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong> 页
-            </div>
-            <div class="flex items-center gap-1">
-              <button
-                type="button"
-                class="w-7 h-7 rounded border border-border bg-card flex items-center justify-center text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 cursor-pointer"
-                :disabled="currentPage <= 1"
-                @click="currentPage--"
-                title="上一页"
-              >
-                <ChevronLeft class="h-3.5 w-3.5" />
-              </button>
-
-              <template v-for="(p, idx) in visiblePages" :key="idx">
-                <span v-if="p === '...'" class="px-1 text-muted-foreground text-xs">...</span>
-                <button
-                  v-else
-                  type="button"
-                  class="w-7 h-7 rounded text-xs font-medium flex items-center justify-center transition-colors cursor-pointer"
-                  :class="[
-                    currentPage === p
-                      ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-                      : 'border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground'
-                  ]"
-                  @click="currentPage = Number(p)"
-                >
-                  {{ p }}
-                </button>
-              </template>
-
-              <button
-                type="button"
-                class="w-7 h-7 rounded border border-border bg-card flex items-center justify-center text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 cursor-pointer"
-                :disabled="currentPage >= totalPages"
-                @click="currentPage++"
-                title="下一页"
-              >
-                <ChevronRight class="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 2：分类管理 -->
-      <div v-if="activeTab === 'categories'" class="space-y-3">
-        <div class="flex items-center justify-between bg-card p-2.5 rounded-lg border border-border shadow-subtle">
-          <button
-            type="button"
-            class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-            @click="toggleExpandAll"
-          >
-            <ChevronsUpDown class="h-3.5 w-3.5" />
-            <span>{{ isAllExpanded ? '收起所有分类' : '一键展开所有分类' }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs flex items-center gap-1 transition-colors cursor-pointer"
-            @click="openCategoryDialog()"
-          >
-            <Plus class="h-3.5 w-3.5" />
-            <span>新建一级分类</span>
-          </button>
-        </div>
-
-        <div ref="categoryListRef" class="space-y-2">
-          <div v-for="cat in categoryTree" :key="cat.id" class="bg-card rounded-lg border border-border shadow-subtle overflow-hidden">
-            <!-- 一级分类行 -->
-            <div class="group flex items-center justify-between px-3 py-2.5 hover:bg-accent/50 transition-colors">
-              <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                <span class="cat-drag text-muted-foreground hover:text-foreground cursor-grab flex items-center" title="拖拽排序">
-                  <GripVertical class="h-3.5 w-3.5" />
-                </span>
-                <button type="button" class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer" @click.stop="toggleExpand(cat.id)">
-                  <ChevronDown v-if="expandedCategories.includes(cat.id)" class="h-3.5 w-3.5" />
-                  <ChevronRight v-else class="h-3.5 w-3.5" />
-                </button>
-                <component :is="mapIcon(cat.icon)" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span class="text-xs font-semibold text-foreground truncate">{{ cat.name }}</span>
-                <span v-if="cat.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
-                <span class="text-[11px] text-muted-foreground font-normal">({{ cat.children.length }} 个子分类)</span>
-              </div>
-
-              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-                  @click.stop="openCategoryDialog(undefined, cat.id)"
-                  title="添加子分类"
-                >
-                  <Plus class="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-                  @click.stop="openCategoryDialog(cat)"
-                  title="编辑分类"
-                >
-                  <Pencil class="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                  @click.stop="confirmDeleteCategory(cat)"
-                  title="删除分类"
-                >
-                  <Trash2 class="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-
-            <!-- 二级子分类列表 -->
-            <div v-show="expandedCategories.includes(cat.id)" class="border-t border-border/60 bg-muted/30 p-2 space-y-1">
-              <div class="cat-sub-sortable-container space-y-1" :data-parent-id="cat.id">
-                <div
-                  v-for="sub in cat.children"
-                  :key="sub.id"
-                  class="group flex items-center justify-between px-3 py-1.5 rounded-md bg-card border border-border/60 hover:bg-accent transition-colors"
-                >
-                  <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                    <span class="sub-drag text-muted-foreground hover:text-foreground cursor-grab flex items-center" title="拖拽排序">
-                      <GripVertical class="h-3.5 w-3.5" />
-                    </span>
-                    <span class="text-muted-foreground text-xs font-mono">└</span>
-                    <component :is="mapIcon(sub.icon)" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span class="text-xs text-foreground/90 truncate">{{ sub.name }}</span>
-                    <span v-if="sub.is_private" class="text-[10px] px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-medium">私有</span>
-                  </div>
-
-                  <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      type="button"
-                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-                      @click="openCategoryDialog(sub)"
-                      title="编辑子分类"
-                    >
-                      <Pencil class="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      class="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                      @click="confirmDeleteCategory(sub)"
-                      title="删除子分类"
-                    >
-                      <Trash2 class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div v-if="!cat.children.length" class="text-center py-2 text-[11px] text-muted-foreground">
-                暂无二级子分类
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 3：AI 模型与推理参数 -->
-      <div v-if="activeTab === 'ai'" class="space-y-3">
-        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
-          <div class="space-y-3.5">
-            <!-- 1. API Base URL -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">API Base URL</label>
-              <Input v-model="aiSettings.base_url" placeholder="https://api.deepseek.com/v1" />
-            </div>
-
-            <!-- 2. API Key -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">API Key</label>
+        <!-- Tab 1：书签管理 -->
+        <TabsContent value="bookmarks" class="space-y-3 mt-0">
+          <!-- 统一单行工具栏 -->
+          <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap bg-card p-2.5 rounded-lg border border-border shadow-xs">
+            <!-- 1. 搜索框 -->
+            <div class="relative flex-1 min-w-[180px]">
+              <Search class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                v-model="aiSettings.api_key"
-                type="password"
-                :placeholder="aiSettings.has_api_key === 'true' ? `已配置 (${aiSettings.api_key_masked})，输入新密钥可覆盖` : 'sk-...'"
+                v-model="bookmarkFilter"
+                type="text"
+                class="pl-8 h-8 text-xs bg-background"
+                placeholder="搜索书签标题或网址..."
               />
             </div>
 
-            <!-- 3. 启用模型 -->
-            <div class="space-y-2 p-3 rounded-md bg-background/60 border border-border/70">
-              <div class="flex items-center justify-between">
-                <span class="font-semibold text-xs text-foreground">启用模型列表</span>
-                <div class="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer flex items-center gap-1"
-                    :disabled="fetchingModels"
-                    @click="fetchOnlineModels"
+            <!-- 2. 分类下拉 -->
+            <select
+              v-model="bookmarkCategoryFilter"
+              class="h-8 w-36 rounded-md border border-input bg-background px-2.5 text-xs text-foreground outline-none flex-shrink-0"
+            >
+              <option
+                v-for="opt in categoryFilterOptions"
+                :key="opt.id"
+                :value="opt.id"
+              >
+                {{ opt.name }}
+              </option>
+            </select>
+
+            <!-- 3. 添加按钮 -->
+            <Button
+              size="sm"
+              class="h-8 px-3 text-xs gap-1 flex-shrink-0"
+              @click="openBookmarkDialog()"
+            >
+              <Plus class="h-3.5 w-3.5" />
+              <span>添加书签</span>
+            </Button>
+          </div>
+
+          <!-- 链接列表 -->
+          <div v-if="loadingBookmarks" class="py-12 text-center text-muted-foreground">
+            <Loader2 class="h-6 w-6 animate-spin mx-auto text-primary" />
+          </div>
+          <div v-else-if="!filteredBookmarks.length" class="py-12 bg-card border border-border rounded-lg text-center">
+            <p class="text-xs text-muted-foreground">暂无符合条件的导航书签</p>
+          </div>
+          <div v-else class="space-y-3">
+            <div class="rounded-lg border border-border bg-card overflow-hidden shadow-xs">
+              <Table>
+                <TableHeader>
+                  <TableRow class="bg-muted/40 hover:bg-muted/40">
+                    <TableHead class="w-10 text-center"></TableHead>
+                    <TableHead class="w-10 text-center">图标</TableHead>
+                    <TableHead>标题 / 网址</TableHead>
+                    <TableHead class="w-32">分类</TableHead>
+                    <TableHead class="w-20 text-center">状态</TableHead>
+                    <TableHead class="w-24 text-right pr-4">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody ref="bookmarkListRef">
+                  <TableRow
+                    v-for="bm in paginatedBookmarks"
+                    :key="bm.id"
+                    class="group hover:bg-muted/40 transition-colors"
                   >
-                    <Loader2 v-if="fetchingModels" class="h-3 w-3 animate-spin text-primary" />
-                    <RotateCw v-else class="h-3 w-3 text-muted-foreground" />
-                    <span>{{ fetchingModels ? '获取中...' : '获取' }}</span>
-                  </button>
-                  <button type="button" class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer" @click="selectAllModels">全选</button>
-                  <button type="button" class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer" @click="clearAllModels">清空</button>
-                </div>
-              </div>
+                    <!-- 拖拽手柄 -->
+                    <TableCell class="text-center py-2.5">
+                      <span class="bm-drag text-muted-foreground/60 hover:text-foreground cursor-grab inline-flex items-center" title="拖拽排序">
+                        <GripVertical class="h-3.5 w-3.5" />
+                      </span>
+                    </TableCell>
 
-              <!-- 模型芯片网格 -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto p-1">
-                <div v-if="allFetchedModels.length === 0" class="text-xs text-muted-foreground py-2 col-span-full text-center">
-                  暂无模型，可点击上方「获取」或在下方输入名称添加
-                </div>
-                <div
-                  v-for="m in allFetchedModels"
-                  :key="m"
-                  class="flex items-center justify-between px-2.5 py-1.5 rounded border transition-colors cursor-pointer"
-                  :class="[
-                    (aiSettings.available_models || []).includes(m)
-                      ? 'bg-muted border-border text-foreground font-medium'
-                      : 'bg-card border-border text-muted-foreground hover:border-border/80'
-                  ]"
-                  @click="toggleModelCheck(m)"
+                    <!-- 图标 -->
+                    <TableCell class="py-2.5 text-center">
+                      <div class="w-6 h-6 rounded-md bg-muted flex items-center justify-center overflow-hidden mx-auto border border-border/50">
+                        <img
+                          v-if="!rowImgErrors[bm.id]"
+                          :src="getAdminRowFavicon(bm)"
+                          class="w-full h-full object-contain"
+                          alt=""
+                          @error="rowImgErrors[bm.id] = true"
+                        />
+                        <div
+                          v-else
+                          class="w-full h-full flex items-center justify-center text-white text-[9px] font-bold uppercase"
+                          :style="{ backgroundColor: getAvatarColor(bm.title || bm.url) }"
+                        >
+                          {{ getAvatarChar(bm.title, bm.url) }}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    <!-- 标题 / 网址 -->
+                    <TableCell class="py-2.5">
+                      <div class="flex flex-col min-w-0 max-w-xs sm:max-w-md">
+                        <span class="text-xs font-medium text-foreground truncate" :title="bm.title">{{ bm.title }}</span>
+                        <span class="text-[11px] text-muted-foreground truncate font-mono" :title="bm.url">{{ bm.url }}</span>
+                      </div>
+                    </TableCell>
+
+                    <!-- 分类 -->
+                    <TableCell class="py-2.5">
+                      <Badge variant="secondary" class="font-normal text-[11px] px-2 py-0.5">
+                        {{ getCategoryName(bm.category_id) }}
+                      </Badge>
+                    </TableCell>
+
+                    <!-- 状态 -->
+                    <TableCell class="text-center py-2.5">
+                      <Badge v-if="bm.is_private" variant="outline" class="text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 text-[10px] gap-0.5">
+                        <Lock class="h-2.5 w-2.5" /> 私有
+                      </Badge>
+                      <span v-else class="text-[11px] text-muted-foreground">公开</span>
+                    </TableCell>
+
+                    <!-- 操作 -->
+                    <TableCell class="text-right py-2.5 pr-4">
+                      <div class="flex items-center justify-end gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="text-muted-foreground hover:text-foreground"
+                          title="编辑书签"
+                          @click="openBookmarkDialog(bm)"
+                        >
+                          <Pencil class="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="删除书签"
+                          @click="confirmDeleteBookmark(bm)"
+                        >
+                          <Trash2 class="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+
+            <!-- 分页栏 -->
+            <div v-if="filteredBookmarks.length > pageSize" class="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+              <div class="text-[11px] text-muted-foreground">
+                共 <strong class="font-semibold text-foreground">{{ filteredBookmarks.length }}</strong> 条 · 第 <strong class="font-semibold text-foreground">{{ currentPage }}</strong> / <strong>{{ totalPages }}</strong> 页
+              </div>
+              <div class="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon-xs"
+                  class="h-7 w-7"
+                  :disabled="currentPage <= 1"
+                  @click="currentPage--"
+                  title="上一页"
                 >
-                  <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
-                    <CheckCircle2 v-if="(aiSettings.available_models || []).includes(m)" class="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                    <Circle v-else class="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                    <span class="text-xs truncate">{{ m }}</span>
-                  </div>
+                  <ChevronLeft class="h-3.5 w-3.5" />
+                </Button>
 
-                  <div class="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      type="button"
-                      class="w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer"
-                      :class="aiSettings.model === m ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground'"
-                      @click.stop="setDefaultModel(m)"
-                      :title="aiSettings.model === m ? '当前默认模型' : '点击设为默认模型'"
-                    >
-                      <Star class="h-3.5 w-3.5" :class="aiSettings.model === m ? 'fill-amber-500 text-amber-500' : ''" />
-                    </button>
-                    <button
-                      type="button"
-                      class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
-                      @click.stop="removeModel(m)"
-                      title="删除此模型"
-                    >
-                      <X class="h-3 w-3" />
-                    </button>
-                  </div>
+                <template v-for="(p, idx) in visiblePages" :key="idx">
+                  <span v-if="p === '...'" class="px-1 text-muted-foreground text-xs">...</span>
+                  <Button
+                    v-else
+                    :variant="currentPage === p ? 'default' : 'outline'"
+                    size="icon-xs"
+                    class="h-7 w-7 text-xs"
+                    @click="currentPage = Number(p)"
+                  >
+                    {{ p }}
+                  </Button>
+                </template>
+
+                <Button
+                  variant="outline"
+                  size="icon-xs"
+                  class="h-7 w-7"
+                  :disabled="currentPage >= totalPages"
+                  @click="currentPage++"
+                  title="下一页"
+                >
+                  <ChevronRight class="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <!-- Tab 2：分类管理 -->
+        <TabsContent value="categories" class="space-y-3 mt-0">
+          <div class="flex items-center justify-between bg-card p-2.5 rounded-lg border border-border shadow-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              class="h-8 gap-1.5 text-xs font-medium"
+              @click="toggleExpandAll"
+            >
+              <ChevronsUpDown class="h-3.5 w-3.5" />
+              <span>{{ isAllExpanded ? '收起所有分类' : '一键展开所有分类' }}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              class="h-8 px-3 text-xs gap-1 font-medium"
+              @click="openCategoryDialog()"
+            >
+              <Plus class="h-3.5 w-3.5" />
+              <span>新建一级分类</span>
+            </Button>
+          </div>
+
+          <div ref="categoryListRef" class="space-y-2">
+            <div v-for="cat in categoryTree" :key="cat.id" class="bg-card rounded-lg border border-border shadow-xs overflow-hidden">
+              <!-- 一级分类行 -->
+              <div class="group flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors">
+                <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                  <span class="cat-drag text-muted-foreground/60 hover:text-foreground cursor-grab inline-flex items-center" title="拖拽排序">
+                    <GripVertical class="h-3.5 w-3.5" />
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="h-5 w-5 text-muted-foreground hover:text-foreground"
+                    @click.stop="toggleExpand(cat.id)"
+                  >
+                    <ChevronDown v-if="expandedCategories.includes(cat.id)" class="h-3.5 w-3.5" />
+                    <ChevronRight v-else class="h-3.5 w-3.5" />
+                  </Button>
+                  <component :is="mapIcon(cat.icon)" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span class="text-xs font-semibold text-foreground truncate">{{ cat.name }}</span>
+                  <Badge v-if="cat.is_private" variant="outline" class="text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 text-[10px] px-1 py-0">私有</Badge>
+                  <span class="text-[11px] text-muted-foreground font-normal">({{ cat.children.length }} 个子分类)</span>
+                </div>
+
+                <div class="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground"
+                    @click.stop="openCategoryDialog(undefined, cat.id)"
+                    title="添加子分类"
+                  >
+                    <Plus class="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground"
+                    @click.stop="openCategoryDialog(cat)"
+                    title="编辑分类"
+                  >
+                    <Pencil class="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    @click.stop="confirmDeleteCategory(cat)"
+                    title="删除分类"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
 
-              <!-- 手动添加模型 -->
-              <div class="flex items-center gap-2 mt-1">
+              <!-- 二级子分类列表 -->
+              <div v-show="expandedCategories.includes(cat.id)" class="border-t border-border/60 bg-muted/20 p-2 space-y-1">
+                <div class="cat-sub-sortable-container space-y-1" :data-parent-id="cat.id">
+                  <div
+                    v-for="sub in cat.children"
+                    :key="sub.id"
+                    class="group flex items-center justify-between px-3 py-1.5 rounded-md bg-card border border-border/60 hover:bg-muted/40 transition-colors"
+                  >
+                    <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                      <span class="sub-drag text-muted-foreground/60 hover:text-foreground cursor-grab inline-flex items-center" title="拖拽排序">
+                        <GripVertical class="h-3.5 w-3.5" />
+                      </span>
+                      <span class="text-muted-foreground text-xs font-mono">└</span>
+                      <component :is="mapIcon(sub.icon)" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span class="text-xs text-foreground/90 truncate">{{ sub.name }}</span>
+                      <Badge v-if="sub.is_private" variant="outline" class="text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 text-[10px] px-1 py-0">私有</Badge>
+                    </div>
+
+                    <div class="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        class="text-muted-foreground hover:text-foreground"
+                        @click.stop="openCategoryDialog(sub)"
+                        title="编辑子分类"
+                      >
+                        <Pencil class="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        @click.stop="confirmDeleteCategory(sub)"
+                        title="删除子分类"
+                      >
+                        <Trash2 class="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="!cat.children.length" class="text-center py-2 text-[11px] text-muted-foreground">
+                  暂无二级子分类
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <!-- Tab 3：AI 模型与推理参数 -->
+        <TabsContent value="ai" class="space-y-4 mt-0">
+          <Card>
+            <CardHeader class="pb-3">
+              <CardTitle class="text-sm font-semibold flex items-center gap-2">
+                <Cpu class="h-4 w-4 text-primary" />
+                <span>AI 模型与推理参数</span>
+              </CardTitle>
+              <CardDescription class="text-xs">
+                配置兼容 OpenAI / DeepSeek 标准的 API 端点、密钥以及推理参数
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent class="space-y-4">
+              <!-- 1. API Base URL -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">API Base URL</label>
+                <Input v-model="aiSettings.base_url" placeholder="https://api.deepseek.com/v1" />
+              </div>
+
+              <!-- 2. API Key -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">API Key</label>
                 <Input
-                  v-model="customModelName"
-                  placeholder="手动添加模型名称 (如 qwen-plus)"
-                  @keyup.enter="addCustomModel"
+                  v-model="aiSettings.api_key"
+                  type="password"
+                  :placeholder="aiSettings.has_api_key === 'true' ? `已配置 (${aiSettings.api_key_masked})，输入新密钥可覆盖` : 'sk-...'"
                 />
-                <button
-                  type="button"
-                  class="h-7 px-2.5 rounded bg-muted hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                  @click="addCustomModel"
-                  title="添加模型"
-                >
-                  <Plus class="h-3.5 w-3.5" />
-                  <span>添加</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- 专属模型 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">在线笔记写作专属模型</label>
-                <select
-                  v-model="aiSettings.writing_model"
-                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="">跟随全局默认</option>
-                  <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
-                </select>
               </div>
 
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">导航书签解析专属模型</label>
-                <select
-                  v-model="aiSettings.bookmark_model"
-                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="">跟随全局默认</option>
-                  <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- 深度思考开关 -->
-            <div class="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30">
-              <div>
-                <div class="text-xs font-semibold text-foreground">深度思考 (Reasoning CoT)</div>
-                <div class="text-[11px] text-muted-foreground">开启后大模型将展开深入步骤思考</div>
-              </div>
-              <Switch :checked="aiSettings.reasoning_mode" @update:checked="aiSettings.reasoning_mode = $event" />
-            </div>
-
-            <!-- 采样温度 -->
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-medium text-muted-foreground">
-                  采样温度 (Temperature): <span class="font-mono font-semibold text-foreground">{{ aiSettings.temperature }}</span>
-                </label>
-                <span class="text-[11px] text-muted-foreground">
-                  {{ aiSettings.temperature < 0.4 ? '严谨精准' : aiSettings.temperature > 1.0 ? '创意发散' : '通用平衡' }}
-                </span>
-              </div>
-              <Slider
-                :model-value="[aiSettings.temperature]"
-                :min="0"
-                :max="2"
-                :step="0.05"
-                @update:model-value="aiSettings.temperature = $event?.[0] ?? 0.7"
-              />
-            </div>
-
-            <!-- Top-P -->
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label class="text-xs font-medium text-muted-foreground">
-                  核采样 (Top-P): <span class="font-mono font-semibold text-foreground">{{ aiSettings.top_p }}</span>
-                </label>
-              </div>
-              <Slider
-                :model-value="[aiSettings.top_p]"
-                :min="0.1"
-                :max="1"
-                :step="0.05"
-                @update:model-value="aiSettings.top_p = $event?.[0] ?? 0.95"
-              />
-            </div>
-
-            <!-- Max Tokens -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">单次最大生成 Token 数 (Max Tokens)</label>
-              <Input v-model.number="aiSettings.max_tokens" type="number" :min="256" :max="16384" :step="512" class="w-full" />
-            </div>
-
-            <!-- 全局系统提示词 -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">全局系统提示词 (System Prompt)</label>
-              <Textarea
-                v-model="aiSettings.system_prompt"
-                :rows="3"
-                placeholder="设置 AI 助手的全局角色定位与回复规范"
-              />
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between pt-3 border-t border-border">
-            <span class="text-xs text-muted-foreground">当前默认模型：<strong class="text-foreground/90 font-semibold">{{ aiSettings.model || '未设定' }}</strong></span>
-            <button
-              type="button"
-              class="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
-              :disabled="savingAiSettings"
-              @click="saveAdminAiSettings"
-            >
-              <Loader2 v-if="savingAiSettings" class="h-3.5 w-3.5 animate-spin" />
-              <span>{{ savingAiSettings ? '保存中...' : '保存配置' }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 4：安全中心 -->
-      <div v-if="activeTab === 'security'" class="space-y-3">
-        <!-- 1. 账户卡片 -->
-        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle flex justify-between items-center">
-          <div>
-            <h3 class="text-sm font-semibold text-foreground m-0">账户与登录密码</h3>
-            <p class="text-xs text-muted-foreground m-0 mt-0.5">当前账户: <strong class="text-foreground font-semibold">{{ authStore.user?.username }}</strong></p>
-          </div>
-          <button
-            type="button"
-            class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-            @click="openAccountDialog"
-          >
-            <Pencil class="h-3.5 w-3.5" />
-            <span>修改用户名与密码</span>
-          </button>
-        </div>
-
-        <!-- 2. 多重身份认证卡片 -->
-        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
-          <!-- 上部：两步验证 (TOTP) -->
-          <div class="flex justify-between items-center pb-3 border-b border-border/60">
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-foreground m-0">两步验证 (TOTP)</h3>
-                <span
-                  class="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                  :class="authStore.user?.totp_enabled ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'"
-                >
-                  {{ authStore.user?.totp_enabled ? '已启用' : '未启用' }}
-                </span>
-              </div>
-              <p class="text-xs text-muted-foreground m-0 mt-0.5">基于 Authenticator 动态验证码</p>
-            </div>
-            <button
-              v-if="!authStore.user?.totp_enabled"
-              type="button"
-              class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs flex items-center gap-1 transition-colors cursor-pointer"
-              :disabled="settingUpTotp"
-              @click="startTotpSetup"
-            >
-              <Lock class="h-3.5 w-3.5" />
-              <span>配置 2FA</span>
-            </button>
-          </div>
-
-          <!-- TOTP 配置中区域 -->
-          <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3 border-b border-border/60">
-            <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md" /></div>
-            <p class="text-[11px] text-muted-foreground text-center break-all font-mono">{{ totpSetup.secret }}</p>
-            <div class="flex gap-2 max-w-sm mx-auto">
-              <Input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" class="flex-1 h-7 text-xs" />
-              <button type="button" class="h-7 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs" @click="confirmTotp">确认绑定</button>
-            </div>
-          </div>
-
-          <!-- 下部：Passkey 免密登录 -->
-          <div class="flex justify-between items-center">
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-sm font-semibold text-foreground m-0">Passkey 免密登录</h3>
-                <span
-                  class="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                  :class="authStore.user?.webauthn_enabled ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'"
-                >
-                  {{ authStore.user?.webauthn_enabled ? '已绑定' : '未绑定' }}
-                </span>
-              </div>
-              <p class="text-xs text-muted-foreground m-0 mt-0.5">指纹 / Face ID / Windows Hello 硬件免密</p>
-            </div>
-            <button
-              type="button"
-              class="h-7 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-              :disabled="registeringPasskey"
-              @click="registerPasskey"
-            >
-              <Key class="h-3.5 w-3.5" />
-              <span>绑定 Passkey</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 5：站点设置 -->
-      <div v-if="activeTab === 'site'" class="space-y-3">
-        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-4">
-          <div class="space-y-3.5">
-            <!-- 1. 外观深浅模式 -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">外观主题</label>
-              <div class="inline-flex rounded-lg border border-border bg-muted/80 p-1">
-                <button
-                  type="button"
-                  class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                  :class="themeStore.mode === 'system' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
-                  @click="themeStore.setMode('system')"
-                >
-                  跟随系统
-                </button>
-                <button
-                  type="button"
-                  class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                  :class="themeStore.mode === 'light' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
-                  @click="themeStore.setMode('light')"
-                >
-                  日间浅色
-                </button>
-                <button
-                  type="button"
-                  class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
-                  :class="themeStore.mode === 'dark' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
-                  @click="themeStore.setMode('dark')"
-                >
-                  夜间深色
-                </button>
-              </div>
-            </div>
-
-            <!-- 2. 主品牌色 -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">系统主品牌色 (实时生效)</label>
-              <div class="flex items-center gap-2 flex-wrap">
-                <button
-                  v-for="p in colorPresets"
-                  :key="p.color"
-                  type="button"
-                  class="group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/80 bg-card hover:bg-accent/60 transition-all cursor-pointer text-xs"
-                  :class="{ 'border-primary ring-2 ring-primary/20 font-semibold text-foreground': siteForm.themePrimaryColor === p.color }"
-                  @click="selectThemeColor(p.color)"
-                >
-                  <span class="w-3 h-3 rounded-full shrink-0 shadow-xs" :style="{ backgroundColor: p.color }"></span>
-                  <span class="text-[11px]">{{ p.name }}</span>
-                  <Check v-if="siteForm.themePrimaryColor === p.color" class="h-3 w-3 text-primary shrink-0" />
-                </button>
-
-                <div class="flex items-center gap-2 ml-1">
-                  <input
-                    type="color"
-                    :value="siteForm.themePrimaryColor"
-                    class="w-7 h-7 rounded border border-border cursor-pointer bg-transparent"
-                    @input="siteStore.setThemePrimaryColor(($event.target as HTMLInputElement).value)"
-                  />
-                  <span class="text-xs font-mono text-muted-foreground">{{ siteForm.themePrimaryColor }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 3. 搜索背景图 -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">导航主页搜索组件背景图</label>
-              <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
-                <div class="flex items-center gap-2">
-                  <Input
-                    v-model="siteForm.searchBgImage"
-                    placeholder="输入背景图片 URL 或点击右侧上传..."
-                    class="flex-1"
-                    @input="siteStore.searchBgImage = siteForm.searchBgImage"
-                  />
-                  <button
-                    type="button"
-                    class="h-9 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
-                    :disabled="uploadingBg"
-                    @click="bgUploadInputRef?.click()"
-                  >
-                    <Loader2 v-if="uploadingBg" class="h-3 w-3 animate-spin text-primary" />
-                    <Upload v-else class="h-3 w-3 text-muted-foreground" />
-                    <span>{{ uploadingBg ? '上传中...' : '上传图片' }}</span>
-                  </button>
-                  <input ref="bgUploadInputRef" type="file" accept="image/*" hidden @change="handleBgUpload" />
-                </div>
-
-                <div v-if="siteForm.searchBgImage" class="relative rounded-md overflow-hidden border border-border h-24 flex items-center justify-center">
-                  <img :src="siteForm.searchBgImage" alt="搜索背景图" class="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    class="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white text-xs hover:bg-black/80 transition-colors cursor-pointer"
-                    title="清除背景图"
-                    @click="clearCustomBg"
-                  >
-                    <X class="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">站点名称</label>
-              <Input v-model="siteForm.siteName" placeholder="ZenLink" />
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">站点描述</label>
-              <Input v-model="siteForm.siteDesc" placeholder="干净简洁的导航！" />
-            </div>
-
-            <!-- 网站 Logo -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">网站图标与站标 (Logo / Favicon)</label>
-              <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-md bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
-                    <img v-if="siteForm.siteLogo" :src="siteForm.siteLogo" alt="Logo" class="w-full h-full object-cover" />
-                    <span v-else class="font-bold text-sm text-foreground">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
-                    <button
-                      v-if="siteForm.siteLogo"
-                      type="button"
-                      class="absolute inset-0 bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
-                      title="清除"
-                      @click="clearCustomLogo"
+              <!-- 3. 启用模型 -->
+              <div class="space-y-2 p-3 rounded-md bg-muted/40 border border-border/70">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-xs text-foreground">启用模型列表</span>
+                  <div class="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="h-6 px-2 text-[11px] font-medium gap-1"
+                      :disabled="fetchingModels"
+                      @click="fetchOnlineModels"
                     >
-                      <Trash2 class="h-4 w-4" />
-                    </button>
+                      <Loader2 v-if="fetchingModels" class="h-3 w-3 animate-spin text-primary" />
+                      <RotateCw v-else class="h-3 w-3 text-muted-foreground" />
+                      <span>{{ fetchingModels ? '获取中...' : '获取' }}</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="h-6 px-2 text-[11px] font-medium"
+                      @click="selectAllModels"
+                    >
+                      全选
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="h-6 px-2 text-[11px] font-medium"
+                      @click="clearAllModels"
+                    >
+                      清空
+                    </Button>
                   </div>
+                </div>
 
-                  <div class="flex-1 space-y-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <Input
-                        v-model="siteForm.siteLogo"
-                        placeholder="输入图片 URL 或点击右侧上传..."
-                        class="flex-1"
-                        @input="siteStore.setSiteLogo(siteForm.siteLogo)"
-                      />
+                <!-- 模型芯片网格 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto p-1">
+                  <div v-if="allFetchedModels.length === 0" class="text-xs text-muted-foreground py-2 col-span-full text-center">
+                    暂无模型，可点击上方「获取」或在下方输入名称添加
+                  </div>
+                  <div
+                    v-for="m in allFetchedModels"
+                    :key="m"
+                    class="flex items-center justify-between px-2.5 py-1.5 rounded-md border transition-colors cursor-pointer"
+                    :class="[
+                      (aiSettings.available_models || []).includes(m)
+                        ? 'bg-muted border-primary/40 text-foreground font-medium'
+                        : 'bg-card border-border text-muted-foreground hover:border-border/80'
+                    ]"
+                    @click="toggleModelCheck(m)"
+                  >
+                    <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
+                      <CheckCircle2 v-if="(aiSettings.available_models || []).includes(m)" class="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                      <Circle v-else class="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span class="text-xs truncate">{{ m }}</span>
+                    </div>
+
+                    <div class="flex items-center gap-1 flex-shrink-0">
                       <button
                         type="button"
-                        class="h-9 px-2.5 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer flex-shrink-0"
-                        :disabled="uploadingLogo"
-                        @click="logoUploadInputRef?.click()"
+                        class="w-5 h-5 rounded flex items-center justify-center transition-colors cursor-pointer"
+                        :class="aiSettings.model === m ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground'"
+                        @click.stop="setDefaultModel(m)"
+                        :title="aiSettings.model === m ? '当前默认模型' : '点击设为默认模型'"
                       >
-                        <Loader2 v-if="uploadingLogo" class="h-3 w-3 animate-spin text-primary" />
-                        <Upload v-else class="h-3 w-3 text-muted-foreground" />
-                        <span>{{ uploadingLogo ? '上传中...' : '上传' }}</span>
+                        <Star class="h-3.5 w-3.5" :class="aiSettings.model === m ? 'fill-amber-500 text-amber-500' : ''" />
                       </button>
-                      <input ref="logoUploadInputRef" type="file" accept="image/*" hidden @change="handleLogoUpload" />
-                    </div>
-                    <p class="text-[11px] text-muted-foreground m-0">支持 PNG/SVG/ICO/JPG 格式</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">默认搜索引擎</label>
-              <select
-                v-model="siteForm.defaultEngine"
-                class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="google">Google</option>
-                <option value="bing">Bing</option>
-                <option value="duckduckgo">DuckDuckGo</option>
-              </select>
-            </div>
-
-            <!-- 功能模块开关 -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-medium text-foreground/90">功能模块开关</label>
-              <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <div class="text-xs font-semibold text-foreground">开启 AI 助手</div>
-                    <div class="text-[11px] text-muted-foreground">开启后可在侧边栏使用 AI 助手</div>
-                  </div>
-                  <Switch :checked="siteForm.enableAi" @update:checked="siteForm.enableAi = $event" />
-                </div>
-
-                <div class="border-t border-border/60 pt-2 flex items-center justify-between">
-                  <div>
-                    <div class="text-xs font-semibold text-foreground">开启在线笔记</div>
-                    <div class="text-[11px] text-muted-foreground">开启后可在侧边栏使用在线笔记</div>
-                  </div>
-                  <Switch :checked="siteForm.enableNotes" @update:checked="siteForm.enableNotes = $event" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="pt-3 border-t border-border flex justify-end">
-            <button
-              type="button"
-              class="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs transition-colors cursor-pointer flex items-center gap-1"
-              @click="saveSiteSettings"
-            >
-              <Check class="h-3.5 w-3.5" />
-              <span>保存设置</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 存储驱动 -->
-        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle space-y-3">
-          <h3 class="text-sm font-semibold text-foreground m-0">附件存储驱动设置</h3>
-
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-semibold text-foreground/90 mb-1.5">当前存储位置</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div
-                  class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
-                  :class="storageSettings.storage_type === 'local' ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'"
-                  @click="storageSettings.storage_type = 'local'"
-                >
-                  <div class="flex items-center gap-2">
-                    <FolderOpen class="h-5 w-5 text-primary" />
-                    <div>
-                      <div class="text-xs font-semibold text-foreground">本地服务器存储 (Local)</div>
-                      <div class="text-[11px] text-muted-foreground">文件保存在 data/uploads 目录</div>
+                      <button
+                        type="button"
+                        class="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                        @click.stop="removeModel(m)"
+                        title="删除此模型"
+                      >
+                        <X class="h-3 w-3" />
+                      </button>
                     </div>
                   </div>
-                  <Check v-if="storageSettings.storage_type === 'local'" class="h-4 w-4 text-primary" />
                 </div>
 
-                <div
-                  class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
-                  :class="storageSettings.storage_type === 'r2' ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'"
-                  @click="storageSettings.storage_type = 'r2'"
-                >
-                  <div class="flex items-center gap-2">
-                    <Cloud class="h-5 w-5 text-primary" />
-                    <div>
-                      <div class="text-xs font-semibold text-foreground">Cloudflare R2 对象存储</div>
-                      <div class="text-[11px] text-muted-foreground">全球 CDN 直链加速</div>
-                    </div>
-                  </div>
-                  <Check v-if="storageSettings.storage_type === 'r2'" class="h-4 w-4 text-primary" />
+                <!-- 手动添加模型 -->
+                <div class="flex items-center gap-2 mt-1">
+                  <Input
+                    v-model="customModelName"
+                    placeholder="手动添加模型名称 (如 qwen-plus)"
+                    class="h-8 text-xs"
+                    @keyup.enter="addCustomModel"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    class="h-8 px-2.5 text-xs font-medium gap-1 shrink-0"
+                    @click="addCustomModel"
+                  >
+                    <Plus class="h-3.5 w-3.5" />
+                    <span>添加</span>
+                  </Button>
                 </div>
               </div>
-            </div>
 
-            <!-- R2 参数 -->
-            <div v-if="storageSettings.storage_type === 'r2'" class="space-y-3 p-3.5 rounded-md border border-border bg-muted/30">
-              <div class="flex items-center justify-between pb-2 border-b border-border/60">
-                <span class="text-xs font-semibold text-foreground">Cloudflare R2 凭据配置</span>
-                <button
-                  type="button"
-                  class="h-6 px-2 rounded border border-border bg-card text-[11px] font-medium text-foreground/90 hover:bg-accent transition-colors cursor-pointer flex items-center gap-1"
-                  :disabled="testingR2"
-                  @click="testR2"
-                >
-                  <Loader2 v-if="testingR2" class="h-3 w-3 animate-spin text-primary" />
-                  <Network v-else class="h-3 w-3 text-muted-foreground" />
-                  <span>{{ testingR2 ? '测试中...' : '测试连接' }}</span>
-                </button>
+              <!-- 专属模型 -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-foreground/90">在线笔记写作专属模型</label>
+                  <select
+                    v-model="aiSettings.writing_model"
+                    class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">跟随全局默认</option>
+                    <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
+                  </select>
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-foreground/90">导航书签解析专属模型</label>
+                  <select
+                    v-model="aiSettings.bookmark_model"
+                    class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">跟随全局默认</option>
+                    <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
+                  </select>
+                </div>
               </div>
 
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">Cloudflare Account ID</label>
-                <Input v-model="storageSettings.r2_account_id" placeholder="例如：a1b2c3d4e5f6..." />
+              <!-- 深度思考开关 -->
+              <div class="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30">
+                <div>
+                  <div class="text-xs font-semibold text-foreground">深度思考 (Reasoning CoT)</div>
+                  <div class="text-[11px] text-muted-foreground">开启后大模型将展开深入步骤思考</div>
+                </div>
+                <Switch :checked="aiSettings.reasoning_mode" @update:checked="aiSettings.reasoning_mode = $event" />
               </div>
 
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">R2 存储桶名称 (Bucket Name)</label>
-                <Input v-model="storageSettings.r2_bucket_name" placeholder="例如：zenlink-notes" />
-              </div>
-
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">Access Key ID</label>
-                <Input v-model="storageSettings.r2_access_key_id" placeholder="R2 Access Key ID" />
-              </div>
-
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">Secret Access Key</label>
-                <Input
-                  v-model="storageSettings.r2_secret_access_key"
-                  type="password"
-                  :placeholder="storageSettings.r2_secret_access_key_masked ? `已配置 (${storageSettings.r2_secret_access_key_masked})，输入新密钥可覆盖` : 'R2 Secret Access Key'"
+              <!-- 采样温度 -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-medium text-muted-foreground">
+                    采样温度 (Temperature): <span class="font-mono font-semibold text-foreground">{{ aiSettings.temperature }}</span>
+                  </label>
+                  <span class="text-[11px] text-muted-foreground">
+                    {{ aiSettings.temperature < 0.4 ? '严谨精准' : aiSettings.temperature > 1.0 ? '创意发散' : '通用平衡' }}
+                  </span>
+                </div>
+                <Slider
+                  :model-value="[aiSettings.temperature]"
+                  :min="0"
+                  :max="2"
+                  :step="0.05"
+                  @update:model-value="aiSettings.temperature = $event?.[0] ?? 0.7"
                 />
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">公开访问域名 / 自定义 CDN 域名 (可选)</label>
-                <Input v-model="storageSettings.r2_public_domain" placeholder="https://pub-xxxx.r2.dev 或 https://cdn.yourdomain.com" />
               </div>
-            </div>
-          </div>
 
-          <div class="flex items-center justify-between pt-3 border-t border-border">
-            <span class="text-xs text-muted-foreground">当前存储驱动：<strong class="text-foreground/90 font-semibold">{{ storageSettings.storage_type === 'r2' ? 'Cloudflare R2' : '本地服务器' }}</strong></span>
-            <button
-              type="button"
-              class="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shadow-xs transition-colors cursor-pointer flex items-center gap-1"
-              :disabled="savingStorage"
-              @click="saveStorage"
-            >
-              <Loader2 v-if="savingStorage" class="h-3.5 w-3.5 animate-spin" />
-              <Check v-else class="h-3.5 w-3.5" />
-              <span>{{ savingStorage ? '保存中...' : '保存存储设置' }}</span>
-            </button>
-          </div>
-        </div>
+              <!-- Top-P -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="text-xs font-medium text-muted-foreground">
+                    核采样 (Top-P): <span class="font-mono font-semibold text-foreground">{{ aiSettings.top_p }}</span>
+                  </label>
+                </div>
+                <Slider
+                  :model-value="[aiSettings.top_p]"
+                  :min="0.1"
+                  :max="1"
+                  :step="0.05"
+                  @update:model-value="aiSettings.top_p = $event?.[0] ?? 0.95"
+                />
+              </div>
 
-        <!-- 数据备份 -->
-        <div class="bg-card border border-border rounded-lg p-4 sm:p-5 shadow-subtle">
-          <h3 class="text-sm font-semibold text-foreground m-0 mb-3">数据备份与导入</h3>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              class="h-7 px-3 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-              @click="exportBookmarks"
-            >
-              <Download class="h-3.5 w-3.5" />
-              <span>导出 JSON</span>
-            </button>
-            <button
-              type="button"
-              class="h-7 px-3 rounded-md border border-border bg-card hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-              @click="importInputRef?.click()"
-            >
-              <Upload class="h-3.5 w-3.5" />
-              <span>导入 (HTML / JSON)</span>
-            </button>
-            <input ref="importInputRef" type="file" accept=".json,.html,.htm" hidden @change="handleImportBookmarks" />
-          </div>
-        </div>
-      </div>
+              <!-- Max Tokens -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">单次最大生成 Token 数 (Max Tokens)</label>
+                <Input v-model.number="aiSettings.max_tokens" type="number" :min="256" :max="16384" :step="512" class="w-full" />
+              </div>
+
+              <!-- 全局系统提示词 -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">全局系统提示词 (System Prompt)</label>
+                <Textarea
+                  v-model="aiSettings.system_prompt"
+                  :rows="3"
+                  placeholder="设置 AI 助手的全局角色定位与回复规范"
+                />
+              </div>
+            </CardContent>
+
+            <CardFooter class="border-t pt-3 flex items-center justify-between">
+              <span class="text-xs text-muted-foreground">当前默认模型：<strong class="text-foreground font-semibold">{{ aiSettings.model || '未设定' }}</strong></span>
+              <Button
+                size="sm"
+                class="gap-1.5"
+                :disabled="savingAiSettings"
+                @click="saveAdminAiSettings"
+              >
+                <Loader2 v-if="savingAiSettings" class="h-3.5 w-3.5 animate-spin" />
+                <span>{{ savingAiSettings ? '保存中...' : '保存配置' }}</span>
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <!-- Tab 4：安全中心 -->
+        <TabsContent value="security" class="space-y-4 mt-0">
+          <!-- 1. 账户卡片 -->
+          <Card>
+            <CardHeader class="pb-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <CardTitle class="text-sm font-semibold">账户与登录密码</CardTitle>
+                  <CardDescription class="text-xs mt-0.5">
+                    当前账户: <strong class="text-foreground font-semibold">{{ authStore.user?.username }}</strong>
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-8 gap-1.5 text-xs font-medium"
+                  @click="openAccountDialog"
+                >
+                  <Pencil class="h-3.5 w-3.5" />
+                  <span>修改用户名与密码</span>
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <!-- 2. 多重身份认证卡片 -->
+          <Card>
+            <CardHeader class="pb-3">
+              <CardTitle class="text-sm font-semibold flex items-center gap-2">
+                <ShieldCheck class="h-4 w-4 text-primary" />
+                <span>多重身份认证 (MFA)</span>
+              </CardTitle>
+              <CardDescription class="text-xs">
+                通过 TOTP 动态口令及 WebAuthn / Passkey 保护系统免受未授权访问
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent class="space-y-4">
+              <!-- 上部：两步验证 (TOTP) -->
+              <div class="flex justify-between items-center pb-3 border-b border-border/60">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-foreground">两步验证 (TOTP)</span>
+                    <Badge
+                      :variant="authStore.user?.totp_enabled ? 'default' : 'secondary'"
+                      class="text-[10px] px-1.5 py-0"
+                    >
+                      {{ authStore.user?.totp_enabled ? '已启用' : '未启用' }}
+                    </Badge>
+                  </div>
+                  <p class="text-xs text-muted-foreground mt-0.5">基于 Google Authenticator、1Password 等动态验证码应用</p>
+                </div>
+                <Button
+                  v-if="!authStore.user?.totp_enabled"
+                  size="sm"
+                  class="h-8 gap-1 text-xs"
+                  :disabled="settingUpTotp"
+                  @click="startTotpSetup"
+                >
+                  <Lock class="h-3.5 w-3.5" />
+                  <span>配置 2FA</span>
+                </Button>
+              </div>
+
+              <!-- TOTP 配置中区域 -->
+              <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3 border-b border-border/60">
+                <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md" /></div>
+                <p class="text-[11px] text-muted-foreground text-center break-all font-mono">{{ totpSetup.secret }}</p>
+                <div class="flex gap-2 max-w-sm mx-auto">
+                  <Input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" class="flex-1 h-8 text-xs" />
+                  <Button size="sm" class="h-8 text-xs" @click="confirmTotp">确认绑定</Button>
+                </div>
+              </div>
+
+              <!-- 下部：Passkey 免密登录 -->
+              <div class="flex justify-between items-center">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-foreground">Passkey 免密登录</span>
+                    <Badge
+                      :variant="authStore.user?.webauthn_enabled ? 'default' : 'secondary'"
+                      class="text-[10px] px-1.5 py-0"
+                    >
+                      {{ authStore.user?.webauthn_enabled ? '已绑定' : '未绑定' }}
+                    </Badge>
+                  </div>
+                  <p class="text-xs text-muted-foreground mt-0.5">指纹 / Face ID / Windows Hello 硬件免密</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-8 gap-1.5 text-xs font-medium"
+                  :disabled="registeringPasskey"
+                  @click="registerPasskey"
+                >
+                  <Key class="h-3.5 w-3.5" />
+                  <span>绑定 Passkey</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <!-- Tab 5：站点设置 -->
+        <TabsContent value="site" class="space-y-4 mt-0">
+          <Card>
+            <CardHeader class="pb-3">
+              <CardTitle class="text-sm font-semibold flex items-center gap-2">
+                <Settings class="h-4 w-4 text-primary" />
+                <span>站点设置与外观定制</span>
+              </CardTitle>
+              <CardDescription class="text-xs">
+                自定义站点名称、主题色系、主页背景及搜索引擎
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent class="space-y-4">
+              <!-- 1. 外观深浅模式 -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">外观主题</label>
+                <div class="inline-flex rounded-lg border border-border bg-muted/80 p-1">
+                  <button
+                    type="button"
+                    class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
+                    :class="themeStore.mode === 'system' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
+                    @click="themeStore.setMode('system')"
+                  >
+                    跟随系统
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
+                    :class="themeStore.mode === 'light' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
+                    @click="themeStore.setMode('light')"
+                  >
+                    日间浅色
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer"
+                    :class="themeStore.mode === 'dark' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground'"
+                    @click="themeStore.setMode('dark')"
+                  >
+                    夜间深色
+                  </button>
+                </div>
+              </div>
+
+              <!-- 2. 主品牌色 -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">系统主品牌色 (实时生效)</label>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <button
+                    v-for="p in colorPresets"
+                    :key="p.color"
+                    type="button"
+                    class="group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border/80 bg-card hover:bg-accent/60 transition-all cursor-pointer text-xs"
+                    :class="{ 'border-primary ring-2 ring-primary/20 font-semibold text-foreground': siteForm.themePrimaryColor === p.color }"
+                    @click="selectThemeColor(p.color)"
+                  >
+                    <span class="w-3 h-3 rounded-full shrink-0 shadow-xs" :style="{ backgroundColor: p.color }"></span>
+                    <span class="text-[11px]">{{ p.name }}</span>
+                    <Check v-if="siteForm.themePrimaryColor === p.color" class="h-3 w-3 text-primary shrink-0" />
+                  </button>
+
+                  <div class="flex items-center gap-2 ml-1">
+                    <input
+                      type="color"
+                      :value="siteForm.themePrimaryColor"
+                      class="w-7 h-7 rounded border border-border cursor-pointer bg-transparent"
+                      @input="siteStore.setThemePrimaryColor(($event.target as HTMLInputElement).value)"
+                    />
+                    <span class="text-xs font-mono text-muted-foreground">{{ siteForm.themePrimaryColor }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. 搜索背景图 -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">导航主页搜索组件背景图</label>
+                <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
+                  <div class="flex items-center gap-2">
+                    <Input
+                      v-model="siteForm.searchBgImage"
+                      placeholder="输入背景图片 URL 或点击右侧上传..."
+                      class="flex-1"
+                      @input="siteStore.searchBgImage = siteForm.searchBgImage"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="h-9 px-2.5 text-xs gap-1 shrink-0"
+                      :disabled="uploadingBg"
+                      @click="bgUploadInputRef?.click()"
+                    >
+                      <Loader2 v-if="uploadingBg" class="h-3 w-3 animate-spin text-primary" />
+                      <Upload v-else class="h-3 w-3 text-muted-foreground" />
+                      <span>{{ uploadingBg ? '上传中...' : '上传图片' }}</span>
+                    </Button>
+                    <input ref="bgUploadInputRef" type="file" accept="image/*" hidden @change="handleBgUpload" />
+                  </div>
+
+                  <div v-if="siteForm.searchBgImage" class="relative rounded-md overflow-hidden border border-border h-24 flex items-center justify-center">
+                    <img :src="siteForm.searchBgImage" alt="搜索背景图" class="w-full h-full object-cover" />
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      class="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 text-white hover:bg-black/80"
+                      title="清除背景图"
+                      @click="clearCustomBg"
+                    >
+                      <X class="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">站点名称</label>
+                <Input v-model="siteForm.siteName" placeholder="ZenLink" />
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">站点描述</label>
+                <Input v-model="siteForm.siteDesc" placeholder="干净简洁的导航！" />
+              </div>
+
+              <!-- 网站 Logo -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">网站图标与站标 (Logo / Favicon)</label>
+                <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-md bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
+                      <img v-if="siteForm.siteLogo" :src="siteForm.siteLogo" alt="Logo" class="w-full h-full object-cover" />
+                      <span v-else class="font-bold text-sm text-foreground">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
+                      <button
+                        v-if="siteForm.siteLogo"
+                        type="button"
+                        class="absolute inset-0 bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                        title="清除"
+                        @click="clearCustomLogo"
+                      >
+                        <Trash2 class="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div class="flex-1 space-y-1 min-w-0">
+                      <div class="flex items-center gap-2">
+                        <Input
+                          v-model="siteForm.siteLogo"
+                          placeholder="输入图片 URL 或点击右侧上传..."
+                          class="flex-1"
+                          @input="siteStore.setSiteLogo(siteForm.siteLogo)"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="h-9 px-2.5 text-xs gap-1 shrink-0"
+                          :disabled="uploadingLogo"
+                          @click="logoUploadInputRef?.click()"
+                        >
+                          <Loader2 v-if="uploadingLogo" class="h-3 w-3 animate-spin text-primary" />
+                          <Upload v-else class="h-3 w-3 text-muted-foreground" />
+                          <span>{{ uploadingLogo ? '上传中...' : '上传' }}</span>
+                        </Button>
+                        <input ref="logoUploadInputRef" type="file" accept="image/*" hidden @change="handleLogoUpload" />
+                      </div>
+                      <p class="text-[11px] text-muted-foreground m-0">支持 PNG/SVG/ICO/JPG 格式</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">默认搜索引擎</label>
+                <select
+                  v-model="siteForm.defaultEngine"
+                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="google">Google</option>
+                  <option value="bing">Bing</option>
+                  <option value="duckduckgo">DuckDuckGo</option>
+                </select>
+              </div>
+
+              <!-- 功能模块开关 -->
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground/90">功能模块开关</label>
+                <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-foreground">开启 AI 助手</div>
+                      <div class="text-[11px] text-muted-foreground">开启后可在侧边栏使用 AI 助手</div>
+                    </div>
+                    <Switch :checked="siteForm.enableAi" @update:checked="siteForm.enableAi = $event" />
+                  </div>
+
+                  <div class="border-t border-border/60 pt-2 flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-foreground">开启在线笔记</div>
+                      <div class="text-[11px] text-muted-foreground">开启后可在侧边栏使用在线笔记</div>
+                    </div>
+                    <Switch :checked="siteForm.enableNotes" @update:checked="siteForm.enableNotes = $event" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+
+            <CardFooter class="border-t pt-3 flex justify-end">
+              <Button
+                size="sm"
+                class="gap-1.5"
+                @click="saveSiteSettings"
+              >
+                <Check class="h-3.5 w-3.5" />
+                <span>保存设置</span>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <!-- 存储驱动 -->
+          <Card>
+            <CardHeader class="pb-3">
+              <CardTitle class="text-sm font-semibold flex items-center gap-2">
+                <Cloud class="h-4 w-4 text-primary" />
+                <span>附件存储驱动设置</span>
+              </CardTitle>
+              <CardDescription class="text-xs">
+                配置文件与在线笔记附件的持久化存储驱动
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent class="space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-foreground/90 mb-1.5">当前存储位置</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div
+                    class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
+                    :class="storageSettings.storage_type === 'local' ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'"
+                    @click="storageSettings.storage_type = 'local'"
+                  >
+                    <div class="flex items-center gap-2">
+                      <FolderOpen class="h-5 w-5 text-primary" />
+                      <div>
+                        <div class="text-xs font-semibold text-foreground">本地服务器存储 (Local)</div>
+                        <div class="text-[11px] text-muted-foreground">文件保存在 data/uploads 目录</div>
+                      </div>
+                    </div>
+                    <Check v-if="storageSettings.storage_type === 'local'" class="h-4 w-4 text-primary" />
+                  </div>
+
+                  <div
+                    class="p-3 rounded-md border cursor-pointer transition-colors flex items-center justify-between"
+                    :class="storageSettings.storage_type === 'r2' ? 'border-primary bg-primary/10' : 'border-border bg-muted/30'"
+                    @click="storageSettings.storage_type = 'r2'"
+                  >
+                    <div class="flex items-center gap-2">
+                      <Cloud class="h-5 w-5 text-primary" />
+                      <div>
+                        <div class="text-xs font-semibold text-foreground">Cloudflare R2 对象存储</div>
+                        <div class="text-[11px] text-muted-foreground">全球 CDN 直链加速</div>
+                      </div>
+                    </div>
+                    <Check v-if="storageSettings.storage_type === 'r2'" class="h-4 w-4 text-primary" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- R2 参数 -->
+              <div v-if="storageSettings.storage_type === 'r2'" class="space-y-3 p-3.5 rounded-md border border-border bg-muted/30">
+                <div class="flex items-center justify-between pb-2 border-b border-border/60">
+                  <span class="text-xs font-semibold text-foreground">Cloudflare R2 凭据配置</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-6 px-2 text-[11px] font-medium gap-1"
+                    :disabled="testingR2"
+                    @click="testR2"
+                  >
+                    <Loader2 v-if="testingR2" class="h-3 w-3 animate-spin text-primary" />
+                    <Network v-else class="h-3 w-3 text-muted-foreground" />
+                    <span>{{ testingR2 ? '测试中...' : '测试连接' }}</span>
+                  </Button>
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-foreground/90">Cloudflare Account ID</label>
+                  <Input v-model="storageSettings.r2_account_id" placeholder="例如：a1b2c3d4e5f6..." />
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-foreground/90">R2 存储桶名称 (Bucket Name)</label>
+                  <Input v-model="storageSettings.r2_bucket_name" placeholder="例如：zenlink-notes" />
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-foreground/90">Access Key ID</label>
+                  <Input v-model="storageSettings.r2_access_key_id" placeholder="R2 Access Key ID" />
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-foreground/90">Secret Access Key</label>
+                  <Input
+                    v-model="storageSettings.r2_secret_access_key"
+                    type="password"
+                    :placeholder="storageSettings.r2_secret_access_key_masked ? `已配置 (${storageSettings.r2_secret_access_key_masked})，输入新密钥可覆盖` : 'R2 Secret Access Key'"
+                  />
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-foreground/90">公开访问域名 / 自定义 CDN 域名 (可选)</label>
+                  <Input v-model="storageSettings.r2_public_domain" placeholder="https://pub-xxxx.r2.dev 或 https://cdn.yourdomain.com" />
+                </div>
+              </div>
+            </CardContent>
+
+            <CardFooter class="border-t pt-3 flex items-center justify-between">
+              <span class="text-xs text-muted-foreground">当前存储驱动：<strong class="text-foreground font-semibold">{{ storageSettings.storage_type === 'r2' ? 'Cloudflare R2' : '本地服务器' }}</strong></span>
+              <Button
+                size="sm"
+                class="gap-1.5"
+                :disabled="savingStorage"
+                @click="saveStorage"
+              >
+                <Loader2 v-if="savingStorage" class="h-3.5 w-3.5 animate-spin" />
+                <Check v-else class="h-3.5 w-3.5" />
+                <span>{{ savingStorage ? '保存中...' : '保存存储设置' }}</span>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <!-- 数据备份 -->
+          <Card>
+            <CardHeader class="pb-3">
+              <CardTitle class="text-sm font-semibold flex items-center gap-2">
+                <Download class="h-4 w-4 text-primary" />
+                <span>数据备份与导入</span>
+              </CardTitle>
+              <CardDescription class="text-xs">
+                导出系统完整数据备份，或从浏览器书签导入
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-8 gap-1.5 text-xs font-medium"
+                  @click="exportBookmarks"
+                >
+                  <Download class="h-3.5 w-3.5" />
+                  <span>导出 JSON</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-8 gap-1.5 text-xs font-medium"
+                  @click="importInputRef?.click()"
+                >
+                  <Upload class="h-3.5 w-3.5" />
+                  <span>导入 (HTML / JSON)</span>
+                </Button>
+                <input ref="importInputRef" type="file" accept=".json,.html,.htm" hidden @change="handleImportBookmarks" />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
 
     <!-- 对话框：账户安全 -->
@@ -2093,6 +2187,5 @@ onMounted(() => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </div>
   </div>
 </template>

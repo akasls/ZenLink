@@ -21,6 +21,8 @@ import {
   Sun,
   Moon,
 } from 'lucide-vue-next';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const siteStore = useSiteStore();
 const themeStore = useThemeStore();
@@ -206,36 +208,37 @@ function handleToggleCollapse() {
     </div>
 
     <!-- 网址分类导航列表 -->
-    <nav class="flex-1 overflow-y-auto px-1.5 py-2 space-y-0.5">
-      <template v-for="cat in topCats" :key="cat.id">
-        <!-- 1. 折叠状态且存在二级分类：悬浮展示二级弹层 -->
-        <Popover v-if="collapsed && !isMobile && getSubCats(cat.id).length > 0">
-          <PopoverTrigger as-child>
-            <button
-              class="w-full h-8 rounded-md flex items-center justify-center transition-all group relative cursor-pointer"
-              :class="[
-                selectedCategoryId === cat.id && currentView === 'home'
-                  ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
-              ]"
-              @click="handleSelectCategory(cat.id)"
-            >
-              <component :is="mapIcon(cat?.icon)" class="h-4 w-4" />
-            </button>
-          </PopoverTrigger>
-
-          <PopoverContent side="right" align="start" class="w-40 p-1.5 shadow-lg">
-            <div class="flex flex-col gap-0.5">
-              <div
-                class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-semibold hover:bg-accent cursor-pointer transition-colors"
-                :class="selectedCategoryId === cat.id && currentView === 'home' ? 'text-primary' : 'text-foreground'"
+    <ScrollArea class="flex-1 px-1.5 py-2">
+      <div class="space-y-0.5">
+        <template v-for="cat in topCats" :key="cat.id">
+          <!-- 1. 折叠状态且存在二级分类：悬浮展示二级弹层 -->
+          <Popover v-if="collapsed && !isMobile && getSubCats(cat.id).length > 0">
+            <PopoverTrigger as-child>
+              <button
+                class="w-full h-8 rounded-md flex items-center justify-center transition-all group relative cursor-pointer"
+                :class="[
+                  selectedCategoryId === cat.id && currentView === 'home'
+                    ? 'bg-primary/10 text-primary font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/70',
+                ]"
                 @click="handleSelectCategory(cat.id)"
-                title="跳转至该分类"
               >
-                <component :is="mapIcon(cat?.icon)" class="h-3.5 w-3.5" />
-                <span>{{ cat.name }}</span>
-              </div>
-              <div class="h-px bg-border my-1"></div>
+                <component :is="mapIcon(cat?.icon)" class="h-4 w-4" />
+              </button>
+            </PopoverTrigger>
+
+            <PopoverContent side="right" align="start" class="w-40 p-1.5 shadow-lg">
+              <div class="flex flex-col gap-0.5">
+                <div
+                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-semibold hover:bg-accent cursor-pointer transition-colors"
+                  :class="selectedCategoryId === cat.id && currentView === 'home' ? 'text-primary' : 'text-foreground'"
+                  @click="handleSelectCategory(cat.id)"
+                  title="跳转至该分类"
+                >
+                  <component :is="mapIcon(cat?.icon)" class="h-3.5 w-3.5" />
+                  <span>{{ cat.name }}</span>
+                </div>
+                <Separator class="my-1" />
               <div class="flex flex-col gap-0.5 max-h-56 overflow-y-auto">
                 <div
                   v-for="sub in getSubCats(cat.id)"
@@ -284,8 +287,9 @@ function handleToggleCollapse() {
             {{ cat.name }}
           </TooltipContent>
         </Tooltip>
-      </template>
-    </nav>
+        </template>
+      </div>
+    </ScrollArea>
 
     <!-- 底部上方的扩展应用 (AI对话 / 在线笔记) -->
     <div v-if="siteStore.enableAi || siteStore.enableNotes" class="p-1.5 border-t border-border space-y-0.5 shrink-0">

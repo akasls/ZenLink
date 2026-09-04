@@ -15,6 +15,8 @@ import {
   Settings,
   User,
 } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 defineProps<{
   currentView: 'home' | 'admin' | 'notes' | 'ai';
@@ -82,22 +84,20 @@ onMounted(() => {
       </div>
 
       <!-- 中间：核心应用切换器 (桌面端) -->
-      <div class="hidden md:flex items-center gap-1 p-0.5 rounded-lg bg-muted/70 border border-border/70">
-        <button
-          v-for="tab in appTabs"
-          :key="tab.id"
-          type="button"
-          class="px-2.5 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 cursor-pointer"
-          :class="[
-            currentView === tab.id
-              ? 'bg-background text-primary font-semibold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
-          ]"
-          @click="switchApp(tab)"
-        >
-          <component :is="tab.icon" class="h-3.5 w-3.5" />
-          <span>{{ tab.name }}</span>
-        </button>
+      <div class="hidden md:flex items-center">
+        <Tabs :model-value="currentView" @update:model-value="v => switchApp(appTabs.find(t => t.id === v)!)">
+          <TabsList class="h-8">
+            <TabsTrigger
+              v-for="tab in appTabs"
+              :key="tab.id"
+              :value="tab.id"
+              class="gap-1.5 h-7 px-3 text-xs"
+            >
+              <component :is="tab.icon" class="h-3.5 w-3.5" />
+              <span>{{ tab.name }}</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <!-- 右侧：每日一言 + 主题 + 系统设置/登录 -->
@@ -108,35 +108,38 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-1">
-          <button
-            type="button"
-            class="w-7 h-7 rounded-md border border-border/80 bg-card/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:border-border transition-colors cursor-pointer"
+          <Button
+            variant="outline"
+            size="icon-sm"
+            class="h-7 w-7 rounded-md"
             @click="themeStore.toggle()"
             :title="themeStore.isDark ? '浅色模式' : '深色模式'"
           >
             <Sun v-if="themeStore.isDark" class="h-3.5 w-3.5" />
             <Moon v-else class="h-3.5 w-3.5" />
-          </button>
+          </Button>
 
-          <button
+          <Button
             v-if="authStore.isLoggedIn"
-            type="button"
-            class="w-7 h-7 rounded-md border border-border/80 bg-card/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:border-border transition-colors cursor-pointer"
+            variant="outline"
+            size="icon-sm"
+            class="h-7 w-7 rounded-md"
             @click="router.push('/admin')"
             title="系统设置"
           >
             <Settings class="h-3.5 w-3.5" />
-          </button>
+          </Button>
 
-          <button
+          <Button
             v-else
-            type="button"
-            class="w-7 h-7 rounded-md border border-border/80 bg-card/60 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent hover:border-border transition-colors cursor-pointer"
+            variant="outline"
+            size="icon-sm"
+            class="h-7 w-7 rounded-md"
             @click="router.push('/login')"
             title="登录"
           >
             <User class="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

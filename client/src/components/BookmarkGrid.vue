@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import Sortable from 'sortablejs';
 import BookmarkCard, { type Bookmark } from './BookmarkCard.vue';
+import { Separator } from '@/components/ui/separator';
 import { Copy, Pencil, Trash2 } from 'lucide-vue-next';
 
 const props = defineProps<{ bookmarks: Bookmark[]; isLoggedIn: boolean; }>();
@@ -149,7 +150,7 @@ watch(() => props.bookmarks, () => nextTick(initSort), { deep: true });
         <span>编辑书签</span>
       </button>
 
-      <div class="h-px bg-border my-0.5"></div>
+      <Separator class="my-0.5" />
 
       <button
         type="button"

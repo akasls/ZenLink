@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { getAvatarChar, getAvatarColor } from '@/utils/avatar';
-import { Lock } from 'lucide-vue-next';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export interface Bookmark {
   id: number;
@@ -60,8 +61,8 @@ const tooltipText = computed(() => {
 </script>
 
 <template>
-  <div
-    class="group relative flex items-center gap-3 p-3 bg-card rounded-xl border border-border/80 hover:border-primary/50 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer select-none overflow-hidden h-[66px]"
+  <Card
+    class="group relative flex items-center gap-3 p-3 bg-card hover:border-primary/50 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer select-none overflow-hidden h-[66px]"
     :title="tooltipText"
     @click="emit('click', bookmark)"
     @contextmenu="emit('contextmenu', $event, bookmark)"
@@ -94,11 +95,11 @@ const tooltipText = computed(() => {
         <span class="text-xs font-semibold text-foreground/90 truncate group-hover:text-primary transition-colors leading-tight">
           {{ bookmark.title }}
         </span>
-        <Lock v-if="bookmark.is_private" class="h-3 w-3 text-amber-500/80 shrink-0" title="私有书签" />
+        <Badge v-if="bookmark.is_private" variant="outline" class="h-4 px-1 text-[9px] font-normal text-amber-600 dark:text-amber-400 border-amber-500/30 shrink-0">私有</Badge>
       </div>
       <div class="text-[11px] text-muted-foreground truncate leading-tight mt-1">
         {{ bookmark.description || bookmark.url }}
       </div>
     </div>
-  </div>
+  </Card>
 </template>
