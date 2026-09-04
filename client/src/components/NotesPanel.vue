@@ -48,7 +48,6 @@ import {
   Eye,
   Tag,
   Folder,
-  FolderOpen,
   Loader2,
   FileText,
   Share2,
@@ -298,6 +297,12 @@ function getCategoryName(catId?: number | null) {
   if (!catId) return '';
   const found = noteCategories.value.find(c => c.id === catId);
   return found ? found.name : '';
+}
+
+function getCategoryIcon(catId?: number | null) {
+  if (!catId) return '';
+  const found = noteCategories.value.find(c => c.id === catId);
+  return found?.icon || '';
 }
 
 async function loadCategories() {
@@ -1350,7 +1355,7 @@ function exportHtmlFile() {
 <style>
 body { max-width: 800px; margin: 40px auto; padding: 0 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.7; color: #333; }
 pre { background: #f6f8fa; padding: 12px; border-radius: 6px; overflow-x: auto; }
-blockquote { border-left: 4px solid var(--zl-primary); margin: 0; padding-left: 12px; color: #666; }
+blockquote { border-left: 4px solid #18181b; margin: 0; padding-left: 12px; color: #666; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ddd; padding: 8px 12px; }
 </style>
@@ -1585,7 +1590,7 @@ watch(
                     :class="{ 'bg-accent font-medium text-foreground': selectedNoteCategoryId === cat.id }"
                     @click="setNoteCategory(cat.id); isCategoryPopoverVisible = false;"
                   >
-                    <FolderOpen class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
+                    <component :is="mapIcon(cat.icon || '')" class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
                     <span class="truncate">{{ cat.name }}</span>
                   </div>
                 </div>
@@ -1731,7 +1736,7 @@ watch(
                   class="px-1.5 py-0 text-[10px] truncate hover:text-foreground cursor-pointer font-normal gap-0.5 border-border/70 shrink-0"
                   @click="filterByCategory(n.category_id!)"
                 >
-                  <Folder class="size-2.5 text-muted-foreground" />
+                  <component :is="mapIcon(getCategoryIcon(n.category_id))" class="size-2.5 text-muted-foreground" />
                   <span>{{ getCategoryName(n.category_id) }}</span>
                 </Badge>
                 <template v-if="n.tags && n.tags.length">

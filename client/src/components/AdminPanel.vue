@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
-import { useSiteStore, THEME_PRESETS } from '@/stores/site';
+import { useSiteStore } from '@/stores/site';
 import { authApi, bookmarkApi, categoryApi, aiApi, storageApi, noteApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
 import { confirmBox } from '@/utils/confirm';
@@ -791,8 +791,6 @@ const uploadingLogo = ref(false);
 const bgUploadInputRef = ref<HTMLInputElement | null>(null);
 const uploadingBg = ref(false);
 
-const colorPresets = THEME_PRESETS;
-
 const siteForm = ref({
   siteName: siteStore.siteName,
   siteDesc: siteStore.siteDesc,
@@ -800,19 +798,17 @@ const siteForm = ref({
   defaultEngine: siteStore.defaultEngine,
   searchBgMode: siteStore.searchBgMode || 'dynamic',
   searchBgImage: siteStore.searchBgImage || '',
-  themePrimaryColor: siteStore.themePrimaryColor || '#6366f1',
   enableAi: (siteStore as any).enableAi ?? true,
   enableNotes: (siteStore as any).enableNotes ?? true,
 });
 
-watch(() => [siteStore.siteName, siteStore.siteDesc, siteStore.siteLogo, siteStore.defaultEngine, siteStore.searchBgMode, siteStore.searchBgImage, siteStore.themePrimaryColor, (siteStore as any).enableAi, (siteStore as any).enableNotes], () => {
+watch(() => [siteStore.siteName, siteStore.siteDesc, siteStore.siteLogo, siteStore.defaultEngine, siteStore.searchBgMode, siteStore.searchBgImage, (siteStore as any).enableAi, (siteStore as any).enableNotes], () => {
   siteForm.value.siteName = siteStore.siteName;
   siteForm.value.siteDesc = siteStore.siteDesc;
   siteForm.value.siteLogo = siteStore.siteLogo || '';
   siteForm.value.defaultEngine = siteStore.defaultEngine;
   siteForm.value.searchBgMode = siteStore.searchBgMode || 'dynamic';
   siteForm.value.searchBgImage = siteStore.searchBgImage || '';
-  siteForm.value.themePrimaryColor = siteStore.themePrimaryColor || '#f1404b';
   siteForm.value.enableAi = (siteStore as any).enableAi ?? true;
   siteForm.value.enableNotes = (siteStore as any).enableNotes ?? true;
 }, { immediate: true });
@@ -841,11 +837,6 @@ function clearCustomLogo() {
   siteForm.value.siteLogo = '';
   siteStore.setSiteLogo('');
   toast.success('已恢复为默认首字母图标');
-}
-
-function selectThemeColor(color: string) {
-  siteForm.value.themePrimaryColor = color;
-  siteStore.setThemePrimaryColor(color);
 }
 
 async function handleBgUpload(e: Event) {
@@ -887,7 +878,6 @@ async function saveSiteSettings() {
       default_engine: siteForm.value.defaultEngine,
       search_bg_mode: siteForm.value.searchBgMode,
       search_bg_image: siteForm.value.searchBgImage,
-      theme_primary_color: siteForm.value.themePrimaryColor,
     });
     toast.success('站点设置已保存并即时生效');
   } catch {
@@ -1709,37 +1699,7 @@ onMounted(() => {
                 </Tabs>
               </div>
 
-              <!-- 2. 主品牌色 -->
-              <div class="space-y-1.5">
-                <label class="block text-xs font-medium text-foreground/90">系统主品牌色 (实时生效)</label>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <Button
-                    v-for="p in colorPresets"
-                    :key="p.color"
-                    variant="outline"
-                    size="sm"
-                    class="h-7 rounded-full gap-1.5 px-2.5 text-xs cursor-pointer"
-                    :class="{ 'border-primary ring-2 ring-primary/20 font-semibold text-foreground bg-accent/60': siteForm.themePrimaryColor === p.color }"
-                    @click="selectThemeColor(p.color)"
-                  >
-                    <span class="w-3 h-3 rounded-full shrink-0 shadow-xs" :style="{ backgroundColor: p.color }"></span>
-                    <span class="text-[11px]">{{ p.name }}</span>
-                    <Check v-if="siteForm.themePrimaryColor === p.color" class="h-3 w-3 text-primary shrink-0" />
-                  </Button>
-
-                  <div class="flex items-center gap-2 ml-1">
-                    <input
-                      type="color"
-                      :value="siteForm.themePrimaryColor"
-                      class="w-7 h-7 rounded border border-border cursor-pointer bg-transparent"
-                      @input="siteStore.setThemePrimaryColor(($event.target as HTMLInputElement).value)"
-                    />
-                    <span class="text-xs font-mono text-muted-foreground">{{ siteForm.themePrimaryColor }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 3. 搜索背景图 -->
+              <!-- 2. 搜索背景图 -->
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-foreground/90">导航主页搜索组件背景图</label>
                 <div class="space-y-2 p-3 rounded-md border border-border bg-muted/30 w-full">
