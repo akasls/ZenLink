@@ -44,7 +44,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
@@ -1425,8 +1424,7 @@ watch(
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="150">
-    <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
+  <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
       <!-- ==================== 1. 顶部控制栏 (无背景色) ==================== -->
       <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
         <!-- 场景 A：列表视图顶部 -->
@@ -2386,5 +2384,4 @@ watch(
       </Button>
     </div>
   </div>
-</TooltipProvider>
 </template>

@@ -30,7 +30,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
@@ -813,8 +812,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="150">
-    <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
+  <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
       <!-- 1. 顶部控制栏 (无背景色、无边框，极简透视) -->
       <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
         <!-- 左上角显示标题 -->
@@ -1340,5 +1338,4 @@ onUnmounted(() => {
         </DialogContent>
       </Dialog>
     </div>
-  </TooltipProvider>
 </template>

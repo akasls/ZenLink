@@ -651,7 +651,7 @@ async function handleDeleteCategory(cat: any) {
               <SidebarMenuButton
                 size="lg"
                 class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:mx-auto"
-                tooltip="账户与系统设置"
+                title="账户与系统设置"
               >
                 <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-muted border text-foreground font-bold text-sm shadow-xs overflow-hidden shrink-0">
                   <User class="size-4 text-muted-foreground" />
