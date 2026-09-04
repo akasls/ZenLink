@@ -42,6 +42,13 @@ const props = defineProps<{
   active?: boolean;
 }>();
 
+const emit = defineEmits<{
+  stateChange: [state: {
+    conversations: Conversation[];
+    activeConversationId: string | null;
+  }];
+}>();
+
 const authStore = useAuthStore();
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
@@ -212,6 +219,27 @@ function deleteCustomRole(roleId: string, e?: Event) {
 // 会话与消息状态
 const conversations = ref<Conversation[]>([]);
 const activeConversationId = ref<string>('');
+
+watch(
+  [conversations, activeConversationId],
+  () => {
+    emit('stateChange', {
+      conversations: conversations.value,
+      activeConversationId: activeConversationId.value,
+    });
+  },
+  { deep: true, immediate: true }
+);
+
+defineExpose({
+  conversations,
+  activeConversationId,
+  createNewConversation,
+  selectConversation,
+  deleteConversation,
+  loadConversations,
+});
+
 const messages = ref<Message[]>([]);
 const inputPrompt = ref('');
 const isStreaming = ref(false);
@@ -839,9 +867,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-h-[calc(100svh-3.5rem)] bg-background text-foreground selection:bg-primary/10">
+  <div class="flex-1 flex flex-col min-h-[calc(100svh-3.5rem)] w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
     <!-- 1. 顶栏 -->
-    <div class="h-12 px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-14 z-10">
+    <div class="h-12 px-3 sm:px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-14 z-10 w-full min-w-0 max-w-full">
       <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
         <span class="text-xs font-semibold text-foreground/90 truncate" :title="currentConversationTitle">
           {{ currentConversationTitle }}

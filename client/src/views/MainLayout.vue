@@ -128,6 +128,37 @@ const showAddDialog = ref(false);
 const showEditDialog = ref(false);
 const editingBookmark = ref<any>(null);
 
+const notesPanelRef = ref<any>(null);
+const aiChatPanelRef = ref<any>(null);
+
+const notesData = ref<{
+  notes: any[];
+  tags: any[];
+  selectedTag: string | null;
+  selectedNoteId: number | null;
+}>({
+  notes: [],
+  tags: [],
+  selectedTag: null,
+  selectedNoteId: null,
+});
+
+const aiData = ref<{
+  conversations: any[];
+  activeConversationId: string | null;
+}>({
+  conversations: [],
+  activeConversationId: null,
+});
+
+function onNotesStateChange(state: any) {
+  notesData.value = state;
+}
+
+function onAiStateChange(state: any) {
+  aiData.value = state;
+}
+
 const topCategories = computed(() => categories.value.filter((c) => !c.parent_id));
 
 const currentViewTitle = computed(() => {
@@ -299,17 +330,29 @@ onUnmounted(() => {
 
 <template>
   <SidebarProvider>
-    <div class="flex min-h-svh w-full bg-background text-foreground selection:bg-primary/10">
-      <!-- Canonical Shadcn Vue Sidebar -->
+    <div class="flex min-h-svh w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
+      <!-- Canonical Shadcn Vue Sidebar (动态自适应三大模式) -->
       <TheSidebar
         :categories="categories"
         :selected-category-id="selectedCategoryId"
         :current-view="currentView"
         :is-logged-in="authStore.isLoggedIn"
+        :notes="notesData.notes"
+        :note-tags="notesData.tags"
+        :selected-note-tag="notesData.selectedTag"
+        :selected-note-id="notesData.selectedNoteId"
+        :ai-conversations="aiData.conversations"
+        :active-ai-conversation-id="aiData.activeConversationId"
         @select-category="onSelectTopCategory"
         @select-sub-category="onSelectSubCategory"
         @change-view="onChangeAppView"
         @login="onOpenLogin"
+        @create-note="notesPanelRef?.createNote()"
+        @select-note="(n) => notesPanelRef?.selectNote(n)"
+        @filter-note-tag="(t) => notesPanelRef?.filterByTag(t)"
+        @new-ai-chat="aiChatPanelRef?.createNewConversation()"
+        @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
+        @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
       />
 
       <!-- Canonical Shadcn Vue Inset Main Content -->
@@ -415,9 +458,9 @@ onUnmounted(() => {
         </header>
 
         <!-- Main Body Content -->
-        <div class="flex-1 flex flex-col min-h-0">
+        <div class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden">
           <!-- 1. 网址导航功能主视图 -->
-          <div v-show="currentView === 'home'" class="flex flex-col min-h-[calc(100svh-3.5rem)]">
+          <div v-show="currentView === 'home'" class="flex flex-col min-h-[calc(100svh-3.5rem)] w-full min-w-0 max-w-full overflow-x-hidden">
             <!-- 搜索框组件 -->
             <SearchBar v-model="searchQuery" />
 
@@ -430,7 +473,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Bookmarks & Categories Container -->
-            <div class="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto box-border">
+            <div class="flex-1 p-3 sm:p-5 md:p-6 max-w-[1600px] w-full min-w-0 max-w-full overflow-x-hidden mx-auto box-border">
               <div v-if="!loading">
                 <!-- 搜索状态结果 -->
                 <div v-if="searchQuery.trim()">
@@ -488,8 +531,8 @@ onUnmounted(() => {
 
           <!-- 2. 在线笔记、AI助手与系统设置面板 (无缝保活) -->
           <AdminPanel v-if="currentView === 'admin'" :categories="categories" @refresh="loadCategories(); loadBookmarks()" />
-          <NotesPanel v-show="currentView === 'notes'" :active="currentView === 'notes'" />
-          <AIChatPanel v-show="currentView === 'ai'" :active="currentView === 'ai'" />
+          <NotesPanel ref="notesPanelRef" v-show="currentView === 'notes'" :active="currentView === 'notes'" @state-change="onNotesStateChange" />
+          <AIChatPanel ref="aiChatPanelRef" v-show="currentView === 'ai'" :active="currentView === 'ai'" @state-change="onAiStateChange" />
         </div>
       </SidebarInset>
 

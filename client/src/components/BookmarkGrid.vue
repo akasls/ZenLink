@@ -65,7 +65,7 @@ watch(() => props.bookmarks, () => nextTick(initSort), { deep: true });
 </script>
 
 <template>
-  <div ref="gridRef" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+  <div ref="gridRef" class="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-3">
     <ContextMenu v-for="bm in bookmarks" :key="bm.id">
       <ContextMenuTrigger :disabled="!isLoggedIn" as-child>
         <BookmarkCard

@@ -67,6 +67,15 @@ const props = defineProps<{
   active?: boolean;
 }>();
 
+const emit = defineEmits<{
+  stateChange: [state: {
+    notes: Note[];
+    tags: { name: string; count: number }[];
+    selectedTag: string | null;
+    selectedNoteId: number | null;
+  }];
+}>();
+
 const authStore = useAuthStore();
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
@@ -1175,9 +1184,32 @@ function copyNoteContent(content?: string, e?: Event) {
   });
 }
 
+watch(
+  [notes, availableTags, selectedTag, selectedNote],
+  () => {
+    emit('stateChange', {
+      notes: notes.value,
+      tags: availableTags.value,
+      selectedTag: selectedTag.value,
+      selectedNoteId: selectedNote.value?.id || null,
+    });
+  },
+  { deep: true, immediate: true }
+);
+
 defineExpose({
   exportMarkdownFile,
   exportHtmlFile,
+  createNote,
+  selectNote,
+  selectNoteById(id: number) {
+    const found = notes.value.find((n) => n.id === id);
+    if (found) selectNote(found);
+  },
+  filterByTag,
+  deleteNote,
+  loadNotes,
+  loadTags,
 });
 
 function exportMarkdownFile() {
@@ -1255,9 +1287,9 @@ watch(
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-h-[calc(100svh-3.5rem)] bg-background text-foreground">
+  <div class="flex-1 flex flex-col min-h-[calc(100svh-3.5rem)] w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
     <!-- ==================== 1. 顶部控制栏 ==================== -->
-    <div class="h-12 px-3 sm:px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-14 z-10">
+    <div class="h-12 px-3 sm:px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-14 z-10 w-full min-w-0 max-w-full">
       <!-- 场景 A：列表视图顶部 -->
       <template v-if="!selectedNote">
         <!-- 移动端展开搜索模式 -->
@@ -1458,7 +1490,7 @@ watch(
     <!-- ==================== 2. 主体工作区 ==================== -->
     <div class="flex-1 flex flex-col min-h-0">
       <!-- 场景 1：无选中笔记时的卡片网格列表 -->
-      <div v-if="!selectedNote" class="flex-1 p-4 sm:p-5 max-w-7xl w-full mx-auto">
+      <div v-if="!selectedNote" class="flex-1 p-3 sm:p-5 max-w-7xl w-full min-w-0 max-w-full mx-auto">
         <div v-if="loading && notes.length === 0" class="py-20 text-center text-muted-foreground">
           <Loader2 class="h-7 w-7 animate-spin mx-auto mb-2 text-primary" />
           <p class="text-xs m-0">正在加载笔记列表...</p>
@@ -1477,7 +1509,7 @@ watch(
         </div>
 
         <!-- 笔记卡片网格 -->
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div v-else class="grid grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           <Card
             v-for="(n, idx) in filteredNotes"
             :key="n.id"
@@ -1556,9 +1588,9 @@ watch(
       </div>
 
       <!-- 场景 2：Markdown 工作台 -->
-      <div v-else class="flex-1 flex flex-col min-h-0 bg-card">
+      <div v-else class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden bg-card">
         <!-- 工具栏 -->
-        <div v-if="viewMode !== 'preview'" class="flex items-center gap-1 px-3 py-1.5 border-b border-border bg-muted/30 overflow-x-auto scrollbar-none shrink-0">
+        <div v-if="viewMode !== 'preview'" class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border-b border-border bg-muted/30 overflow-x-auto max-w-full min-w-0 shrink-0">
           <!-- 1. AI 写作下拉 -->
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
