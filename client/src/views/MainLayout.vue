@@ -9,17 +9,7 @@ import { Button } from '@/components/ui/button';
 import {
   SidebarProvider,
   SidebarInset,
-  SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 import {
   Loader2,
   FolderOpen,
@@ -50,13 +40,6 @@ const pendingTargetView = ref<string>('');
 const currentView = ref<'home' | 'admin' | 'notes' | 'ai'>(
   (route.meta.view as any) || 'home'
 );
-
-const currentViewTitle = computed(() => {
-  if (currentView.value === 'notes') return '在线笔记';
-  if (currentView.value === 'ai') return 'AI 对话助手';
-  if (currentView.value === 'admin') return '系统管理设置';
-  return '网址导航';
-});
 
 const dailyQuote = ref('');
 
@@ -155,12 +138,16 @@ const aiChatPanelRef = ref<any>(null);
 const notesData = ref<{
   notes: any[];
   tags: any[];
+  categories: any[];
   selectedTag: string | null;
+  selectedCategoryId: number | null;
   selectedNoteId: number | null;
 }>({
   notes: [],
   tags: [],
+  categories: [],
   selectedTag: null,
+  selectedCategoryId: null,
   selectedNoteId: null,
 });
 
@@ -343,7 +330,7 @@ onUnmounted(() => {
 <template>
   <SidebarProvider>
     <div class="flex min-h-svh w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-      <!-- Canonical Shadcn Vue Sidebar (动态自适应三大模式 + TeamSwitcher + NavUser) -->
+      <!-- Canonical Shadcn Vue Sidebar (动态自适应三大模式 + 展开收起 + NavUser) -->
       <TheSidebar
         :categories="categories"
         :selected-category-id="selectedCategoryId"
@@ -351,7 +338,9 @@ onUnmounted(() => {
         :is-logged-in="authStore.isLoggedIn"
         :notes="notesData.notes"
         :note-tags="notesData.tags"
+        :note-categories="notesData.categories"
         :selected-note-tag="notesData.selectedTag"
+        :selected-note-category-id="notesData.selectedCategoryId"
         :selected-note-id="notesData.selectedNoteId"
         :ai-conversations="aiData.conversations"
         :active-ai-conversation-id="aiData.activeConversationId"
@@ -362,48 +351,16 @@ onUnmounted(() => {
         @create-note="notesPanelRef?.createNote()"
         @select-note="(n) => notesPanelRef?.selectNote(n)"
         @filter-note-tag="(t) => notesPanelRef?.filterByTag(t)"
+        @filter-note-category="(catId) => notesPanelRef?.filterByCategory(catId)"
+        @create-note-category="notesPanelRef?.openManageCategories()"
         @new-ai-chat="aiChatPanelRef?.createNewConversation()"
         @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
         @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
+        @add-bookmark="showAddDialog = true"
       />
 
-      <!-- Canonical Shadcn Vue Inset Main Content -->
+      <!-- Canonical Shadcn Vue Inset Main Content (无顶栏，极致沉浸画布) -->
       <SidebarInset>
-        <!-- Canonical Shadcn Inset Header with SidebarTrigger & Breadcrumbs -->
-        <header class="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border/80 bg-background/95 backdrop-blur sticky top-0 z-20 px-4 transition-[width,height] ease-linear">
-          <div class="flex items-center gap-2 min-w-0">
-            <SidebarTrigger class="-ml-1 text-muted-foreground hover:text-foreground cursor-pointer" />
-            <Separator orientation="vertical" class="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem class="hidden sm:inline-flex">
-                  <BreadcrumbLink class="cursor-pointer text-xs font-normal text-muted-foreground hover:text-foreground" @click="onChangeAppView('home')">
-                    {{ siteStore.siteName || 'ZenLink' }}
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator class="hidden sm:inline-flex" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage class="text-xs font-medium text-foreground">{{ currentViewTitle }}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <!-- 网址导航模式：添加书签快捷按钮 -->
-            <Button
-              v-if="currentView === 'home' && authStore.isLoggedIn"
-              variant="outline"
-              size="sm"
-              class="h-7 text-xs gap-1 cursor-pointer border-border/80"
-              @click="showAddDialog = true"
-            >
-              <Plus class="h-3.5 w-3.5" />
-              <span class="hidden sm:inline">添加书签</span>
-            </Button>
-          </div>
-        </header>
-
         <div class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden">
           <!-- 1. 网址导航功能主视图 -->
           <div v-show="currentView === 'home'" class="flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden">

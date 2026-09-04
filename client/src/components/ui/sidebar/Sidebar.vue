@@ -2,7 +2,6 @@
 import { type HTMLAttributes } from 'vue';
 import { cn } from '@/utils/cn';
 import { useSidebar } from './utils';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 interface Props {
   side?: 'left' | 'right';
@@ -17,54 +16,50 @@ const props = withDefaults(defineProps<Props>(), {
   collapsible: 'icon',
 });
 
-const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+const { isMobile, state, setOpen } = useSidebar();
 </script>
 
 <template>
-  <!-- Mobile Mode (Sheet) -->
-  <Sheet v-if="isMobile" :open="openMobile" @update:open="setOpenMobile">
-    <SheetContent
-      :side="side"
-      class="w-72 max-w-[85vw] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-    >
-      <div class="flex h-full w-full flex-col">
-        <slot />
-      </div>
-    </SheetContent>
-  </Sheet>
-
-  <!-- Desktop Mode -->
   <div
-    v-else
-    class="group peer hidden md:block text-sidebar-foreground"
+    class="group peer text-sidebar-foreground"
     :data-state="state"
     :data-collapsible="state === 'collapsed' ? collapsible : ''"
     :data-variant="variant"
     :data-side="side"
   >
+    <!-- Mobile Backdrop when expanded -->
+    <div
+      v-if="isMobile && state === 'expanded'"
+      class="fixed inset-0 z-20 bg-black/40 backdrop-blur-xs transition-opacity md:hidden"
+      @click="setOpen(false)"
+    />
+
     <!-- Gap placeholder for fixed sidebar -->
     <div
       :class="
         cn(
-          'duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear',
+          'duration-200 relative h-svh bg-transparent transition-[width] ease-linear shrink-0',
+          'w-[--sidebar-width-icon] md:w-[--sidebar-width]',
+          'group-data-[collapsible=icon]:w-[--sidebar-width-icon]',
           'group-data-[collapsible=offcanvas]:w-0',
           'group-data-[side=right]:rotate-180',
           variant === 'floating' || variant === 'inset'
             ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+theme(spacing.4))]'
-            : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon]'
+            : ''
         )
       "
     />
+
+    <!-- Fixed Sidebar Container -->
     <div
       :class="
         cn(
-          'duration-200 fixed inset-y-0 z-20 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex flex-col',
+          'duration-200 fixed inset-y-0 z-30 h-svh transition-[left,right,width] ease-linear flex flex-col',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
-          variant === 'floating' || variant === 'inset'
-            ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+theme(spacing.4)+2px)]'
-            : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon] border-r border-sidebar-border',
+          'w-[--sidebar-width] group-data-[collapsible=icon]:w-[--sidebar-width-icon] border-r border-sidebar-border bg-sidebar',
+          state === 'expanded' && isMobile ? 'shadow-2xl' : '',
           props.class
         )
       "
@@ -73,7 +68,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
         data-sidebar="sidebar"
         :class="
           cn(
-            'flex h-full w-full flex-col bg-sidebar',
+            'flex h-full w-full flex-col bg-sidebar overflow-hidden',
             variant === 'floating' ? 'rounded-lg border border-sidebar-border shadow' : ''
           )
         "

@@ -21,6 +21,8 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  SidebarTrigger,
+  SidebarGroupAction,
   useSidebar,
 } from '@/components/ui/sidebar';
 import {
@@ -42,10 +44,11 @@ import {
   Settings,
   Sun,
   Moon,
-  X,
   Plus,
   Trash2,
   Tag,
+  Folder,
+  FolderOpen,
   MessageSquare,
   User,
   LogOut,
@@ -69,6 +72,7 @@ interface NoteItem {
   id: number;
   title: string;
   content: string;
+  category_id?: number | null;
   tags?: string[];
   updated_at?: string;
 }
@@ -76,6 +80,13 @@ interface NoteItem {
 interface NoteTag {
   name: string;
   count: number;
+}
+
+interface NoteCategoryItem {
+  id: number;
+  name: string;
+  icon?: string;
+  count?: number;
 }
 
 interface ConversationItem {
@@ -94,7 +105,9 @@ const props = withDefaults(
     isLoggedIn: boolean;
     notes?: NoteItem[];
     noteTags?: NoteTag[];
+    noteCategories?: NoteCategoryItem[];
     selectedNoteTag?: string | null;
+    selectedNoteCategoryId?: number | null;
     selectedNoteId?: number | null;
     aiConversations?: ConversationItem[];
     activeAiConversationId?: string | null;
@@ -102,7 +115,9 @@ const props = withDefaults(
   {
     notes: () => [],
     noteTags: () => [],
+    noteCategories: () => [],
     selectedNoteTag: null,
+    selectedNoteCategoryId: null,
     selectedNoteId: null,
     aiConversations: () => [],
     activeAiConversationId: null,
@@ -117,6 +132,9 @@ const emit = defineEmits<{
   createNote: [];
   selectNote: [note: NoteItem];
   filterNoteTag: [tag: string | null];
+  filterNoteCategory: [categoryId: number | null];
+  createNoteCategory: [];
+  addBookmark: [];
   newAiChat: [];
   selectAiChat: [id: string];
   deleteAiChat: [id: string];
@@ -153,13 +171,6 @@ const activeModeTitle = computed(() => {
   if (props.currentView === 'ai') return 'AI 助手';
   if (props.currentView === 'admin') return '系统管理';
   return siteStore.siteName || '网址导航';
-});
-
-const activeModeSubtitle = computed(() => {
-  if (props.currentView === 'notes') return '个人知识笔记';
-  if (props.currentView === 'ai') return '多模型智能对话';
-  if (props.currentView === 'admin') return '站点设置与配置';
-  return siteStore.siteDesc || '个人书签导航';
 });
 
 const activeModeIcon = computed(() => {
@@ -251,6 +262,11 @@ function handleFilterNoteTag(tag: string | null) {
   if (isMobile.value) setOpenMobile(false);
 }
 
+function handleFilterNoteCategory(categoryId: number | null) {
+  emit('filterNoteCategory', categoryId);
+  if (isMobile.value) setOpenMobile(false);
+}
+
 function handleNewAiChat() {
   emit('newAiChat');
   if (isMobile.value) setOpenMobile(false);
@@ -268,92 +284,36 @@ function handleDeleteAiChat(id: string) {
 
 <template>
   <Sidebar collapsible="icon" variant="sidebar">
-    <!-- Header: Workspace / App Switcher (TeamSwitcher 模式) -->
-    <SidebarHeader class="border-b border-sidebar-border/60 pb-2">
-      <div class="flex items-center justify-between">
-        <SidebarMenu class="flex-1 min-w-0">
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <SidebarMenuButton
-                  size="lg"
-                  class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
-                  tooltip="切换工作空间与模式"
-                >
-                  <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-semibold text-sm shadow-xs overflow-hidden shrink-0">
-                    <component :is="activeModeIcon" class="size-4" />
-                  </div>
-                  <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
-                    <span class="truncate font-semibold text-foreground tracking-tight">{{ activeModeTitle }}</span>
-                    <span class="truncate text-[11px] text-muted-foreground">{{ activeModeSubtitle }}</span>
-                  </div>
-                  <ChevronsUpDown class="ml-auto size-4 shrink-0 text-muted-foreground" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                class="w-56 rounded-lg p-1.5 shadow-md"
-                align="start"
-                :side="isMobile ? 'bottom' : 'right'"
-                :side-offset="8"
-              >
-                <DropdownMenuLabel class="text-xs text-muted-foreground px-2 py-1.5 font-medium">
-                  功能模式
-                </DropdownMenuLabel>
-
-                <DropdownMenuItem
-                  class="gap-2.5 p-2 rounded-md cursor-pointer text-xs"
-                  :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'home' }"
-                  @click="handleSwitchMode('home')"
-                >
-                  <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
-                    <Compass class="size-3.5 text-foreground" />
-                  </div>
-                  <span class="truncate flex-1 font-medium">网址导航</span>
-                  <DropdownMenuShortcut>⌘1</DropdownMenuShortcut>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  v-if="siteStore.enableNotes"
-                  class="gap-2.5 p-2 rounded-md cursor-pointer text-xs"
-                  :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'notes' }"
-                  @click="handleSwitchMode('notes')"
-                >
-                  <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
-                    <FileText class="size-3.5 text-foreground" />
-                  </div>
-                  <span class="truncate flex-1 font-medium">在线笔记</span>
-                  <DropdownMenuShortcut>⌘2</DropdownMenuShortcut>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  v-if="siteStore.enableAi"
-                  class="gap-2.5 p-2 rounded-md cursor-pointer text-xs"
-                  :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'ai' }"
-                  @click="handleSwitchMode('ai')"
-                >
-                  <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
-                    <Bot class="size-3.5 text-foreground" />
-                  </div>
-                  <span class="truncate flex-1 font-medium">AI 对话助手</span>
-                  <DropdownMenuShortcut>⌘3</DropdownMenuShortcut>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
-
-        <!-- 移动端抽屉关闭键 -->
-        <Button
-          v-if="isMobile"
-          variant="ghost"
-          size="icon-xs"
-          class="text-muted-foreground hover:text-foreground shrink-0 ml-1"
-          @click="setOpenMobile(false)"
-          title="关闭菜单"
+    <!-- Header: 网站品牌与展开/收起按钮 (整行紧凑排列，展开/收起靠右显示，无多余顶栏) -->
+    <SidebarHeader class="border-b border-sidebar-border/60 p-2">
+      <!-- 展开状态下：网站图标 + 标题在左，展开/收起按钮靠右 -->
+      <div class="flex items-center justify-between w-full min-w-0 group-data-[collapsible=icon]:hidden">
+        <div
+          class="flex items-center gap-2.5 min-w-0 flex-1 pl-1 cursor-pointer select-none"
+          title="返回主页"
+          @click="emit('changeView', 'home')"
         >
-          <X class="h-4 w-4" />
-        </Button>
+          <div class="flex aspect-square size-7 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-semibold text-xs shadow-xs shrink-0">
+            <component :is="activeModeIcon" class="size-3.5" />
+          </div>
+          <div class="grid flex-1 text-left leading-tight min-w-0">
+            <span class="truncate font-semibold text-xs text-foreground tracking-tight">{{ siteStore.siteName || 'ZenLink' }}</span>
+            <span class="truncate text-[10px] text-muted-foreground">{{ activeModeTitle }}</span>
+          </div>
+        </div>
+
+        <SidebarTrigger
+          class="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded-md cursor-pointer shrink-0 ml-1"
+          title="收起侧边栏"
+        />
+      </div>
+
+      <!-- 收起状态下 (图标模式)：居中只显示展开按钮 -->
+      <div class="hidden group-data-[collapsible=icon]:flex items-center justify-center w-full py-0.5">
+        <SidebarTrigger
+          class="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded-md cursor-pointer"
+          title="展开侧边栏"
+        />
       </div>
     </SidebarHeader>
 
@@ -362,7 +322,17 @@ function handleDeleteAiChat(id: string) {
       <!-- ================= 模式 1：网址导航侧边栏 ================= -->
       <template v-if="currentView === 'home' || currentView === 'admin'">
         <SidebarGroup>
-          <SidebarGroupLabel>书签分类</SidebarGroupLabel>
+          <SidebarGroupLabel class="flex items-center justify-between">
+            <span>书签分类</span>
+          </SidebarGroupLabel>
+          <SidebarGroupAction
+            v-if="isLoggedIn"
+            title="添加新书签"
+            class="cursor-pointer"
+            @click="emit('addBookmark')"
+          >
+            <Plus class="size-3.5" />
+          </SidebarGroupAction>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem v-for="cat in topCats" :key="cat.id">
@@ -411,7 +381,8 @@ function handleDeleteAiChat(id: string) {
         <div class="px-2 pb-1.5 group-data-[collapsible=icon]:p-0">
           <Button
             size="sm"
-            class="w-full h-8 text-xs font-medium gap-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 cursor-pointer shadow-xs"
+            variant="outline"
+            class="w-full h-8 text-xs font-medium gap-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 cursor-pointer shadow-xs border-sidebar-border"
             @click="handleCreateNote"
             title="新建空白笔记"
           >
@@ -420,28 +391,69 @@ function handleDeleteAiChat(id: string) {
           </Button>
         </div>
 
-        <!-- 笔记分类与标签 -->
-        <SidebarGroup>
-          <SidebarGroupLabel>标签分类</SidebarGroupLabel>
+        <!-- 笔记分类 (Categories) -->
+        <SidebarGroup v-if="noteCategories && noteCategories.length > 0">
+          <SidebarGroupLabel class="flex items-center justify-between">
+            <span>笔记分类</span>
+          </SidebarGroupLabel>
+          <SidebarGroupAction
+            title="新建分类"
+            class="cursor-pointer"
+            @click="emit('createNoteCategory')"
+          >
+            <Plus class="size-3.5" />
+          </SidebarGroupAction>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  :is-active="selectedNoteCategoryId === null"
+                  tooltip="全部分类"
+                  class="cursor-pointer"
+                  @click="handleFilterNoteCategory(null)"
+                >
+                  <Folder class="size-4 shrink-0 text-muted-foreground" />
+                  <span class="truncate">全部分类</span>
+                  <SidebarMenuBadge>{{ totalNoteCount }}</SidebarMenuBadge>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem v-for="cat in noteCategories" :key="cat.id">
+                <SidebarMenuButton
+                  :is-active="selectedNoteCategoryId === cat.id"
+                  :tooltip="cat.name"
+                  class="cursor-pointer"
+                  @click="handleFilterNoteCategory(cat.id)"
+                >
+                  <FolderOpen class="size-4 shrink-0 text-muted-foreground" />
+                  <span class="truncate">{{ cat.name }}</span>
+                  <SidebarMenuBadge v-if="cat.count !== undefined">{{ cat.count }}</SidebarMenuBadge>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <!-- 笔记标签 -->
+        <SidebarGroup v-if="noteTags && noteTags.length > 0">
+          <SidebarGroupLabel>标签</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   :is-active="selectedNoteTag === null"
-                  tooltip="全部笔记"
+                  tooltip="全部标签"
                   class="cursor-pointer"
                   @click="handleFilterNoteTag(null)"
                 >
-                  <FileText class="size-4 shrink-0 text-muted-foreground" />
-                  <span>全部笔记</span>
-                  <SidebarMenuBadge v-if="totalNoteCount">{{ totalNoteCount }}</SidebarMenuBadge>
+                  <Tag class="size-4 shrink-0 text-muted-foreground" />
+                  <span class="truncate">全部标签</span>
+                  <SidebarMenuBadge>{{ totalNoteCount }}</SidebarMenuBadge>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-
               <SidebarMenuItem v-for="tag in noteTags" :key="tag.name">
                 <SidebarMenuButton
                   :is-active="selectedNoteTag === tag.name"
-                  :tooltip="`#${tag.name}`"
+                  :tooltip="'#' + tag.name"
                   class="cursor-pointer"
                   @click="handleFilterNoteTag(tag.name)"
                 >
@@ -547,12 +559,56 @@ function handleDeleteAiChat(id: string) {
             </DropdownMenuTrigger>
 
             <DropdownMenuContent
-              class="w-56 rounded-lg p-1.5 shadow-md"
+              class="w-60 rounded-xl p-1.5 shadow-lg"
               align="end"
               :side="isMobile ? 'top' : 'right'"
               :side-offset="8"
             >
-              <DropdownMenuLabel class="text-xs text-muted-foreground px-2 py-1">
+              <DropdownMenuLabel class="text-[11px] text-muted-foreground px-2 py-1 font-medium">
+                工作空间与模式
+              </DropdownMenuLabel>
+
+              <DropdownMenuItem
+                class="gap-2.5 p-2 rounded-lg cursor-pointer text-xs"
+                :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'home' }"
+                @click="handleSwitchMode('home')"
+              >
+                <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
+                  <Compass class="size-3.5 text-foreground" />
+                </div>
+                <span class="truncate flex-1 font-medium">网址导航</span>
+                <DropdownMenuShortcut>⌘1</DropdownMenuShortcut>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                v-if="siteStore.enableNotes"
+                class="gap-2.5 p-2 rounded-lg cursor-pointer text-xs"
+                :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'notes' }"
+                @click="handleSwitchMode('notes')"
+              >
+                <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
+                  <FileText class="size-3.5 text-foreground" />
+                </div>
+                <span class="truncate flex-1 font-medium">在线笔记</span>
+                <DropdownMenuShortcut>⌘2</DropdownMenuShortcut>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                v-if="siteStore.enableAi"
+                class="gap-2.5 p-2 rounded-lg cursor-pointer text-xs"
+                :class="{ 'bg-sidebar-accent text-sidebar-accent-foreground font-medium': currentView === 'ai' }"
+                @click="handleSwitchMode('ai')"
+              >
+                <div class="flex size-6 items-center justify-center rounded-sm border bg-background shrink-0">
+                  <Bot class="size-3.5 text-foreground" />
+                </div>
+                <span class="truncate flex-1 font-medium">AI 对话助手</span>
+                <DropdownMenuShortcut>⌘3</DropdownMenuShortcut>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator class="my-1" />
+
+              <DropdownMenuLabel class="text-[11px] text-muted-foreground px-2 py-1 font-medium">
                 偏好设置与账户
               </DropdownMenuLabel>
 
@@ -580,7 +636,7 @@ function handleDeleteAiChat(id: string) {
               <DropdownMenuItem
                 v-else
                 class="gap-2.5 p-2 rounded-lg cursor-pointer text-xs text-primary"
-                @click="emit('login'); if (isMobile) setOpenMobile(false);"
+                @click="emit('login')"
               >
                 <LogIn class="size-4" />
                 <span>管理员登录</span>

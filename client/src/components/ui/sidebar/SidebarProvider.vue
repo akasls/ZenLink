@@ -17,7 +17,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  defaultOpen: true,
+  defaultOpen: undefined,
   open: undefined,
 });
 
@@ -30,7 +30,11 @@ function updateIsMobile() {
   isMobile.value = window.innerWidth < 768;
 }
 
-const internalOpen = ref(props.defaultOpen);
+const internalOpen = ref(
+  props.defaultOpen !== undefined
+    ? props.defaultOpen
+    : (typeof window !== 'undefined' ? window.innerWidth >= 768 : true)
+);
 const open = computed({
   get: () => props.open !== undefined ? props.open : internalOpen.value,
   set: (val: boolean) => {
@@ -50,11 +54,7 @@ function setOpenMobile(value: boolean) {
 }
 
 function toggleSidebar() {
-  if (isMobile.value) {
-    openMobile.value = !openMobile.value;
-  } else {
-    open.value = !open.value;
-  }
+  open.value = !open.value;
 }
 
 const state = computed<'expanded' | 'collapsed'>(() => (open.value ? 'expanded' : 'collapsed'));

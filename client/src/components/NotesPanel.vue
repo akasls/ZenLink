@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
-import { noteApi } from '@/api';
+import { noteApi, noteCategoryApi } from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/components/ui/sonner';
 import { confirmBox } from '@/utils/confirm';
@@ -39,6 +39,9 @@ import {
   Pencil,
   Eye,
   Tag,
+  Folder,
+  FolderOpen,
+  ChevronDown,
   Loader2,
   FileText,
   Share2,
@@ -71,7 +74,9 @@ const emit = defineEmits<{
   stateChange: [state: {
     notes: Note[];
     tags: { name: string; count: number }[];
+    categories: { id: number; name: string; count?: number; icon?: string }[];
     selectedTag: string | null;
+    selectedCategoryId: number | null;
     selectedNoteId: number | null;
   }];
 }>();
@@ -128,12 +133,25 @@ interface NoteShareItem {
   created_at: string;
 }
 
+interface NoteCategory {
+  id: number;
+  name: string;
+  icon?: string;
+  count?: number;
+}
+
 const notes = ref<Note[]>([]);
 const availableTags = ref<NoteTag[]>([]);
+const noteCategories = ref<NoteCategory[]>([]);
 const selectedTag = ref<string | null>(null);
+const selectedCategoryId = ref<number | null>(null);
+const selectedNoteCategoryId = ref<number | null>(null);
 const selectedNote = ref<Note | null>(null);
 const searchQuery = ref('');
 const loading = ref(false);
+const showCategoryManageModal = ref(false);
+const newCategoryName = ref('');
+const isCategoryPopoverVisible = ref(false);
 
 // 视图模式: PC 端默认 'split' (双栏对照)，移动端 'edit' (纯编辑) / 'preview' (纯预览)
 const viewMode = ref<'edit' | 'split' | 'preview'>(
@@ -237,6 +255,9 @@ function onPreviewScroll() {
 
 const filteredNotes = computed(() => {
   let list = notes.value;
+  if (selectedCategoryId.value !== null) {
+    list = list.filter(n => n.category_id === selectedCategoryId.value);
+  }
   if (selectedTag.value) {
     list = list.filter(n => Array.isArray(n.tags) && n.tags.includes(selectedTag.value!));
   }
@@ -251,6 +272,88 @@ const filteredNotes = computed(() => {
 });
 
 const totalNoteCount = computed(() => notes.value.length);
+
+const noteCategoriesWithCount = computed(() => {
+  return noteCategories.value.map(c => {
+    const count = notes.value.filter(n => n.category_id === c.id).length;
+    return { ...c, count };
+  });
+});
+
+const selectedCategoryFilterName = computed(() => {
+  if (selectedCategoryId.value === null) return '全部分类';
+  const found = noteCategories.value.find(c => c.id === selectedCategoryId.value);
+  return found ? found.name : '全部分类';
+});
+
+const currentNoteCategoryName = computed(() => {
+  if (!selectedNoteCategoryId.value) return '未分类';
+  const found = noteCategories.value.find(c => c.id === selectedNoteCategoryId.value);
+  return found ? found.name : '未分类';
+});
+
+function getCategoryName(catId?: number | null) {
+  if (!catId) return '';
+  const found = noteCategories.value.find(c => c.id === catId);
+  return found ? found.name : '';
+}
+
+async function loadCategories() {
+  if (!authStore.isLoggedIn) return;
+  try {
+    const { data } = await noteCategoryApi.getAll();
+    noteCategories.value = data.categories || [];
+  } catch (e) {
+    console.error('loadCategories error', e);
+  }
+}
+
+async function handleCreateCategory() {
+  const name = newCategoryName.value.trim();
+  if (!name) return;
+  try {
+    const { data } = await noteCategoryApi.create({ name });
+    noteCategories.value.push(data.category);
+    newCategoryName.value = '';
+    toast.success('分类创建成功');
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || '创建分类失败');
+  }
+}
+
+async function handleDeleteCategory(id: number) {
+  try {
+    await noteCategoryApi.delete(id);
+    noteCategories.value = noteCategories.value.filter(c => c.id !== id);
+    if (selectedCategoryId.value === id) selectedCategoryId.value = null;
+    if (selectedNoteCategoryId.value === id) {
+      selectedNoteCategoryId.value = null;
+      saveNote();
+    }
+    toast.success('分类已删除');
+    loadNotes();
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || '删除分类失败');
+  }
+}
+
+function filterByCategory(catId: number | null) {
+  selectedCategoryId.value = catId;
+  selectedNote.value = null;
+  loadNotes();
+}
+
+function setNoteCategory(catId: number | null) {
+  selectedNoteCategoryId.value = catId;
+  if (selectedNote.value) {
+    selectedNote.value.category_id = catId;
+  }
+  saveNote();
+}
+
+function openManageCategories() {
+  showCategoryManageModal.value = true;
+}
 
 async function loadTags() {
   if (!authStore.isLoggedIn) return;
@@ -299,6 +402,7 @@ function selectNote(note: Note) {
   selectedNote.value = note;
   editTitle.value = note.title || '';
   editContent.value = note.content || '';
+  selectedNoteCategoryId.value = note.category_id || null;
   editTags.value = Array.isArray(note.tags) ? [...note.tags] : [];
   isTagInputVisible.value = false;
   newTagInput.value = '';
@@ -360,6 +464,7 @@ async function createNote() {
   try {
     const { data } = await noteApi.create({
       title: '未命名笔记',
+      categoryId: selectedCategoryId.value || undefined,
       tags: selectedTag.value ? [selectedTag.value] : [],
     });
     await loadNotes();
@@ -384,6 +489,7 @@ async function saveNote() {
     await noteApi.update(selectedNote.value.id, {
       title: updatedTitle,
       content: updatedContent,
+      categoryId: selectedNoteCategoryId.value,
       tags: updatedTags,
     });
 
@@ -392,11 +498,13 @@ async function saveNote() {
     if (idx >= 0) {
       notes.value[idx].title = updatedTitle;
       notes.value[idx].content = updatedContent;
+      notes.value[idx].category_id = selectedNoteCategoryId.value;
       notes.value[idx].tags = updatedTags;
       notes.value[idx].updated_at = nowIso;
     }
     selectedNote.value.title = updatedTitle;
     selectedNote.value.content = updatedContent;
+    selectedNote.value.category_id = selectedNoteCategoryId.value;
     selectedNote.value.tags = updatedTags;
     selectedNote.value.updated_at = nowIso;
 
@@ -1185,12 +1293,14 @@ function copyNoteContent(content?: string, e?: Event) {
 }
 
 watch(
-  [notes, availableTags, selectedTag, selectedNote],
+  [notes, availableTags, noteCategories, selectedTag, selectedCategoryId, selectedNote],
   () => {
     emit('stateChange', {
       notes: notes.value,
       tags: availableTags.value,
+      categories: noteCategoriesWithCount.value,
       selectedTag: selectedTag.value,
+      selectedCategoryId: selectedCategoryId.value,
       selectedNoteId: selectedNote.value?.id || null,
     });
   },
@@ -1207,9 +1317,12 @@ defineExpose({
     if (found) selectNote(found);
   },
   filterByTag,
+  filterByCategory,
+  openManageCategories,
   deleteNote,
   loadNotes,
   loadTags,
+  loadCategories,
 });
 
 function exportMarkdownFile() {
@@ -1257,6 +1370,7 @@ ${htmlBody}
 
 onMounted(() => {
   if (authStore.isLoggedIn) {
+    loadCategories();
     loadTags();
     loadNotes();
   }
@@ -1266,6 +1380,7 @@ watch(
   () => props.active,
   (isActive) => {
     if (isActive && authStore.isLoggedIn) {
+      loadCategories();
       loadTags();
       loadNotes();
     }
@@ -1276,10 +1391,12 @@ watch(
   () => authStore.isLoggedIn,
   (isLogged) => {
     if (isLogged) {
+      loadCategories();
       loadTags();
       loadNotes();
     } else {
       notes.value = [];
+      noteCategories.value = [];
       selectedNote.value = null;
     }
   }
@@ -1320,32 +1437,100 @@ watch(
           >取消</Button>
         </div>
 
-        <!-- 正常顶栏模式 -->
+        <!-- 正常顶栏模式：采用极简可展开的分类与标签组件 -->
         <template v-else>
-          <div class="flex-1 min-w-0 pr-2">
-            <div class="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
-              <Button
-                :variant="selectedTag === null ? 'default' : 'secondary'"
-                size="xs"
-                class="whitespace-nowrap cursor-pointer"
-                @click="filterByTag(null)"
-              >
-                <span>全部</span>
-                <span class="text-[10px] opacity-70 font-mono">({{ totalNoteCount }})</span>
-              </Button>
+          <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
+            <!-- 1. 笔记分类筛选组件 (点击展开) -->
+            <Popover>
+              <PopoverTrigger as-child>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-7 text-xs gap-1.5 cursor-pointer font-normal border-border/70 shrink-0"
+                >
+                  <Folder class="h-3.5 w-3.5 text-muted-foreground" />
+                  <span class="max-w-[70px] sm:max-w-[120px] truncate">{{ selectedCategoryFilterName }}</span>
+                  <ChevronDown class="h-3 w-3 text-muted-foreground opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" class="w-56 p-2 shadow-lg">
+                <div class="space-y-1">
+                  <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
+                    <span>按分类筛选</span>
+                    <button class="text-primary hover:underline text-[11px] cursor-pointer" @click="openManageCategories">+ 管理分类</button>
+                  </div>
+                  <div class="max-h-56 overflow-y-auto space-y-0.5">
+                    <div
+                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                      :class="{ 'bg-accent font-medium text-foreground': selectedCategoryId === null }"
+                      @click="filterByCategory(null)"
+                    >
+                      <div class="flex items-center gap-2 min-w-0">
+                        <Folder class="size-3.5 text-muted-foreground shrink-0" />
+                        <span class="truncate">全部分类</span>
+                      </div>
+                      <span class="text-[10px] text-muted-foreground font-mono">({{ totalNoteCount }})</span>
+                    </div>
+                    <div
+                      v-for="cat in noteCategoriesWithCount"
+                      :key="cat.id"
+                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                      :class="{ 'bg-accent font-medium text-foreground': selectedCategoryId === cat.id }"
+                      @click="filterByCategory(cat.id)"
+                    >
+                      <div class="flex items-center gap-2 min-w-0">
+                        <FolderOpen class="size-3.5 text-muted-foreground shrink-0" />
+                        <span class="truncate">{{ cat.name }}</span>
+                      </div>
+                      <span class="text-[10px] text-muted-foreground font-mono">({{ cat.count || 0 }})</span>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
 
-              <Button
-                v-for="tag in availableTags"
-                :key="tag.name"
-                :variant="selectedTag === tag.name ? 'default' : 'secondary'"
-                size="xs"
-                class="whitespace-nowrap cursor-pointer"
-                @click="filterByTag(tag.name)"
-              >
-                <span>#{{ tag.name }}</span>
-                <span class="text-[10px] opacity-70 font-mono">({{ tag.count }})</span>
-              </Button>
-            </div>
+            <!-- 2. 标签筛选组件 (点击展开) -->
+            <Popover>
+              <PopoverTrigger as-child>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-7 text-xs gap-1.5 cursor-pointer font-normal border-border/70 shrink-0"
+                >
+                  <Tag class="h-3.5 w-3.5 text-muted-foreground" />
+                  <span class="max-w-[70px] sm:max-w-[120px] truncate">{{ selectedTag ? '#' + selectedTag : '全部标签' }}</span>
+                  <ChevronDown class="h-3 w-3 text-muted-foreground opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" class="w-60 p-2 shadow-lg">
+                <div class="space-y-1">
+                  <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
+                    <span>按标签筛选</span>
+                    <button v-if="selectedTag" class="text-muted-foreground hover:text-foreground text-[10px] cursor-pointer" @click="filterByTag(null)">清除筛选</button>
+                  </div>
+                  <div class="max-h-56 overflow-y-auto space-y-0.5">
+                    <div
+                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                      :class="{ 'bg-accent font-medium text-foreground': selectedTag === null }"
+                      @click="filterByTag(null)"
+                    >
+                      <span class="truncate">全部标签</span>
+                      <span class="text-[10px] text-muted-foreground font-mono">({{ totalNoteCount }})</span>
+                    </div>
+                    <div
+                      v-for="tag in availableTags"
+                      :key="tag.name"
+                      class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                      :class="{ 'bg-accent font-medium text-foreground': selectedTag === tag.name }"
+                      @click="filterByTag(tag.name)"
+                    >
+                      <span class="truncate">#{{ tag.name }}</span>
+                      <span class="text-[10px] text-muted-foreground font-mono">({{ tag.count }})</span>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div class="shrink-0 flex items-center gap-2">
@@ -1438,6 +1623,51 @@ watch(
               </TabsTrigger>
             </TabsList>
           </Tabs>
+
+          <!-- 分类选择 -->
+          <Popover v-model:open="isCategoryPopoverVisible">
+            <PopoverTrigger as-child>
+              <Button
+                variant="outline"
+                size="sm"
+                class="h-7 text-xs gap-1 border-border/70"
+                :class="{ 'bg-accent text-accent-foreground font-semibold': isCategoryPopoverVisible }"
+                title="设置所属分类"
+              >
+                <Folder class="h-3 w-3 text-muted-foreground" />
+                <span class="max-w-[70px] sm:max-w-[100px] truncate">{{ currentNoteCategoryName }}</span>
+              </Button>
+            </PopoverTrigger>
+
+            <PopoverContent align="end" class="w-56 p-2 shadow-lg">
+              <div class="space-y-1">
+                <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
+                  <span>选择笔记分类</span>
+                  <button class="text-primary hover:underline text-[11px] cursor-pointer" @click="openManageCategories">管理分类</button>
+                </div>
+                <div class="max-h-48 overflow-y-auto space-y-0.5">
+                  <div
+                    class="flex items-center px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    :class="{ 'bg-accent font-medium text-foreground': selectedNoteCategoryId === null }"
+                    @click="setNoteCategory(null); isCategoryPopoverVisible = false;"
+                  >
+                    <Folder class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
+                    <span>未分类</span>
+                  </div>
+                  <div
+                    v-for="cat in noteCategories"
+                    :key="cat.id"
+                    class="flex items-center px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    :class="{ 'bg-accent font-medium text-foreground': selectedNoteCategoryId === cat.id }"
+                    @click="setNoteCategory(cat.id); isCategoryPopoverVisible = false;"
+                  >
+                    <FolderOpen class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
+                    <span class="truncate">{{ cat.name }}</span>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           <!-- 标签管理 -->
           <Popover v-model:open="isTagPopoverVisible">
@@ -1571,6 +1801,15 @@ watch(
             <!-- 卡片底部 -->
             <div class="flex items-center justify-between pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
               <div class="flex items-center gap-1 overflow-hidden pr-2" @click.stop>
+                <Badge
+                  v-if="getCategoryName(n.category_id)"
+                  variant="outline"
+                  class="px-1.5 py-0 text-[10px] truncate hover:text-foreground cursor-pointer font-normal gap-0.5 border-border/70 shrink-0"
+                  @click="filterByCategory(n.category_id!)"
+                >
+                  <Folder class="size-2.5 text-muted-foreground" />
+                  <span>{{ getCategoryName(n.category_id) }}</span>
+                </Badge>
                 <template v-if="n.tags && n.tags.length">
                   <Badge
                     v-for="t in n.tags"
@@ -1954,7 +2193,68 @@ watch(
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  
+
+    <!-- 笔记分类管理弹窗 -->
+    <Dialog :open="showCategoryManageModal" @update:open="showCategoryManageModal = $event">
+      <DialogContent class="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Folder class="h-5 w-5 text-primary" />
+            笔记分类管理
+          </DialogTitle>
+        </DialogHeader>
+
+        <div class="space-y-4 py-2">
+          <!-- 新建分类输入 -->
+          <div class="flex items-center gap-2">
+            <Input
+              v-model="newCategoryName"
+              placeholder="输入新分类名称..."
+              class="flex-1"
+              @keydown.enter.prevent="handleCreateCategory"
+            />
+            <Button size="sm" class="gap-1" @click="handleCreateCategory">
+              <Plus class="h-4 w-4" />
+              添加
+            </Button>
+          </div>
+
+          <!-- 分类列表 -->
+          <div class="border rounded-md divide-y max-h-60 overflow-y-auto">
+            <div
+              v-for="cat in noteCategories"
+              :key="cat.id"
+              class="flex items-center justify-between px-3 py-2.5 hover:bg-accent/50 transition-colors"
+            >
+              <div class="flex items-center gap-2 text-sm font-medium">
+                <Folder class="h-4 w-4 text-muted-foreground" />
+                <span>{{ cat.name }}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                title="删除分类"
+                @click="handleDeleteCategory(cat.id)"
+              >
+                <Trash2 class="h-4 w-4" />
+              </Button>
+            </div>
+            <div
+              v-if="noteCategories.length === 0"
+              class="text-xs text-muted-foreground text-center py-6"
+            >
+              暂无分类，输入上方名称后点击添加
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" @click="showCategoryManageModal = false">完成</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <!-- 图片全屏灯箱 -->
     <div
       v-if="showImgViewer"
