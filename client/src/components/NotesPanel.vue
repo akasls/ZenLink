@@ -25,6 +25,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -1965,15 +1972,17 @@ watch(
 
             <div class="space-y-1.5">
               <label class="block text-xs font-medium text-foreground/80">有效时长</label>
-              <select
-                v-model="shareForm.expire_hours"
-                class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option :value="1">1 小时内有效</option>
-                <option :value="24">24 小时 (1天) 内有效</option>
-                <option :value="168">7 天内有效</option>
-                <option :value="0">永久有效</option>
-              </select>
+              <Select :model-value="String(shareForm.expire_hours)" @update:model-value="shareForm.expire_hours = Number($event)">
+                <SelectTrigger class="w-full h-9 text-xs">
+                  <SelectValue placeholder="请选择有效时长" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 小时内有效</SelectItem>
+                  <SelectItem value="24">24 小时 (1天) 内有效</SelectItem>
+                  <SelectItem value="168">7 天内有效</SelectItem>
+                  <SelectItem value="0">永久有效</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div class="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">

@@ -24,6 +24,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   LogOut,
   Bookmark,
   Folder,
@@ -1020,18 +1027,20 @@ onMounted(() => {
             </div>
 
             <!-- 2. 分类下拉 -->
-            <select
-              v-model="bookmarkCategoryFilter"
-              class="h-8 w-36 rounded-md border border-input bg-background px-2.5 text-xs text-foreground outline-none flex-shrink-0"
-            >
-              <option
-                v-for="opt in categoryFilterOptions"
-                :key="opt.id"
-                :value="opt.id"
-              >
-                {{ opt.name }}
-              </option>
-            </select>
+            <Select :model-value="String(bookmarkCategoryFilter)" @update:model-value="bookmarkCategoryFilter = Number($event)">
+              <SelectTrigger class="h-8 w-36 text-xs flex-shrink-0">
+                <SelectValue placeholder="全部分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="opt in categoryFilterOptions"
+                  :key="opt.id"
+                  :value="String(opt.id)"
+                >
+                  {{ opt.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
             <!-- 3. 添加按钮 -->
             <Button
@@ -1454,24 +1463,34 @@ onMounted(() => {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div class="space-y-1.5">
                   <label class="block text-xs font-medium text-foreground/90">在线笔记写作专属模型</label>
-                  <select
-                    v-model="aiSettings.writing_model"
-                    class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  <Select
+                    :model-value="aiSettings.writing_model || '__default__'"
+                    @update:model-value="aiSettings.writing_model = $event === '__default__' ? '' : $event"
                   >
-                    <option value="">跟随全局默认</option>
-                    <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
-                  </select>
+                    <SelectTrigger class="w-full h-9 text-xs">
+                      <SelectValue placeholder="跟随全局默认" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">跟随全局默认</SelectItem>
+                      <SelectItem v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div class="space-y-1.5">
                   <label class="block text-xs font-medium text-foreground/90">导航书签解析专属模型</label>
-                  <select
-                    v-model="aiSettings.bookmark_model"
-                    class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  <Select
+                    :model-value="aiSettings.bookmark_model || '__default__'"
+                    @update:model-value="aiSettings.bookmark_model = $event === '__default__' ? '' : $event"
                   >
-                    <option value="">跟随全局默认</option>
-                    <option v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</option>
-                  </select>
+                    <SelectTrigger class="w-full h-9 text-xs">
+                      <SelectValue placeholder="跟随全局默认" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">跟随全局默认</SelectItem>
+                      <SelectItem v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1809,14 +1828,16 @@ onMounted(() => {
 
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-foreground/90">默认搜索引擎</label>
-                <select
-                  v-model="siteForm.defaultEngine"
-                  class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs transition-colors outline-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="google">Google</option>
-                  <option value="bing">Bing</option>
-                  <option value="duckduckgo">DuckDuckGo</option>
-                </select>
+                <Select v-model="siteForm.defaultEngine">
+                  <SelectTrigger class="w-full h-9 text-xs">
+                    <SelectValue placeholder="选择默认搜索引擎" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="google">Google</SelectItem>
+                    <SelectItem value="bing">Bing</SelectItem>
+                    <SelectItem value="duckduckgo">DuckDuckGo</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <!-- 功能模块开关 -->
@@ -2097,20 +2118,24 @@ onMounted(() => {
           </div>
           <div class="space-y-1.5">
             <label class="font-medium text-foreground/90">所属分类</label>
-            <select
-              :value="editingBookmark.category_id ?? ''"
-              class="w-full h-8 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @change="editingBookmark.category_id = ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null"
+            <Select
+              :model-value="editingBookmark.category_id ? String(editingBookmark.category_id) : '__none__'"
+              @update:model-value="editingBookmark.category_id = $event === '__none__' ? null : Number($event)"
             >
-              <option value="">选择分类</option>
-              <option
-                v-for="opt in categoryDialogOptions"
-                :key="opt.id"
-                :value="opt.id"
-              >
-                {{ opt.name }}
-              </option>
-            </select>
+              <SelectTrigger class="w-full h-8 text-xs">
+                <SelectValue placeholder="选择分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">选择分类</SelectItem>
+                <SelectItem
+                  v-for="opt in categoryDialogOptions"
+                  :key="opt.id"
+                  :value="String(opt.id)"
+                >
+                  {{ opt.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <label class="flex items-center gap-2 cursor-pointer text-xs select-none pt-1">
             <Checkbox
@@ -2144,16 +2169,20 @@ onMounted(() => {
           </div>
           <div class="space-y-1.5">
             <label class="font-medium text-foreground/90">上级分类</label>
-            <select
-              :value="editingCategory.parent_id ?? ''"
-              class="w-full h-8 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @change="editingCategory.parent_id = ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null"
+            <Select
+              :model-value="editingCategory.parent_id ? String(editingCategory.parent_id) : '__none__'"
+              @update:model-value="editingCategory.parent_id = $event === '__none__' ? null : Number($event)"
             >
-              <option value="">无 (一级分类)</option>
-              <option v-for="cat in topCategories()" :key="cat.id" :value="cat.id">
-                {{ cat.name }}
-              </option>
-            </select>
+              <SelectTrigger class="w-full h-8 text-xs">
+                <SelectValue placeholder="无 (一级分类)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">无 (一级分类)</SelectItem>
+                <SelectItem v-for="cat in topCategories()" :key="cat.id" :value="String(cat.id)">
+                  {{ cat.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <label class="flex items-center gap-2 cursor-pointer text-xs select-none pt-1">
             <Checkbox
