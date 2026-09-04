@@ -3,37 +3,20 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useSiteStore } from '@/stores/site';
-import { useThemeStore } from '@/stores/theme';
 import { bookmarkApi, categoryApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import {
   Loader2,
   FolderOpen,
   ArrowUp,
   Plus,
-  Sun,
-  Moon,
-  Settings,
-  User,
   MessageSquareQuote,
-  Compass,
-  FileText,
-  Bot,
 } from 'lucide-vue-next';
 
 import TheSidebar from '@/components/TheSidebar.vue';
@@ -51,7 +34,6 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const siteStore = useSiteStore();
-const themeStore = useThemeStore();
 
 const showLoginDialog = ref(false);
 const pendingTargetView = ref<string>('');
@@ -87,8 +69,12 @@ function onLoginSuccess(targetView?: string) {
 }
 
 function onChangeAppView(v: string) {
-  if (v !== 'home' && !authStore.token) {
+  if (v !== 'home' && !authStore.token && v !== 'admin') {
     onOpenLogin(v);
+    return;
+  }
+  if (v === 'admin' && !authStore.token) {
+    onOpenLogin('admin');
     return;
   }
   currentView.value = v as any;
@@ -100,6 +86,25 @@ function onChangeAppView(v: string) {
     ai: '/ai',
   };
   router.push(routes[v] || '/');
+}
+
+// 监听快捷键 ⌘1/Ctrl+1 (导航), ⌘2/Ctrl+2 (笔记), ⌘3/Ctrl+3 (AI), ⌘,/Ctrl+, (设置)
+function handleGlobalShortcuts(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+    if (e.key === '1') {
+      e.preventDefault();
+      onChangeAppView('home');
+    } else if (e.key === '2' && siteStore.enableNotes) {
+      e.preventDefault();
+      onChangeAppView('notes');
+    } else if (e.key === '3' && siteStore.enableAi) {
+      e.preventDefault();
+      onChangeAppView('ai');
+    } else if (e.key === ',') {
+      e.preventDefault();
+      onChangeAppView('admin');
+    }
+  }
 }
 
 // 监听路由同步视图状态 (若无登录 Token 则拦截并提示登录)
@@ -160,17 +165,6 @@ function onAiStateChange(state: any) {
 }
 
 const topCategories = computed(() => categories.value.filter((c) => !c.parent_id));
-
-const currentViewTitle = computed(() => {
-  if (currentView.value === 'admin') return '系统设置';
-  if (currentView.value === 'notes') return '在线笔记';
-  if (currentView.value === 'ai') return 'AI 助手';
-  if (selectedCategoryId.value) {
-    const cat = categories.value.find((c) => c.id === selectedCategoryId.value);
-    if (cat) return cat.name;
-  }
-  return '网址导航';
-});
 
 function getSubCategories(parentId: number) {
   return categories.value.filter((c) => c.parent_id === parentId);
@@ -320,18 +314,25 @@ onMounted(() => {
   loadBookmarks();
   fetchQuote();
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('keydown', handleGlobalShortcuts);
   onScroll();
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll);
+  window.removeEventListener('keydown', handleGlobalShortcuts);
 });
 </script>
 
 <template>
   <SidebarProvider>
     <div class="flex min-h-svh w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-      <!-- Canonical Shadcn Vue Sidebar (动态自适应三大模式) -->
+      <!-- 移动端悬浮快捷抽屉开关 (干净利落，无顶栏时移动端轻松唤起) -->
+      <div class="fixed top-3 left-3 z-30 md:hidden">
+        <SidebarTrigger class="h-8 w-8 bg-background/90 border border-border/80 shadow-md backdrop-blur rounded-lg flex items-center justify-center text-foreground hover:bg-accent cursor-pointer" />
+      </div>
+
+      <!-- Canonical Shadcn Vue Sidebar (动态自适应三大模式 + TeamSwitcher + NavUser) -->
       <TheSidebar
         :categories="categories"
         :selected-category-id="selectedCategoryId"
@@ -355,117 +356,18 @@ onUnmounted(() => {
         @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
       />
 
-      <!-- Canonical Shadcn Vue Inset Main Content -->
+      <!-- Canonical Shadcn Vue Inset Main Content (无顶栏，沉浸式极简画布) -->
       <SidebarInset>
-        <!-- 现代化极简顶栏 (全屏与移动端高自适应) -->
-        <header class="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/85 px-3 sm:px-5 backdrop-blur-md transition-all">
-          <!-- 左侧：侧边栏触发器 + 面包屑导航 -->
-          <div class="flex items-center gap-2 min-w-0">
-            <SidebarTrigger class="-ml-1 text-muted-foreground hover:text-foreground" />
-            <Separator orientation="vertical" class="h-4 hidden sm:block" />
-            <Breadcrumb class="hidden sm:inline-flex">
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink class="cursor-pointer font-medium text-xs" @click="onChangeAppView('home')">
-                    {{ siteStore.siteName || 'ZenLink' }}
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage class="text-xs font-normal text-muted-foreground">{{ currentViewTitle }}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-
-          <!-- 中间：核心三功能切换分段控制 (支持桌面与移动端触摸) -->
-          <div class="flex items-center justify-center">
-            <nav class="flex items-center bg-muted/60 p-1 rounded-lg border border-border/40 gap-1 shadow-2xs">
-              <button
-                type="button"
-                class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none"
-                :class="currentView === 'home' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'"
-                @click="onChangeAppView('home')"
-                title="网址导航"
-              >
-                <Compass class="h-3.5 w-3.5 shrink-0" />
-                <span>导航</span>
-              </button>
-
-              <button
-                v-if="siteStore.enableNotes"
-                type="button"
-                class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none"
-                :class="currentView === 'notes' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'"
-                @click="onChangeAppView('notes')"
-                title="在线笔记"
-              >
-                <FileText class="h-3.5 w-3.5 shrink-0" />
-                <span>笔记</span>
-              </button>
-
-              <button
-                v-if="siteStore.enableAi"
-                type="button"
-                class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none"
-                :class="currentView === 'ai' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'"
-                @click="onChangeAppView('ai')"
-                title="AI 助手"
-              >
-                <Bot class="h-3.5 w-3.5 shrink-0" />
-                <span>AI</span>
-              </button>
-            </nav>
-          </div>
-
-          <!-- 右侧：主题切换与设置/登录 -->
-          <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            <!-- 主题切换 -->
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              class="h-8 w-8 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
-              @click="themeStore.toggle($event)"
-              :title="themeStore.isDark ? '切换浅色模式' : '切换深色模式'"
-            >
-              <Sun v-if="themeStore.isDark" class="h-4 w-4" />
-              <Moon v-else class="h-4 w-4" />
-            </Button>
-
-            <!-- 设置或登录 -->
-            <Button
-              v-if="authStore.isLoggedIn"
-              variant="ghost"
-              size="icon-sm"
-              class="h-8 w-8 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
-              :class="{ 'text-primary bg-primary/10': currentView === 'admin' }"
-              @click="onChangeAppView('admin')"
-              title="系统设置"
-            >
-              <Settings class="h-4 w-4" />
-            </Button>
-            <Button
-              v-else
-              variant="outline"
-              size="sm"
-              class="h-8 px-2.5 sm:px-3 gap-1.5 text-xs font-medium cursor-pointer rounded-md"
-              @click="onOpenLogin()"
-            >
-              <User class="h-3.5 w-3.5" />
-              <span class="hidden sm:inline">登录</span>
-            </Button>
-          </div>
-        </header>
-
-        <!-- Main Body Content -->
         <div class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden">
           <!-- 1. 网址导航功能主视图 -->
-          <div v-show="currentView === 'home'" class="flex flex-col min-h-[calc(100svh-3.5rem)] w-full min-w-0 max-w-full overflow-x-hidden">
-            <!-- 搜索框组件 -->
-            <SearchBar v-model="searchQuery" />
+          <div v-show="currentView === 'home'" class="flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden">
+            <!-- 搜索框组件 (移动端为左上角悬浮按键保留呼吸空间) -->
+            <div class="pt-4 md:pt-0">
+              <SearchBar v-model="searchQuery" />
+            </div>
 
             <!-- 每日一言灵感条 (优雅融入搜索栏下方) -->
-            <div v-if="dailyQuote" class="py-2.5 px-4 text-center border-b border-border/40 bg-muted/20">
+            <div v-if="dailyQuote" class="py-2 px-4 text-center border-b border-border/40 bg-muted/20">
               <div class="inline-flex items-center gap-1.5 text-xs text-muted-foreground/80 max-w-lg mx-auto">
                 <MessageSquareQuote class="h-3.5 w-3.5 shrink-0 text-primary/60" />
                 <span class="truncate font-serif italic text-[11px]">{{ dailyQuote }}</span>

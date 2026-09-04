@@ -1287,9 +1287,9 @@ watch(
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-h-[calc(100svh-3.5rem)] w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
+  <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
     <!-- ==================== 1. 顶部控制栏 ==================== -->
-    <div class="h-12 px-3 sm:px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-14 z-10 w-full min-w-0 max-w-full">
+    <div class="h-12 pl-12 md:pl-4 pr-3 sm:pr-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full">
       <!-- 场景 A：列表视图顶部 -->
       <template v-if="!selectedNote">
         <!-- 移动端展开搜索模式 -->
