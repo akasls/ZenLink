@@ -21,6 +21,18 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Avatar,
+  AvatarFallback,
+} from '@/components/ui/avatar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Plus,
   Pencil,
@@ -801,433 +813,532 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-    <!-- 1. 顶部控制栏 (无背景色、无边框) -->
-    <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
-      <!-- 左上角显示标题 -->
-      <div class="flex items-center gap-2 select-none min-w-0">
-        <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate" :title="currentConversationTitle">
-          {{ currentConversationTitle || 'AI 对话' }}
-        </h1>
-      </div>
-
-      <!-- 右上角显示新建AI对话图标及章节跳转 -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <!-- 移动端章节跳转 Popover -->
-        <Popover
-          v-if="userQuestions.length >= 2"
-          v-model:open="mobileChapterPopoverVisible"
-        >
-          <PopoverTrigger as-child>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer md:hidden"
-              title="快速跳转历史提问"
-            >
-              <Tickets class="size-4" />
-            </Button>
-          </PopoverTrigger>
-
-          <PopoverContent align="end" class="w-60 p-2 shadow-lg">
-            <div class="space-y-1">
-              <div class="text-xs font-semibold text-muted-foreground px-1 pb-1 border-b border-border">
-                提问列表
-              </div>
-              <div class="max-h-48 overflow-y-auto space-y-0.5">
-                <div
-                  v-for="(item, qIdx) in userQuestions"
-                  :key="'mq-' + item.index"
-                  class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-foreground/80 hover:bg-accent hover:text-foreground cursor-pointer transition-colors"
-                  :class="{ 'bg-accent font-semibold text-primary': activeChapterMsgIndex === item.index }"
-                  @click="jumpToMessage(item.index); mobileChapterPopoverVisible = false;"
-                >
-                  <span class="font-mono text-[11px] text-primary shrink-0">#{{ qIdx + 1 }}</span>
-                  <span class="truncate">{{ item.msg.content.slice(0, 30) || '（空提问）' }}</span>
-                </div>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <!-- 新建AI对话图标 -->
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer"
-          title="新建AI对话"
-          @click="createNewConversation"
-        >
-          <Plus class="size-4" />
-        </Button>
-      </div>
-    </div>
-
-    <!-- 2. 主体对话容器 -->
-    <div class="flex-1 flex flex-col min-h-0 relative">
-      <!-- 消息滚动区 -->
-      <div
-        ref="chatContainerRef"
-        class="flex-1 overflow-y-auto px-4 py-6 flex flex-col items-center"
-        @scroll="onChatScroll"
-        @click="handleChatContainerClick"
-      >
-        <!-- 空状态 -->
-        <div v-if="messages.length === 0" class="my-auto py-12 text-center max-w-md">
-          <div class="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center text-2xl mx-auto mb-3 shadow-xs">
-            {{ currentRole?.icon || '🤖' }}
-          </div>
-          <h1 class="text-base font-semibold text-foreground m-0 mb-1">有什么可以帮到您？</h1>
-          <p class="text-xs text-muted-foreground m-0 leading-relaxed">
-            当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 支持多模型深度对话与提示词自定义
-          </p>
+  <TooltipProvider :delay-duration="150">
+    <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
+      <!-- 1. 顶部控制栏 (无背景色、无边框，极简透视) -->
+      <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
+        <!-- 左上角显示标题 -->
+        <div class="flex items-center gap-2 select-none min-w-0">
+          <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate" :title="currentConversationTitle">
+            {{ currentConversationTitle || 'AI 对话' }}
+          </h1>
         </div>
 
-        <!-- 正常对话消息流 -->
-        <div v-else class="w-full max-w-3xl space-y-5 pb-6">
-          <div
-            v-for="(msg, index) in messages"
-            :id="'msg-row-' + index"
-            :key="index"
-            class="flex flex-col w-full"
-            :class="msg.role === 'user' ? 'items-end' : 'items-start'"
+        <!-- 右上角显示新建AI对话图标及章节跳转 -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- 移动端章节跳转 Popover -->
+          <Popover
+            v-if="userQuestions.length >= 2"
+            v-model:open="mobileChapterPopoverVisible"
           >
-            <!-- 用户消息 -->
-            <template v-if="msg.role === 'user'">
-              <div class="group flex flex-col items-end max-w-[85%]">
-                <div class="px-3.5 py-2.5 bg-muted text-foreground text-xs leading-relaxed rounded-2xl rounded-tr-xs border border-border/80 break-words shadow-2xs">
-                  <div :class="{ 'line-clamp-6': isLongMessage(msg.content) && !expandedMsgMap[index] }">
-                    {{ msg.content }}
-                  </div>
+            <PopoverTrigger as-child>
+              <Tooltip>
+                <TooltipTrigger as-child>
                   <Button
-                    v-if="isLongMessage(msg.content)"
-                    variant="link"
-                    size="xs"
-                    class="p-0 h-auto text-[11px] text-primary mt-1 cursor-pointer"
-                    @click="toggleMsgExpand(index)"
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer md:hidden"
                   >
-                    {{ expandedMsgMap[index] ? '收起 ▴' : '展开全文 ▾' }}
+                    <Tickets class="size-4" />
                   </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">历史提问章节</TooltipContent>
+              </Tooltip>
+            </PopoverTrigger>
+
+            <PopoverContent align="end" class="w-64 p-2 shadow-lg">
+              <div class="space-y-1">
+                <div class="text-xs font-semibold text-muted-foreground px-1 pb-1 border-b border-border">
+                  提问列表 ({{ userQuestions.length }})
                 </div>
-
-                <!-- 用户操作栏 -->
-                <div v-if="!isStreaming" class="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    class="text-muted-foreground hover:text-foreground"
-                    @click="startEditMsg(index, msg)"
-                    title="编辑提问"
-                  >
-                    <Pencil class="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    class="text-muted-foreground hover:text-foreground"
-                    @click="copyMessage(msg.content)"
-                    title="复制文本"
-                  >
-                    <Copy class="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    @click="deleteMessage(index)"
-                    title="删除消息"
-                  >
-                    <Trash2 class="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </template>
-
-            <!-- AI 回复 -->
-            <template v-else>
-              <div class="group flex flex-col items-start w-full">
-                <div
-                  v-if="msg.content"
-                  class="ai-markdown-body w-full"
-                  v-html="renderMarkdown(msg.content)"
-                />
-                <div
-                  v-else-if="isStreaming && index === messages.length - 1"
-                  class="flex items-center gap-1.5 py-2 text-muted-foreground text-xs"
-                >
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-100"></span>
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-200"></span>
-                  <span class="ml-1 text-[11px]">正在思考与回复...</span>
-                </div>
-
-                <!-- AI 操作栏 -->
-                <div v-if="msg.content && !isStreaming" class="flex items-center gap-0.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    class="text-muted-foreground hover:text-foreground"
-                    @click="regenerateMessage(index)"
-                    title="重新生成"
-                  >
-                    <RotateCw class="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    class="text-muted-foreground hover:text-foreground"
-                    @click="copyMessage(msg.content)"
-                    title="复制回复"
-                  >
-                    <Copy class="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    @click="deleteMessage(index)"
-                    title="删除回复"
-                  >
-                    <Trash2 class="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. 底部输入卡片 -->
-      <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
-        <Card class="shadow-sm flex flex-col focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden border-border p-0 gap-0">
-          <!-- 上部快捷工具栏 -->
-          <div class="px-3 py-1.5 border-b border-border/70 flex items-center justify-between bg-muted/30 text-xs">
-            <div class="flex items-center gap-2">
-              <!-- 角色选择 Popover -->
-              <Popover v-model:open="rolePopoverVisible">
-                <PopoverTrigger as-child>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1 font-medium cursor-pointer"
-                    title="选择或自定义角色提示词"
-                  >
-                    <span class="text-xs">{{ currentRole?.icon || '🤖' }}</span>
-                    <span>{{ currentRole?.name || '默认助手' }}</span>
-                    <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
-
-                <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-1.5">
-                      <Input
-                        v-model="roleSearchQuery"
-                        placeholder="搜索角色预设..."
-                        class="h-7 text-xs flex-1"
-                      />
-                      <Button
-                        size="icon-xs"
-                        class="h-7 w-7 shrink-0 cursor-pointer"
-                        title="添加新角色"
-                        @click="openAddRoleModal"
-                      >
-                        <Plus class="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-
-                    <div class="max-h-48 overflow-y-auto space-y-1">
-                      <div
-                        v-for="r in filteredRoles"
-                        :key="r.id"
-                        class="group flex items-center justify-between p-1.5 rounded text-xs cursor-pointer transition-colors"
-                        :class="[
-                          r.id === selectedRoleId
-                            ? 'bg-accent text-accent-foreground font-semibold'
-                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                        ]"
-                        @click="selectRole(r)"
-                      >
-                        <span class="mr-1.5 text-sm">{{ r.icon }}</span>
-                        <div class="flex-1 min-w-0 pr-1">
-                          <div class="font-medium text-xs truncate">{{ r.name }}</div>
-                          <div class="text-[10px] text-muted-foreground truncate">{{ r.prompt }}</div>
-                        </div>
-
-                        <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-foreground" title="编辑" @click="openEditRoleModal(r, $event)">
-                            <Pencil class="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="删除" @click="deleteRole(r.id, $event)">
-                            <Trash2 class="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
+                <ScrollArea class="h-48">
+                  <div class="space-y-0.5 pr-2">
+                    <div
+                      v-for="(item, qIdx) in userQuestions"
+                      :key="'mq-' + item.index"
+                      class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-foreground/80 hover:bg-accent hover:text-foreground cursor-pointer transition-colors"
+                      :class="{ 'bg-accent font-semibold text-primary': activeChapterMsgIndex === item.index }"
+                      @click="jumpToMessage(item.index); mobileChapterPopoverVisible = false;"
+                    >
+                      <span class="font-mono text-[11px] text-primary shrink-0">#{{ qIdx + 1 }}</span>
+                      <span class="truncate">{{ item.msg.content.slice(0, 30) || '（空提问）' }}</span>
                     </div>
                   </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+                </ScrollArea>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-            <!-- 右侧返回底部按钮 -->
-            <Button
-              v-if="showScrollBottomBtn"
-              variant="ghost"
-              size="xs"
-              class="gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-              title="返回底部"
-              @click="scrollToBottomSmooth"
-            >
-              <ArrowDown class="h-3.5 w-3.5" />
-              <span>回到底部</span>
-            </Button>
-          </div>
-
-          <!-- 附件预览 -->
-          <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 p-2 bg-muted/20 border-b border-border">
-            <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-background border border-border text-xs">
-              <span>{{ att.isImage ? '🖼️' : '📎' }}</span>
-              <span class="max-w-[120px] truncate text-[11px]">{{ att.name }}</span>
-              <X class="h-2.5 w-2.5 text-muted-foreground hover:text-destructive cursor-pointer shrink-0 transition-colors" @click="removeAttachment(idx)" />
-            </div>
-          </div>
-
-          <!-- 编辑状态提示条 -->
-          <div v-if="editingMsgIndex !== null" class="px-3 py-1 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
-            <div class="flex items-center gap-1">
-              <Pencil class="h-3.5 w-3.5" />
-              <span>正在编辑提问 #{{ editingMsgIndex + 1 }}</span>
-            </div>
-            <Button variant="link" size="xs" class="p-0 h-auto text-xs text-amber-600 dark:text-amber-400 cursor-pointer" @click="cancelEditingMsg">
-              取消编辑
-            </Button>
-          </div>
-
-          <!-- 输入文本框 -->
-          <textarea
-            ref="textareaRef"
-            v-model="inputPrompt"
-            class="w-full px-3.5 py-2.5 text-xs bg-transparent text-foreground outline-none resize-none min-h-[44px] max-h-36 leading-relaxed placeholder:text-muted-foreground"
-            placeholder="输入您的问题，Enter 发送，Shift+Enter 换行，支持粘贴图片..."
-            rows="2"
-            :disabled="isStreaming"
-            @keydown="handleKeyDown"
-            @paste="handlePaste"
-          />
-
-          <!-- 底部发送与模型切换行 -->
-          <div class="px-3 py-1.5 flex items-center justify-between border-t border-border/60 bg-muted/20">
-            <!-- 左侧：附件上传 -->
-            <div class="flex items-center gap-1.5">
+          <!-- 新建AI对话图标 -->
+          <Tooltip>
+            <TooltipTrigger as-child>
               <Button
                 variant="ghost"
-                size="icon-xs"
-                class="text-muted-foreground hover:text-foreground cursor-pointer"
-                title="上传附件/图片"
-                @click="fileInputRef?.click()"
+                size="icon"
+                class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer"
+                @click="createNewConversation"
               >
-                <Paperclip class="h-3.5 w-3.5" />
+                <Plus class="size-4" />
               </Button>
-              <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">新建对话</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+
+      <!-- 2. 主体对话容器 -->
+      <div class="flex-1 flex flex-col min-h-0 relative">
+        <!-- 消息滚动区 -->
+        <div
+          ref="chatContainerRef"
+          class="flex-1 overflow-y-auto px-4 py-6 flex flex-col items-center"
+          @scroll="onChatScroll"
+          @click="handleChatContainerClick"
+        >
+          <!-- 空状态 -->
+          <div v-if="messages.length === 0" class="my-auto py-12 text-center max-w-lg">
+            <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
+              {{ currentRole?.icon || '🤖' }}
             </div>
+            <h1 class="text-lg font-semibold text-foreground m-0 mb-2 tracking-tight">有什么可以帮到您？</h1>
+            <p class="text-xs text-muted-foreground m-0 leading-relaxed mb-6 max-w-sm mx-auto">
+              当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 支持流式推理、代码高亮与上下文多轮对话
+            </p>
 
-            <!-- 右侧：模型选择 (靠右) + 圆形发送按钮 (无文字) -->
-            <div class="flex items-center gap-2">
-              <!-- 模型选择 Popover (靠右显示) -->
-              <Popover v-model:open="modelPopoverVisible">
-                <PopoverTrigger as-child>
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    class="h-7 gap-1 text-[11px] font-medium text-foreground cursor-pointer"
-                  >
-                    <span>{{ selectedModel || '暂无模型' }}</span>
-                    <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
+            <!-- 快捷提问启发卡片 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left w-full max-w-md mx-auto">
+              <Card
+                class="p-3 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-xs transition-all cursor-pointer select-none"
+                @click="sendMessage('请帮我分析这段代码的优化空间与潜在问题')"
+              >
+                <div class="text-xs font-medium text-foreground flex items-center justify-between gap-1.5 mb-1">
+                  <div class="flex items-center gap-1.5">
+                    <span>💻</span>
+                    <span>代码分析与重构</span>
+                  </div>
+                  <Badge variant="secondary" class="text-[10px] px-1.5 py-0 h-4 font-normal">编程</Badge>
+                </div>
+                <div class="text-[11px] text-muted-foreground line-clamp-1">
+                  分析逻辑缺陷、提高执行效率与可读性
+                </div>
+              </Card>
+              <Card
+                class="p-3 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-xs transition-all cursor-pointer select-none"
+                @click="sendMessage('请帮我润色以下内容，使其语言凝练且富有说服力')"
+              >
+                <div class="text-xs font-medium text-foreground flex items-center justify-between gap-1.5 mb-1">
+                  <div class="flex items-center gap-1.5">
+                    <span>✍️</span>
+                    <span>文章润色与提炼</span>
+                  </div>
+                  <Badge variant="secondary" class="text-[10px] px-1.5 py-0 h-4 font-normal">写作</Badge>
+                </div>
+                <div class="text-[11px] text-muted-foreground line-clamp-1">
+                  语言修辞润色、段落结构梳理与核心提要
+                </div>
+              </Card>
+            </div>
+          </div>
 
-                <PopoverContent side="top" align="end" class="w-60 p-2 shadow-lg">
-                  <div class="space-y-1.5">
-                    <Input
-                      v-model="modelSearchQuery"
-                      placeholder="搜索模型..."
-                      class="h-7 text-xs w-full"
-                    />
-                    <div class="max-h-40 overflow-y-auto space-y-0.5">
-                      <div
-                        v-for="m in filteredModelOptions"
-                        :key="m"
-                        class="flex items-center justify-between px-2 py-1 rounded text-xs cursor-pointer transition-colors"
-                        :class="[
-                          m === selectedModel
-                            ? 'bg-accent text-accent-foreground font-semibold'
-                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                        ]"
-                        @click="selectModelOption(m)"
-                      >
-                        <span class="truncate">{{ m }}</span>
-                        <Check v-if="m === selectedModel" class="h-3.5 w-3.5 text-primary" />
-                      </div>
+          <!-- 正常对话消息流 -->
+          <div v-else class="w-full max-w-3xl space-y-6 pb-6">
+            <div
+              v-for="(msg, index) in messages"
+              :id="'msg-row-' + index"
+              :key="index"
+              class="flex flex-col w-full"
+              :class="msg.role === 'user' ? 'items-end' : 'items-start'"
+            >
+              <!-- 用户消息 -->
+              <template v-if="msg.role === 'user'">
+                <div class="group flex flex-col items-end max-w-[85%]">
+                  <div class="px-4 py-2.5 bg-muted text-foreground text-xs leading-relaxed rounded-2xl rounded-tr-xs border border-border/80 break-words shadow-2xs">
+                    <div :class="{ 'line-clamp-6': isLongMessage(msg.content) && !expandedMsgMap[index] }">
+                      {{ msg.content }}
                     </div>
-                    <div class="pt-1 border-t border-border flex justify-end">
-                      <Button variant="link" size="xs" class="p-0 h-auto text-[11px] text-primary cursor-pointer" @click="setDefaultModel">
-                        设为默认
-                      </Button>
+                    <Button
+                      v-if="isLongMessage(msg.content)"
+                      variant="link"
+                      size="xs"
+                      class="p-0 h-auto text-[11px] text-primary mt-1 cursor-pointer"
+                      @click="toggleMsgExpand(index)"
+                    >
+                      {{ expandedMsgMap[index] ? '收起 ▴' : '展开全文 ▾' }}
+                    </Button>
+                  </div>
+
+                  <!-- 用户操作栏 -->
+                  <div v-if="!isStreaming" class="flex items-center gap-0.5 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="text-muted-foreground hover:text-foreground"
+                          @click="startEditMsg(index, msg)"
+                        >
+                          <Pencil class="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">编辑提问</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="text-muted-foreground hover:text-foreground"
+                          @click="copyMessage(msg.content)"
+                        >
+                          <Copy class="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">复制文本</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          @click="deleteMessage(index)"
+                        >
+                          <Trash2 class="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">删除消息</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              </template>
+
+              <!-- AI 回复 -->
+              <template v-else>
+                <div class="group flex items-start gap-3 w-full">
+                  <!-- AI 头像 -->
+                  <Avatar class="size-7 rounded-lg border border-border/80 bg-card shadow-2xs shrink-0 mt-0.5 select-none">
+                    <AvatarFallback class="rounded-lg text-xs bg-muted/70 font-medium">
+                      {{ currentRole?.icon || '🤖' }}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div class="flex-1 min-w-0 flex flex-col items-start">
+                    <div
+                      v-if="msg.content"
+                      class="ai-markdown-body w-full"
+                      v-html="renderMarkdown(msg.content)"
+                    />
+                    <div
+                      v-else-if="isStreaming && index === messages.length - 1"
+                      class="flex items-center gap-1.5 py-2 text-muted-foreground text-xs"
+                    >
+                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-100"></span>
+                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-200"></span>
+                      <span class="ml-1 text-[11px]">正在思考与回复...</span>
+                    </div>
+
+                    <!-- AI 操作栏 -->
+                    <div v-if="msg.content && !isStreaming" class="flex items-center gap-0.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            class="text-muted-foreground hover:text-foreground"
+                            @click="regenerateMessage(index)"
+                          >
+                            <RotateCw class="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">重新生成</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            class="text-muted-foreground hover:text-foreground"
+                            @click="copyMessage(msg.content)"
+                          >
+                            <Copy class="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">复制回复</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            @click="deleteMessage(index)"
+                          >
+                            <Trash2 class="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">删除回复</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
-                </PopoverContent>
-              </Popover>
-
-              <!-- 发送 / 停止圆形按钮 (无文字，纯圆形) -->
-              <Button
-                size="icon"
-                class="size-7 rounded-full shrink-0 shadow-xs cursor-pointer p-0"
-                :variant="isStreaming ? 'destructive' : 'default'"
-                :disabled="!isStreaming && !inputPrompt.trim() && attachments.length === 0"
-                @click="isStreaming ? stopGenerating() : sendMessage()"
-                :title="isStreaming ? '停止生成' : '发送 (Enter)'"
-              >
-                <Square v-if="isStreaming" class="size-3.5 fill-current" />
-                <ArrowUp v-else class="size-4" />
-              </Button>
+                </div>
+              </template>
             </div>
-          </div>
-        </Card>
-      </div>
-    </div>
-
-    <!-- 角色配置/编辑弹窗 -->
-    <Dialog :open="showRoleModal" @update:open="showRoleModal = $event">
-      <DialogContent class="sm:max-w-[440px]">
-        <DialogHeader>
-          <DialogTitle>{{ isEditingExistingRole ? '编辑角色与提示词' : '自定义角色与提示词' }}</DialogTitle>
-        </DialogHeader>
-
-        <div class="space-y-3 py-2">
-          <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-foreground/80">角色名称</label>
-            <Input v-model="editingRole.name" placeholder="例如：安全审计专家、代码架构师..." />
-          </div>
-          <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-foreground/80">图标 (Emoji)</label>
-            <Input v-model="editingRole.icon" placeholder="⚡" maxlength="4" class="w-20 text-center" />
-          </div>
-          <div class="space-y-1.5">
-            <label class="block text-xs font-medium text-foreground/80">角色系统提示词 (System Prompt)</label>
-            <Textarea
-              v-model="editingRole.prompt"
-              :rows="5"
-              placeholder="详细描述该角色的专业背景、回答风格与输出格式规范..."
-              class="resize-none"
-            />
           </div>
         </div>
 
-        <DialogFooter class="gap-2 sm:gap-0">
-          <Button variant="outline" @click="showRoleModal = false">取消</Button>
-          <Button @click="saveCustomRole">保存并启用</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  </div>
+        <!-- 3. 底部输入卡片 -->
+        <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
+          <Card class="shadow-sm flex flex-col focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/40 transition-all overflow-hidden border-border/80 rounded-2xl p-0 gap-0">
+            <!-- 上部快捷工具栏 -->
+            <div class="px-3 py-1.5 border-b border-border/70 flex items-center justify-between bg-muted/30 text-xs">
+              <div class="flex items-center gap-2">
+                <!-- 角色选择 Popover -->
+                <Popover v-model:open="rolePopoverVisible">
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 font-medium cursor-pointer"
+                    >
+                      <span class="text-xs">{{ currentRole?.icon || '🤖' }}</span>
+                      <span>{{ currentRole?.name || '默认助手' }}</span>
+                      <ChevronDown class="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
+                    <div class="space-y-2">
+                      <div class="flex items-center gap-1.5">
+                        <Input
+                          v-model="roleSearchQuery"
+                          placeholder="搜索角色预设..."
+                          class="h-7 text-xs flex-1"
+                        />
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <Button
+                              size="icon-xs"
+                              class="h-7 w-7 shrink-0 cursor-pointer"
+                              @click="openAddRoleModal"
+                            >
+                              <Plus class="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">自定义新角色</TooltipContent>
+                        </Tooltip>
+                      </div>
+
+                      <ScrollArea class="h-48">
+                        <div class="space-y-1 pr-2">
+                          <div
+                            v-for="r in filteredRoles"
+                            :key="r.id"
+                            class="group flex items-center justify-between p-1.5 rounded-md text-xs cursor-pointer transition-colors"
+                            :class="[
+                              r.id === selectedRoleId
+                                ? 'bg-accent text-accent-foreground font-semibold'
+                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                            ]"
+                            @click="selectRole(r)"
+                          >
+                            <span class="mr-1.5 text-sm">{{ r.icon }}</span>
+                            <div class="flex-1 min-w-0 pr-1">
+                              <div class="font-medium text-xs truncate">{{ r.name }}</div>
+                              <div class="text-[10px] text-muted-foreground truncate">{{ r.prompt }}</div>
+                            </div>
+
+                            <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
+                              <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-foreground" title="编辑" @click="openEditRoleModal(r, $event)">
+                                <Pencil class="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="删除" @click="deleteRole(r.id, $event)">
+                                <Trash2 class="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <!-- 右侧返回底部按钮 -->
+              <Button
+                v-if="showScrollBottomBtn"
+                variant="ghost"
+                size="xs"
+                class="gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                @click="scrollToBottomSmooth"
+              >
+                <ArrowDown class="h-3.5 w-3.5" />
+                <span>回到底部</span>
+              </Button>
+            </div>
+
+            <!-- 附件预览 -->
+            <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 p-2 bg-muted/20 border-b border-border">
+              <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-background border border-border text-xs">
+                <span>{{ att.isImage ? '🖼️' : '📎' }}</span>
+                <span class="max-w-[120px] truncate text-[11px]">{{ att.name }}</span>
+                <X class="h-2.5 w-2.5 text-muted-foreground hover:text-destructive cursor-pointer shrink-0 transition-colors" @click="removeAttachment(idx)" />
+              </div>
+            </div>
+
+            <!-- 编辑状态提示条 -->
+            <div v-if="editingMsgIndex !== null" class="px-3 py-1 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
+              <div class="flex items-center gap-1">
+                <Pencil class="h-3.5 w-3.5" />
+                <span>正在编辑提问 #{{ editingMsgIndex + 1 }}</span>
+              </div>
+              <Button variant="link" size="xs" class="p-0 h-auto text-xs text-amber-600 dark:text-amber-400 cursor-pointer" @click="cancelEditingMsg">
+                取消编辑
+              </Button>
+            </div>
+
+            <!-- 输入文本框 -->
+            <textarea
+              ref="textareaRef"
+              v-model="inputPrompt"
+              class="w-full px-3.5 py-2.5 text-xs bg-transparent text-foreground outline-none resize-none min-h-[48px] max-h-40 leading-relaxed placeholder:text-muted-foreground/70"
+              placeholder="输入您的问题，Enter 发送，Shift+Enter 换行，支持粘贴图片..."
+              rows="2"
+              :disabled="isStreaming"
+              @keydown="handleKeyDown"
+              @paste="handlePaste"
+            />
+
+            <!-- 底部发送与模型切换行 -->
+            <div class="px-3 py-1.5 flex items-center justify-between border-t border-border/60 bg-muted/20">
+              <!-- 左侧：附件上传 -->
+              <div class="flex items-center gap-1.5">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      class="text-muted-foreground hover:text-foreground cursor-pointer"
+                      @click="fileInputRef?.click()"
+                    >
+                      <Paperclip class="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">上传附件 / 图片</TooltipContent>
+                </Tooltip>
+                <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
+              </div>
+
+              <!-- 右侧：模型选择 (靠右) + 圆形发送按钮 (无文字) -->
+              <div class="flex items-center gap-2">
+                <!-- 模型选择 Popover (靠右显示) -->
+                <Popover v-model:open="modelPopoverVisible">
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      class="h-7 gap-1 text-[11px] font-medium text-foreground cursor-pointer"
+                    >
+                      <span>{{ selectedModel || '暂无模型' }}</span>
+                      <ChevronDown class="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent side="top" align="end" class="w-64 p-2 shadow-lg">
+                    <div class="space-y-1.5">
+                      <Input
+                        v-model="modelSearchQuery"
+                        placeholder="搜索模型..."
+                        class="h-7 text-xs w-full"
+                      />
+                      <ScrollArea class="h-40">
+                        <div class="space-y-0.5 pr-2">
+                          <div
+                            v-for="m in filteredModelOptions"
+                            :key="m"
+                            class="flex items-center justify-between px-2 py-1 rounded-md text-xs cursor-pointer transition-colors"
+                            :class="[
+                              m === selectedModel
+                                ? 'bg-accent text-accent-foreground font-semibold'
+                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                            ]"
+                            @click="selectModelOption(m)"
+                          >
+                            <span class="truncate">{{ m }}</span>
+                            <Check v-if="m === selectedModel" class="h-3.5 w-3.5 text-primary" />
+                          </div>
+                        </div>
+                      </ScrollArea>
+                      <div class="pt-1 border-t border-border flex justify-end">
+                        <Button variant="link" size="xs" class="p-0 h-auto text-[11px] text-primary cursor-pointer" @click="setDefaultModel">
+                          设为默认模型
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <!-- 发送 / 停止圆形按钮 (无文字，纯圆形) -->
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      size="icon"
+                      class="size-7 rounded-full shrink-0 shadow-xs cursor-pointer p-0"
+                      :variant="isStreaming ? 'destructive' : 'default'"
+                      :disabled="!isStreaming && !inputPrompt.trim() && attachments.length === 0"
+                      @click="isStreaming ? stopGenerating() : sendMessage()"
+                    >
+                      <Square v-if="isStreaming" class="size-3.5 fill-current" />
+                      <ArrowUp v-else class="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {{ isStreaming ? '停止生成' : '发送 (Enter)' }}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      <!-- 角色配置/编辑弹窗 -->
+      <Dialog :open="showRoleModal" @update:open="showRoleModal = $event">
+        <DialogContent class="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{{ isEditingExistingRole ? '编辑角色与提示词' : '自定义角色与提示词' }}</DialogTitle>
+          </DialogHeader>
+
+          <div class="space-y-3 py-2">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-foreground/80">角色名称</label>
+              <Input v-model="editingRole.name" placeholder="例如：安全审计专家、代码架构师..." />
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-foreground/80">图标 (Emoji)</label>
+              <Input v-model="editingRole.icon" placeholder="⚡" maxlength="4" class="w-20 text-center" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-medium text-foreground/80">角色系统提示词 (System Prompt)</label>
+              <Textarea
+                v-model="editingRole.prompt"
+                :rows="5"
+                placeholder="详细描述该角色的专业背景、回答风格与输出格式规范..."
+                class="resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter class="gap-2 sm:gap-0">
+            <Button variant="outline" @click="showRoleModal = false">取消</Button>
+            <Button @click="saveCustomRole">保存并启用</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  </TooltipProvider>
 </template>
