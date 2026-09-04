@@ -58,7 +58,6 @@ import {
   Pencil,
   MoreHorizontal,
   Folder,
-  FolderOpen,
   MessageSquare,
   User,
   LogOut,
@@ -262,11 +261,6 @@ function handleFilterNoteCategory(categoryId: number | null) {
   if (isMobile.value) setOpenMobile(false);
 }
 
-function handleNewAiChat() {
-  emit('newAiChat');
-  if (isMobile.value) setOpenMobile(false);
-}
-
 function handleSelectAiChat(id: string) {
   emit('selectAiChat', id);
   if (isMobile.value) setOpenMobile(false);
@@ -343,8 +337,8 @@ async function handleDeleteCategory(cat: any) {
 
 <template>
   <Sidebar collapsible="icon" variant="sidebar">
-    <!-- Header: 网站品牌与展开/收起按钮 (整行紧凑排列，展开/收起靠右显示，无多余顶栏) -->
-    <SidebarHeader class="border-b border-sidebar-border/60 p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-2">
+    <!-- Header: 网站品牌与展开/收起按钮 (整行紧凑排列，展开/收起靠右显示，无多余顶栏，无底部分割线) -->
+    <SidebarHeader class="p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-2">
       <!-- 展开状态下：网站图标 + 标题在左，展开/收起按钮靠右 -->
       <div class="flex items-center justify-between w-full min-w-0 group-data-[collapsible=icon]:hidden">
         <div
@@ -380,20 +374,6 @@ async function handleDeleteCategory(cat: any) {
     <SidebarContent class="px-2 py-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 scrollbar-none">
       <!-- ================= 模式 1：网址导航侧边栏 ================= -->
       <template v-if="currentView === 'home' || currentView === 'admin'">
-        <!-- 快捷操作：添加书签 (仅登录后) -->
-        <div v-if="isLoggedIn" class="px-2 pb-1.5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-          <Button
-            size="sm"
-            variant="outline"
-            class="w-full h-8 text-xs font-medium gap-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 cursor-pointer shadow-xs border-sidebar-border"
-            @click="emit('addBookmark')"
-            title="添加书签"
-          >
-            <Plus class="size-3.5 shrink-0" />
-            <span class="group-data-[collapsible=icon]:hidden">添加书签</span>
-          </Button>
-        </div>
-
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -404,7 +384,11 @@ async function handleDeleteCategory(cat: any) {
                   class="cursor-pointer"
                   @click="handleSelectCategory(cat.id)"
                 >
-                  <component :is="mapIcon(cat?.icon)" class="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                  <component
+                    :is="mapIcon(cat?.icon)"
+                    class="size-4 shrink-0 transition-colors"
+                    :class="selectedCategoryId === cat.id ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
+                  />
                   <span class="truncate">{{ cat.name }}</span>
                 </SidebarMenuButton>
 
@@ -439,70 +423,75 @@ async function handleDeleteCategory(cat: any) {
 
       <!-- ================= 模式 2：在线笔记侧边栏 (只要显示分类，支持编辑删除) ================= -->
       <template v-else-if="currentView === 'notes'">
-        <!-- 快捷操作：新建分类 -->
-        <div class="px-2 pb-1.5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-          <Button
-            size="sm"
-            variant="outline"
-            class="w-full h-8 text-xs font-medium gap-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 cursor-pointer shadow-xs border-sidebar-border"
-            @click="openCreateCategory"
-            title="新建分类"
-          >
-            <Plus class="size-3.5 shrink-0" />
-            <span class="group-data-[collapsible=icon]:hidden">新建分类</span>
-          </Button>
-        </div>
-
         <!-- 笔记分类列表 -->
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
+              <!-- 全部分类项 (右侧常驻放置新建分类图标) -->
               <SidebarMenuItem>
                 <SidebarMenuButton
                   :is-active="selectedNoteCategoryId === null"
                   tooltip="全部分类"
-                  class="cursor-pointer"
+                  class="cursor-pointer pr-14"
                   @click="handleFilterNoteCategory(null)"
                 >
-                  <Folder class="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                  <Folder
+                    class="size-4 shrink-0 transition-colors"
+                    :class="selectedNoteCategoryId === null ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
+                  />
                   <span class="truncate">全部分类</span>
-                  <SidebarMenuBadge>{{ totalNoteCount }}</SidebarMenuBadge>
+                  <SidebarMenuBadge class="right-7">{{ totalNoteCount }}</SidebarMenuBadge>
                 </SidebarMenuButton>
+
+                <SidebarMenuAction
+                  class="cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                  title="新建分类"
+                  @click.stop.prevent="openCreateCategory"
+                  @pointerdown.stop
+                >
+                  <Plus class="size-3.5" />
+                </SidebarMenuAction>
               </SidebarMenuItem>
 
+              <!-- 各笔记分类项 (固定默认显示图标与操作菜单) -->
               <SidebarMenuItem v-for="cat in noteCategories" :key="cat.id">
                 <SidebarMenuButton
                   :is-active="selectedNoteCategoryId === cat.id"
                   :tooltip="cat.name"
-                  class="cursor-pointer"
+                  class="cursor-pointer pr-14"
                   @click="handleFilterNoteCategory(cat.id)"
                 >
-                  <FolderOpen class="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                  <component
+                    :is="mapIcon(cat?.icon || '')"
+                    class="size-4 shrink-0 transition-colors"
+                    :class="selectedNoteCategoryId === cat.id ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
+                  />
                   <span class="truncate">{{ cat.name }}</span>
-                  <SidebarMenuBadge v-if="cat.count !== undefined">{{ cat.count }}</SidebarMenuBadge>
+                  <SidebarMenuBadge v-if="cat.count !== undefined" class="right-7">{{ cat.count }}</SidebarMenuBadge>
                 </SidebarMenuButton>
 
                 <!-- 分类管理操作 (编辑、删除) -->
                 <DropdownMenu>
                   <DropdownMenuTrigger as-child>
                     <SidebarMenuAction
-                      class="cursor-pointer text-muted-foreground hover:text-foreground opacity-0 group-hover/menu-item:opacity-100 transition-opacity"
+                      class="cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
                       title="分类操作"
-                      @click.stop
+                      @click.stop.prevent
+                      @pointerdown.stop
                     >
                       <MoreHorizontal class="size-3.5" />
                     </SidebarMenuAction>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" :side="isMobile ? 'top' : 'right'" class="w-28 p-1 shadow-md">
                     <DropdownMenuItem class="text-xs cursor-pointer gap-2" @click.stop="openEditCategory(cat)">
-                      <Pencil class="size-3.5 text-muted-foreground" />
+                      <Pencil class="size-3.5 shrink-0 text-muted-foreground" />
                       <span>编辑分类</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       class="text-xs cursor-pointer gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
                       @click.stop="handleDeleteCategory(cat)"
                     >
-                      <Trash2 class="size-3.5" />
+                      <Trash2 class="size-3.5 shrink-0" />
                       <span>删除分类</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -515,19 +504,6 @@ async function handleDeleteCategory(cat: any) {
 
       <!-- ================= 模式 3：AI 助手侧边栏 ================= -->
       <template v-else-if="currentView === 'ai'">
-        <!-- 快捷操作：发起新对话 -->
-        <div class="px-2 pb-1.5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-          <Button
-            size="sm"
-            class="w-full h-8 text-xs font-medium gap-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 cursor-pointer shadow-xs"
-            @click="handleNewAiChat"
-            title="开启新会话"
-          >
-            <Plus class="size-3.5 shrink-0" />
-            <span class="group-data-[collapsible=icon]:hidden">新对话</span>
-          </Button>
-        </div>
-
         <!-- 历史对话列表 (无多余标签) -->
         <SidebarGroup>
           <SidebarGroupContent>
@@ -539,15 +515,19 @@ async function handleDeleteCategory(cat: any) {
                   class="cursor-pointer group/chat-item"
                   @click="handleSelectAiChat(conv.id)"
                 >
-                  <MessageSquare class="size-3.5 shrink-0 text-muted-foreground" />
+                  <MessageSquare
+                    class="size-3.5 shrink-0 transition-colors"
+                    :class="activeAiConversationId === conv.id ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
+                  />
                   <span class="truncate text-xs">{{ conv.title || '新会话' }}</span>
                 </SidebarMenuButton>
 
-                <!-- 删除对话按钮 (悬停显示) -->
+                <!-- 删除对话按钮 (常驻显示) -->
                 <SidebarMenuAction
-                  class="cursor-pointer text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover/menu-item:opacity-100 transition-opacity"
+                  class="cursor-pointer text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   title="删除该对话"
-                  @click.stop="handleDeleteAiChat(conv.id)"
+                  @click.stop.prevent="handleDeleteAiChat(conv.id)"
+                  @pointerdown.stop
                 >
                   <Trash2 class="size-3.5" />
                 </SidebarMenuAction>
@@ -562,8 +542,8 @@ async function handleDeleteCategory(cat: any) {
       </template>
     </SidebarContent>
 
-    <!-- Footer: NavUser (用户偏好与设置快捷卡片) -->
-    <SidebarFooter class="border-t border-sidebar-border/60 p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-2">
+    <!-- Footer: NavUser (用户偏好与设置快捷卡片，无顶部分割线) -->
+    <SidebarFooter class="p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-2">
       <SidebarMenu>
         <SidebarMenuItem>
           <DropdownMenu>
