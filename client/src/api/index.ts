@@ -208,10 +208,10 @@ export const aiApi = {
   getConversations() {
     return api.get('/ai/conversations');
   },
-  createConversation(data?: { title?: string; model?: string; role_id?: string }) {
+  createConversation(data?: { title?: string; model?: string; role_id?: string; icon?: string }) {
     return api.post('/ai/conversations', data || {});
   },
-  updateConversation(id: string, data: { title?: string; role_id?: string; model?: string }) {
+  updateConversation(id: string, data: { title?: string; role_id?: string; model?: string; icon?: string }) {
     return api.put(`/ai/conversations/${id}`, data);
   },
   deleteConversation(id: string) {

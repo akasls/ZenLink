@@ -43,6 +43,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { noteCategoryApi, aiApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
+import IconPicker from '@/components/IconPicker.vue';
 import { confirmBox } from '@/utils/confirm';
 import {
   ChevronsUpDown,
@@ -106,6 +107,7 @@ interface ConversationItem {
   title: string;
   model?: string;
   role_id?: string;
+  icon?: string;
   updated_at?: string;
 }
 
@@ -152,7 +154,7 @@ const emit = defineEmits<{
   newAiChat: [];
   selectAiChat: [id: string];
   deleteAiChat: [id: string];
-  renameAiChat: [id: string, title: string];
+  renameAiChat: [id: string, title: string, icon?: string];
   selectAdminTab: [tab: string];
 }>();
 
@@ -277,14 +279,16 @@ function handleDeleteAiChat(id: string) {
   emit('deleteAiChat', id);
 }
 
-// AI 会话标题编辑状态与弹窗
+// AI 会话编辑状态与弹窗
 const showEditConversationModal = ref(false);
 const editingConversation = ref<ConversationItem | null>(null);
 const editConversationTitle = ref('');
+const editConversationIcon = ref('pi pi-comment');
 
 function openEditConversation(conv: ConversationItem) {
   editingConversation.value = conv;
   editConversationTitle.value = conv.title || '';
+  editConversationIcon.value = conv.icon || 'pi pi-comment';
   showEditConversationModal.value = true;
 }
 
@@ -292,14 +296,16 @@ async function handleSaveEditConversation() {
   if (!editingConversation.value) return;
   const title = editConversationTitle.value.trim();
   if (!title) return;
+  const icon = editConversationIcon.value || 'pi pi-comment';
   try {
-    await aiApi.updateConversation(editingConversation.value.id, { title });
-    toast.success('已更新会话名称');
+    await aiApi.updateConversation(editingConversation.value.id, { title, icon });
+    toast.success('已更新会话信息');
     editingConversation.value.title = title;
+    editingConversation.value.icon = icon;
     showEditConversationModal.value = false;
-    emit('renameAiChat', editingConversation.value.id, title);
+    emit('renameAiChat', editingConversation.value.id, title, icon);
   } catch (err: any) {
-    toast.error(err.response?.data?.error || '更新会话标题失败');
+    toast.error(err.response?.data?.error || '更新会话失败');
   }
 }
 
@@ -321,11 +327,14 @@ function handleSelectAdminTab(tab: string) {
 const showCreateCategoryModal = ref(false);
 const showEditCategoryModal = ref(false);
 const newCategoryName = ref('');
+const newCategoryIcon = ref('pi pi-folder');
 const editingCategory = ref<any>(null);
 const editCategoryName = ref('');
+const editCategoryIcon = ref('pi pi-folder');
 
 function openCreateCategory() {
   newCategoryName.value = '';
+  newCategoryIcon.value = 'pi pi-folder';
   showCreateCategoryModal.value = true;
 }
 
@@ -333,7 +342,7 @@ async function handleCreateCategory() {
   const name = newCategoryName.value.trim();
   if (!name) return;
   try {
-    await noteCategoryApi.create({ name });
+    await noteCategoryApi.create({ name, icon: newCategoryIcon.value });
     toast.success('分类创建成功');
     newCategoryName.value = '';
     showCreateCategoryModal.value = false;
@@ -346,6 +355,7 @@ async function handleCreateCategory() {
 function openEditCategory(cat: any) {
   editingCategory.value = cat;
   editCategoryName.value = cat.name;
+  editCategoryIcon.value = cat.icon || 'pi pi-folder';
   showEditCategoryModal.value = true;
 }
 
@@ -354,7 +364,7 @@ async function handleSaveEditCategory() {
   const name = editCategoryName.value.trim();
   if (!name) return;
   try {
-    await noteCategoryApi.update(editingCategory.value.id, { name });
+    await noteCategoryApi.update(editingCategory.value.id, { name, icon: editCategoryIcon.value });
     toast.success('分类已修改');
     showEditCategoryModal.value = false;
     emit('createNoteCategory');
@@ -529,7 +539,7 @@ async function handleDeleteCategory(cat: any) {
                       <MoreHorizontal class="size-3.5" />
                     </SidebarMenuAction>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" :side="isMobile ? 'top' : 'right'" class="w-28 p-1 shadow-md">
+                  <DropdownMenuContent align="end" side="bottom" :side-offset="4" class="w-28 p-1 shadow-md">
                     <DropdownMenuItem class="text-xs cursor-pointer gap-2" @click.stop="openEditCategory(cat)">
                       <Pencil class="size-3.5 shrink-0 text-muted-foreground" />
                       <span>编辑分类</span>
@@ -562,14 +572,15 @@ async function handleDeleteCategory(cat: any) {
                   class="cursor-pointer pr-14 group/chat-item"
                   @click="handleSelectAiChat(conv.id)"
                 >
-                  <MessageSquare
+                  <component
+                    :is="conv.icon ? mapIcon(conv.icon) : MessageSquare"
                     class="size-3.5 shrink-0 transition-colors"
                     :class="activeAiConversationId === conv.id ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
                   />
                   <span class="truncate text-xs">{{ conv.title || '新会话' }}</span>
                 </SidebarMenuButton>
 
-                <!-- 对话管理操作 (三个点图标：编辑标题、删除) -->
+                <!-- 对话管理操作 (三个点图标：编辑、删除) -->
                 <DropdownMenu>
                   <DropdownMenuTrigger as-child>
                     <SidebarMenuAction
@@ -581,10 +592,10 @@ async function handleDeleteCategory(cat: any) {
                       <MoreHorizontal class="size-3.5" />
                     </SidebarMenuAction>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" :side="isMobile ? 'top' : 'right'" class="w-28 p-1 shadow-md">
+                  <DropdownMenuContent align="end" side="bottom" :side-offset="4" class="w-28 p-1 shadow-md">
                     <DropdownMenuItem class="text-xs cursor-pointer gap-2" @click.stop="openEditConversation(conv)">
                       <Pencil class="size-3.5 shrink-0 text-muted-foreground" />
-                      <span>编辑标题</span>
+                      <span>编辑对话</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       class="text-xs cursor-pointer gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -754,13 +765,21 @@ async function handleDeleteCategory(cat: any) {
             新建笔记分类
           </DialogTitle>
         </DialogHeader>
-        <div class="py-2">
-          <Input
-            v-model="newCategoryName"
-            placeholder="输入分类名称..."
-            autofocus
-            @keydown.enter.prevent="handleCreateCategory"
-          />
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">分类名称 <span class="text-destructive">*</span></label>
+            <Input
+              v-model="newCategoryName"
+              placeholder="输入分类名称..."
+              class="h-8 text-xs"
+              autofocus
+              @keydown.enter.prevent="handleCreateCategory"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">分类图标</label>
+            <IconPicker v-model="newCategoryIcon" title="选择分类图标" />
+          </div>
         </div>
         <DialogFooter class="gap-2 sm:gap-0">
           <Button variant="outline" @click="showCreateCategoryModal = false">取消</Button>
@@ -778,13 +797,21 @@ async function handleDeleteCategory(cat: any) {
             编辑笔记分类
           </DialogTitle>
         </DialogHeader>
-        <div class="py-2">
-          <Input
-            v-model="editCategoryName"
-            placeholder="输入新的分类名称..."
-            autofocus
-            @keydown.enter.prevent="handleSaveEditCategory"
-          />
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">分类名称 <span class="text-destructive">*</span></label>
+            <Input
+              v-model="editCategoryName"
+              placeholder="输入新的分类名称..."
+              class="h-8 text-xs"
+              autofocus
+              @keydown.enter.prevent="handleSaveEditCategory"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">分类图标</label>
+            <IconPicker v-model="editCategoryIcon" title="选择分类图标" />
+          </div>
         </div>
         <DialogFooter class="gap-2 sm:gap-0">
           <Button variant="outline" @click="showEditCategoryModal = false">取消</Button>
@@ -793,22 +820,30 @@ async function handleDeleteCategory(cat: any) {
       </DialogContent>
     </Dialog>
 
-    <!-- 编辑会话标题弹窗 -->
+    <!-- 编辑会话弹窗 -->
     <Dialog :open="showEditConversationModal" @update:open="showEditConversationModal = $event">
       <DialogContent class="sm:max-w-[380px]">
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2">
             <Pencil class="size-4 text-primary" />
-            编辑会话标题
+            编辑对话信息
           </DialogTitle>
         </DialogHeader>
-        <div class="py-2">
-          <Input
-            v-model="editConversationTitle"
-            placeholder="输入新的会话标题..."
-            autofocus
-            @keydown.enter.prevent="handleSaveEditConversation"
-          />
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">会话标题 <span class="text-destructive">*</span></label>
+            <Input
+              v-model="editConversationTitle"
+              placeholder="输入新的会话标题..."
+              class="h-8 text-xs"
+              autofocus
+              @keydown.enter.prevent="handleSaveEditConversation"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">会话图标</label>
+            <IconPicker v-model="editConversationIcon" title="选择对话图标" />
+          </div>
         </div>
         <DialogFooter class="gap-2 sm:gap-0">
           <Button variant="outline" @click="showEditConversationModal = false">取消</Button>

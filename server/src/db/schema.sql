@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
   title TEXT NOT NULL DEFAULT '新对话',
   model TEXT DEFAULT 'deepseek-chat',
   role_id TEXT DEFAULT 'default',
+  icon TEXT DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

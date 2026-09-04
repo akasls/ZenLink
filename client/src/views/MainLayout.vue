@@ -359,7 +359,7 @@ onUnmounted(() => {
         @new-ai-chat="aiChatPanelRef?.createNewConversation()"
         @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
         @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
-        @rename-ai-chat="(id, title) => { const c = aiData.conversations.find((x: any) => x.id === id); if (c) c.title = title; }"
+        @rename-ai-chat="(id, title, icon) => { const c = aiData.conversations.find((x: any) => x.id === id); if (c) { c.title = title; if (icon !== undefined) c.icon = icon; } }"
         @select-admin-tab="(tab) => selectedAdminTab = (tab as any)"
         @add-bookmark="showAddDialog = true"
       />

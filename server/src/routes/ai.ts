@@ -165,7 +165,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
   // 3. 获取所有会话（按最新活动时间倒序排序）
   fastify.get('/api/ai/conversations', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const conversations = dbHelper.all('SELECT id, title, model, role_id, created_at, updated_at FROM ai_conversations ORDER BY updated_at DESC, created_at DESC');
+    const conversations = dbHelper.all('SELECT id, title, model, role_id, icon, created_at, updated_at FROM ai_conversations ORDER BY updated_at DESC, created_at DESC');
     return reply.send({ conversations });
   });
 
@@ -176,11 +176,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const title = body.title || '新对话';
     const model = body.model || 'deepseek-chat';
     const role_id = body.role_id || 'default';
+    const icon = body.icon || '';
     const now = new Date().toISOString();
 
     dbHelper.run(
-      'INSERT INTO ai_conversations (id, title, model, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, title, model, role_id, now, now]
+      'INSERT INTO ai_conversations (id, title, model, role_id, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, title, model, role_id, icon, now, now]
     );
     saveDatabase();
 
@@ -188,15 +189,18 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     return reply.status(201).send({ conversation: conv });
   });
 
-  // 4.1 更新会话（重命名标题 / 角色 / 模型）
+  // 4.1 更新会话（重命名标题 / 角色 / 模型 / 图标）
   fastify.put('/api/ai/conversations/:id', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = (request.body as any) || {};
-    const { title, role_id, model } = body;
+    const { title, role_id, model, icon } = body;
     const now = new Date().toISOString();
 
     if (title !== undefined) {
       dbHelper.run('UPDATE ai_conversations SET title = ?, updated_at = ? WHERE id = ?', [title, now, id]);
+    }
+    if (icon !== undefined) {
+      dbHelper.run('UPDATE ai_conversations SET icon = ?, updated_at = ? WHERE id = ?', [icon, now, id]);
     }
     if (role_id !== undefined) {
       dbHelper.run('UPDATE ai_conversations SET role_id = ?, updated_at = ? WHERE id = ?', [role_id, now, id]);
@@ -275,8 +279,8 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       conversation_id = randomUUID();
       const title = message.trim().slice(0, 20) + (message.length > 20 ? '...' : '');
       dbHelper.run(
-        'INSERT INTO ai_conversations (id, title, model, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [conversation_id, title, requestModel || 'deepseek-chat', role_id || 'default', now, now]
+        'INSERT INTO ai_conversations (id, title, model, role_id, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [conversation_id, title, requestModel || 'deepseek-chat', role_id || 'default', '', now, now]
       );
     } else {
       // 无论是否是新会话，只要发送消息就刷新 updated_at 与 role_id

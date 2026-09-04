@@ -30,10 +30,9 @@ import {
   ChevronDown,
   Check,
   Square,
-  Send,
   Paperclip,
   ArrowDown,
-  MessageSquare,
+  ArrowUp,
   Tickets,
   X,
 } from 'lucide-vue-next';
@@ -55,8 +54,8 @@ const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : f
 function handleResize() { isMobile.value = window.innerWidth < 768; }
 
 interface Message {
-  id?: number | string;
-  role: 'user' | 'assistant';
+  id?: number;
+  role: 'user' | 'assistant' | 'system';
   content: string;
   created_at?: string;
 }
@@ -66,6 +65,7 @@ interface Conversation {
   title: string;
   model: string;
   role_id?: string;
+  icon?: string;
   created_at: string;
   updated_at: string;
 }
@@ -105,12 +105,6 @@ const filteredRoles = computed(() => {
 });
 function deleteRole(id: string, e?: Event) {
   deleteCustomRole(id, e);
-}
-
-function getRoleIcon(roleId?: string): string {
-  if (!roleId || roleId === 'default') return '🤖';
-  const r = roles.value.find(item => item.id === roleId);
-  return r?.icon || '🤖';
 }
 
 function selectRole(r: RolePreset) {
@@ -245,18 +239,7 @@ const inputPrompt = ref('');
 const isStreaming = ref(false);
 const loadingHistory = ref(false);
 
-// 对话搜索与重命名
-const convSearchQuery = ref('');
-const convPopoverVisible = ref(false);
 const rolePopoverVisible = ref(false);
-const editingConvId = ref<string>('');
-const editingConvTitle = ref<string>('');
-
-const filteredConversations = computed(() => {
-  if (!convSearchQuery.value.trim()) return conversations.value;
-  const q = convSearchQuery.value.trim().toLowerCase();
-  return conversations.value.filter(c => c.title.toLowerCase().includes(q));
-});
 
 // 编辑历史消息状态 (点击编辑后将内容放入底部编辑框)
 const editingMsgIndex = ref<number | null>(null);
@@ -455,11 +438,7 @@ async function selectConversation(id: string) {
   if (isStreaming.value) {
     stopGenerating();
   }
-  if (editingConvId.value) {
-    cancelEditTitle();
-  }
   cancelEditingMsg();
-  convPopoverVisible.value = false;
   activeConversationId.value = id;
 
   // 记忆并恢复该会话绑定的专属角色
@@ -487,7 +466,6 @@ async function createNewConversation() {
     stopGenerating();
   }
   cancelEditingMsg();
-  convPopoverVisible.value = false;
   if (messages.value.length === 0) {
     nextTick(() => textareaRef.value?.focus());
     return;
@@ -499,38 +477,6 @@ async function createNewConversation() {
   selectedRoleId.value = 'default';
   expandedMsgMap.value = {};
   nextTick(() => textareaRef.value?.focus());
-}
-
-function startEditTitle(conv: Conversation) {
-  editingConvId.value = conv.id;
-  editingConvTitle.value = conv.title;
-  nextTick(() => {
-    const input = document.querySelector('.conv-title-input') as HTMLInputElement;
-    input?.focus();
-    input?.select();
-  });
-}
-
-function cancelEditTitle() {
-  editingConvId.value = '';
-  editingConvTitle.value = '';
-}
-
-async function saveEditTitle(conv: Conversation) {
-  const newTitle = editingConvTitle.value.trim();
-  if (!newTitle || newTitle === conv.title) {
-    cancelEditTitle();
-    return;
-  }
-  try {
-    await aiApi.updateConversation(conv.id, { title: newTitle });
-    conv.title = newTitle;
-    toast.success('已更新会话名称');
-  } catch {
-    toast.error('更新标题失败');
-  } finally {
-    cancelEditTitle();
-  }
 }
 
 async function deleteConversation(id: string, e?: Event) {
@@ -550,18 +496,6 @@ async function deleteConversation(id: string, e?: Event) {
       }
     }
     toast.success('已删除会话');
-  } catch {}
-}
-
-async function clearAllConversations() {
-  try {
-    await confirmBox('确定要清空全部 AI 对话历史吗？此操作无法撤销。', '清空历史');
-    await aiApi.clearConversations();
-    conversations.value = [];
-    activeConversationId.value = '';
-    messages.value = [];
-    convPopoverVisible.value = false;
-    toast.success('已清空所有对话');
   } catch {}
 }
 
@@ -1069,88 +1003,6 @@ onUnmounted(() => {
           <!-- 上部快捷工具栏 -->
           <div class="px-3 py-1.5 border-b border-border/70 flex items-center justify-between bg-muted/30 text-xs">
             <div class="flex items-center gap-2">
-              <!-- 对话列表 Popover -->
-              <Popover v-model:open="convPopoverVisible">
-                <PopoverTrigger as-child>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1 font-medium cursor-pointer"
-                    title="切换或管理对话"
-                  >
-                    <MessageSquare class="h-3.5 w-3.5" />
-                    <span>对话历史</span>
-                    <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                </PopoverTrigger>
-
-                <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
-                  <div class="space-y-2">
-                    <div class="flex items-center gap-1.5">
-                      <Input
-                        v-model="convSearchQuery"
-                        placeholder="搜索历史对话..."
-                        class="h-7 text-xs flex-1"
-                      />
-                      <Button
-                        size="icon-xs"
-                        class="h-7 w-7 shrink-0 cursor-pointer"
-                        title="发起新对话"
-                        @click="createNewConversation"
-                      >
-                        <Plus class="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-
-                    <div class="max-h-48 overflow-y-auto space-y-0.5">
-                      <div
-                        v-for="conv in filteredConversations"
-                        :key="conv.id"
-                        class="group flex items-center justify-between px-2 py-1.5 rounded text-xs cursor-pointer transition-colors"
-                        :class="[
-                          conv.id === activeConversationId
-                            ? 'bg-accent text-accent-foreground font-semibold'
-                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                        ]"
-                        @click="selectConversation(conv.id)"
-                      >
-                        <div class="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
-                          <span class="text-xs shrink-0">{{ getRoleIcon(conv.role_id) }}</span>
-                          <div v-if="editingConvId === conv.id" class="flex-1" @click.stop>
-                            <Input
-                              v-model="editingConvTitle"
-                              class="h-6 text-xs"
-                              @keydown.enter="saveEditTitle(conv)"
-                              @keydown.esc="cancelEditTitle"
-                              @blur="saveEditTitle(conv)"
-                            />
-                          </div>
-                          <span v-else class="truncate">{{ conv.title }}</span>
-                        </div>
-
-                        <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-foreground" title="重命名" @click.stop="startEditTitle(conv)">
-                            <Pencil class="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="删除" @click.stop="deleteConversation(conv.id, $event)">
-                            <Trash2 class="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div v-if="filteredConversations.length === 0" class="text-center py-3 text-xs text-muted-foreground">暂无对话</div>
-                    </div>
-
-                    <div v-if="conversations.length > 0" class="pt-1.5 border-t border-border text-center">
-                      <Button variant="ghost" size="xs" class="text-[11px] text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer" @click="clearAllConversations">
-                        清空所有对话
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              <div class="h-3 w-px bg-border"></div>
-
               <!-- 角色选择 Popover -->
               <Popover v-model:open="rolePopoverVisible">
                 <PopoverTrigger as-child>
@@ -1265,6 +1117,7 @@ onUnmounted(() => {
 
           <!-- 底部发送与模型切换行 -->
           <div class="px-3 py-1.5 flex items-center justify-between border-t border-border/60 bg-muted/20">
+            <!-- 左侧：附件上传 -->
             <div class="flex items-center gap-1.5">
               <Button
                 variant="ghost"
@@ -1276,21 +1129,24 @@ onUnmounted(() => {
                 <Paperclip class="h-3.5 w-3.5" />
               </Button>
               <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
+            </div>
 
-              <!-- 模型选择 Popover -->
+            <!-- 右侧：模型选择 (靠右) + 圆形发送按钮 (无文字) -->
+            <div class="flex items-center gap-2">
+              <!-- 模型选择 Popover (靠右显示) -->
               <Popover v-model:open="modelPopoverVisible">
                 <PopoverTrigger as-child>
                   <Button
                     variant="outline"
                     size="xs"
-                    class="h-6 gap-1 text-[11px] font-medium text-foreground cursor-pointer"
+                    class="h-7 gap-1 text-[11px] font-medium text-foreground cursor-pointer"
                   >
                     <span>{{ selectedModel || '暂无模型' }}</span>
                     <ChevronDown class="h-3 w-3 text-muted-foreground" />
                   </Button>
                 </PopoverTrigger>
 
-                <PopoverContent side="top" align="start" class="w-60 p-2 shadow-lg">
+                <PopoverContent side="top" align="end" class="w-60 p-2 shadow-lg">
                   <div class="space-y-1.5">
                     <Input
                       v-model="modelSearchQuery"
@@ -1321,21 +1177,20 @@ onUnmounted(() => {
                   </div>
                 </PopoverContent>
               </Popover>
-            </div>
 
-            <!-- 发送 / 停止按钮 -->
-            <Button
-              size="sm"
-              class="h-7 gap-1.5 text-xs font-medium"
-              :variant="isStreaming ? 'destructive' : 'default'"
-              :disabled="!isStreaming && !inputPrompt.trim() && attachments.length === 0"
-              @click="isStreaming ? stopGenerating() : sendMessage()"
-              :title="isStreaming ? '停止生成' : '发送'"
-            >
-              <Square v-if="isStreaming" class="h-3.5 w-3.5 fill-current" />
-              <Send v-else class="h-3.5 w-3.5" />
-              <span>{{ isStreaming ? '停止' : '发送' }}</span>
-            </Button>
+              <!-- 发送 / 停止圆形按钮 (无文字，纯圆形) -->
+              <Button
+                size="icon"
+                class="size-7 rounded-full shrink-0 shadow-xs cursor-pointer p-0"
+                :variant="isStreaming ? 'destructive' : 'default'"
+                :disabled="!isStreaming && !inputPrompt.trim() && attachments.length === 0"
+                @click="isStreaming ? stopGenerating() : sendMessage()"
+                :title="isStreaming ? '停止生成' : '发送 (Enter)'"
+              >
+                <Square v-if="isStreaming" class="size-3.5 fill-current" />
+                <ArrowUp v-else class="size-4" />
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

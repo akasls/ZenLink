@@ -12,6 +12,15 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Search, ChevronDown } from 'lucide-vue-next';
 
+const props = withDefaults(
+  defineProps<{
+    title?: string;
+  }>(),
+  {
+    title: '选择图标',
+  }
+);
+
 const modelValue = defineModel<string>({ default: 'pi pi-folder' });
 const showPicker = ref(false);
 const search = ref('');
@@ -81,7 +90,7 @@ function getIconLabel(icon: string): string {
     <Dialog :open="showPicker" @update:open="showPicker = $event">
       <DialogContent class="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>选择分类图标</DialogTitle>
+          <DialogTitle>{{ title }}</DialogTitle>
         </DialogHeader>
 
         <div class="space-y-3 pt-1">

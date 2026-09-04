@@ -43,6 +43,7 @@ export async function initDatabase(): Promise<void> {
   // 扩展表字段与配置
   try { db.run("CREATE TABLE IF NOT EXISTS storage_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);"); } catch {}
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN role_id TEXT DEFAULT 'default';"); } catch {}
+  try { db.run("ALTER TABLE ai_conversations ADD COLUMN icon TEXT DEFAULT '';"); } catch {}
   try { db.run("ALTER TABLE notes ADD COLUMN tags TEXT DEFAULT '[]';"); } catch {}
   // 性能索引加速
   try { db.run("CREATE INDEX IF NOT EXISTS idx_bookmarks_sort ON bookmarks(sort_order);"); } catch {}

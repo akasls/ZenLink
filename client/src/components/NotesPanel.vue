@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { toast } from '@/components/ui/sonner';
 import { confirmBox } from '@/utils/confirm';
 import { renderMarkdown, handleCodeCopyClick } from '@/utils/markdown';
+import { mapIcon } from '@/utils/icon-map';
 import {
   Dialog,
   DialogContent,
@@ -2152,7 +2153,7 @@ watch(
               class="flex items-center justify-between px-3 py-2.5 hover:bg-accent/50 transition-colors"
             >
               <div class="flex items-center gap-2 text-sm font-medium">
-                <Folder class="h-4 w-4 text-muted-foreground" />
+                <component :is="mapIcon(cat.icon || '')" class="h-4 w-4 text-muted-foreground" />
                 <span>{{ cat.name }}</span>
               </div>
               <Button
