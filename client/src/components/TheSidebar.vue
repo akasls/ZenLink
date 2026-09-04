@@ -21,6 +21,7 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 import {
   ChevronRight,
   Compass,
@@ -29,6 +30,7 @@ import {
   Settings,
   Sun,
   Moon,
+  X,
 } from 'lucide-vue-next';
 
 const siteStore = useSiteStore();
@@ -138,33 +140,47 @@ function handleSettings() {
 <template>
   <Sidebar collapsible="icon" variant="sidebar">
     <!-- Header: Workspace / Logo -->
-    <SidebarHeader>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            size="lg"
-            tooltip="返回首页"
-            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
-            @click="handleLogoClick"
-          >
-            <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-xs overflow-hidden shrink-0">
-              <img v-if="siteStore.siteLogo" :src="siteStore.siteLogo" class="size-full object-cover" alt="logo" />
-              <span v-else>{{ (siteStore.siteName || 'Z').trim().charAt(0) }}</span>
-            </div>
-            <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
-              <span class="truncate font-semibold text-foreground">{{ siteStore.siteName || 'ZenLink' }}</span>
-              <span class="truncate text-[11px] text-muted-foreground">{{ siteStore.siteDesc || '优雅极简导航' }}</span>
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+    <SidebarHeader class="border-b border-sidebar-border/60 pb-3">
+      <div class="flex items-center justify-between">
+        <SidebarMenu class="flex-1 min-w-0">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              tooltip="返回首页"
+              class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
+              @click="handleLogoClick"
+            >
+              <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm shadow-xs overflow-hidden shrink-0">
+                <img v-if="siteStore.siteLogo" :src="siteStore.siteLogo" class="size-full object-cover" alt="logo" />
+                <span v-else>{{ (siteStore.siteName || 'Z').trim().charAt(0) }}</span>
+              </div>
+              <div class="grid flex-1 text-left text-xs leading-tight min-w-0">
+                <span class="truncate font-semibold text-foreground tracking-tight">{{ siteStore.siteName || 'ZenLink' }}</span>
+                <span class="truncate text-[11px] text-muted-foreground">{{ siteStore.siteDesc || '干净简洁的导航' }}</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        <!-- 移动端关闭按钮 -->
+        <Button
+          v-if="isMobile"
+          variant="ghost"
+          size="icon-xs"
+          class="text-muted-foreground hover:text-foreground shrink-0 ml-1"
+          @click="setOpenMobile(false)"
+          title="关闭菜单"
+        >
+          <X class="h-4 w-4" />
+        </Button>
+      </div>
     </SidebarHeader>
 
     <!-- Content: Apps & Categories -->
-    <SidebarContent class="px-2">
-      <!-- 核心应用 Group -->
+    <SidebarContent class="px-2 py-2">
+      <!-- 核心功能模式 Group -->
       <SidebarGroup>
-        <SidebarGroupLabel>快捷入口</SidebarGroupLabel>
+        <SidebarGroupLabel>核心功能</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -207,8 +223,8 @@ function handleSettings() {
       </SidebarGroup>
 
       <!-- 网址分类 Group -->
-      <SidebarGroup>
-        <SidebarGroupLabel>网站分类</SidebarGroupLabel>
+      <SidebarGroup class="mt-2">
+        <SidebarGroupLabel>书签分类</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem v-for="cat in topCats" :key="cat.id">
@@ -218,7 +234,7 @@ function handleSettings() {
                 class="cursor-pointer"
                 @click="handleSelectCategory(cat.id)"
               >
-                <component :is="mapIcon(cat?.icon)" class="size-4 shrink-0" />
+                <component :is="mapIcon(cat?.icon)" class="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
                 <span class="truncate">{{ cat.name }}</span>
               </SidebarMenuButton>
 
@@ -252,7 +268,7 @@ function handleSettings() {
     </SidebarContent>
 
     <!-- Footer: 系统设置与主题模式 -->
-    <SidebarFooter>
+    <SidebarFooter class="border-t border-sidebar-border/60 pt-2">
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton

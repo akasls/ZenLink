@@ -314,77 +314,76 @@ onUnmounted(() => {
 
       <!-- Canonical Shadcn Vue Inset Main Content -->
       <SidebarInset>
-        <!-- Top App Bar / Header with Breadcrumb and Actions -->
-        <header class="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-md transition-[width,height] ease-linear">
-          <div class="flex items-center gap-2">
-            <SidebarTrigger class="-ml-1" />
-            <Separator orientation="vertical" class="mr-2 h-4" />
-            <Breadcrumb>
+        <!-- 现代化极简顶栏 (全屏与移动端高自适应) -->
+        <header class="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/85 px-3 sm:px-5 backdrop-blur-md transition-all">
+          <!-- 左侧：侧边栏触发器 + 面包屑导航 -->
+          <div class="flex items-center gap-2 min-w-0">
+            <SidebarTrigger class="-ml-1 text-muted-foreground hover:text-foreground" />
+            <Separator orientation="vertical" class="h-4 hidden sm:block" />
+            <Breadcrumb class="hidden sm:inline-flex">
               <BreadcrumbList>
-                <BreadcrumbItem class="hidden sm:inline-flex">
-                  <BreadcrumbLink class="cursor-pointer" @click="onChangeAppView('home')">
+                <BreadcrumbItem>
+                  <BreadcrumbLink class="cursor-pointer font-medium text-xs" @click="onChangeAppView('home')">
                     {{ siteStore.siteName || 'ZenLink' }}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator class="hidden sm:inline-flex" />
+                <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{{ currentViewTitle }}</BreadcrumbPage>
+                  <BreadcrumbPage class="text-xs font-normal text-muted-foreground">{{ currentViewTitle }}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>
 
-          <!-- Header Right Actions -->
-          <div class="flex items-center gap-2">
-            <!-- 一言 -->
-            <div v-if="dailyQuote" class="hidden xl:flex items-center gap-1.5 max-w-[280px] text-xs text-muted-foreground/80 mr-2">
-              <MessageSquareQuote class="h-3.5 w-3.5 shrink-0 text-primary/70" />
-              <span class="truncate text-[11px]">{{ dailyQuote }}</span>
-            </div>
-
-            <!-- 应用快速切换 (平板与桌面端) -->
-            <div class="hidden md:flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/50 text-xs">
-              <Button
-                variant="ghost"
-                size="sm"
-                class="h-7 px-2.5 text-xs gap-1.5 cursor-pointer"
-                :class="currentView === 'home' ? 'bg-background text-foreground shadow-xs font-medium' : 'text-muted-foreground hover:text-foreground'"
+          <!-- 中间：核心三功能切换分段控制 (支持桌面与移动端触摸) -->
+          <div class="flex items-center justify-center">
+            <nav class="flex items-center bg-muted/60 p-1 rounded-lg border border-border/40 gap-1 shadow-2xs">
+              <button
+                type="button"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none"
+                :class="currentView === 'home' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'"
                 @click="onChangeAppView('home')"
+                title="网址导航"
               >
-                <Compass class="h-3.5 w-3.5" />
+                <Compass class="h-3.5 w-3.5 shrink-0" />
                 <span>导航</span>
-              </Button>
-              <Button
-                v-if="siteStore.enableNotes"
-                variant="ghost"
-                size="sm"
-                class="h-7 px-2.5 text-xs gap-1.5 cursor-pointer"
-                :class="currentView === 'notes' ? 'bg-background text-foreground shadow-xs font-medium' : 'text-muted-foreground hover:text-foreground'"
-                @click="onChangeAppView('notes')"
-              >
-                <FileText class="h-3.5 w-3.5" />
-                <span>笔记</span>
-              </Button>
-              <Button
-                v-if="siteStore.enableAi"
-                variant="ghost"
-                size="sm"
-                class="h-7 px-2.5 text-xs gap-1.5 cursor-pointer"
-                :class="currentView === 'ai' ? 'bg-background text-foreground shadow-xs font-medium' : 'text-muted-foreground hover:text-foreground'"
-                @click="onChangeAppView('ai')"
-              >
-                <Bot class="h-3.5 w-3.5" />
-                <span>AI</span>
-              </Button>
-            </div>
+              </button>
 
+              <button
+                v-if="siteStore.enableNotes"
+                type="button"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none"
+                :class="currentView === 'notes' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'"
+                @click="onChangeAppView('notes')"
+                title="在线笔记"
+              >
+                <FileText class="h-3.5 w-3.5 shrink-0" />
+                <span>笔记</span>
+              </button>
+
+              <button
+                v-if="siteStore.enableAi"
+                type="button"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none"
+                :class="currentView === 'ai' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'"
+                @click="onChangeAppView('ai')"
+                title="AI 助手"
+              >
+                <Bot class="h-3.5 w-3.5 shrink-0" />
+                <span>AI</span>
+              </button>
+            </nav>
+          </div>
+
+          <!-- 右侧：主题切换与设置/登录 -->
+          <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <!-- 主题切换 -->
             <Button
               variant="ghost"
-              size="icon"
-              class="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+              size="icon-sm"
+              class="h-8 w-8 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
               @click="themeStore.toggle($event)"
-              :title="themeStore.isDark ? '切换至浅色模式' : '切换至深色模式'"
+              :title="themeStore.isDark ? '切换浅色模式' : '切换深色模式'"
             >
               <Sun v-if="themeStore.isDark" class="h-4 w-4" />
               <Moon v-else class="h-4 w-4" />
@@ -394,8 +393,9 @@ onUnmounted(() => {
             <Button
               v-if="authStore.isLoggedIn"
               variant="ghost"
-              size="icon"
-              class="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+              size="icon-sm"
+              class="h-8 w-8 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
+              :class="{ 'text-primary bg-primary/10': currentView === 'admin' }"
               @click="onChangeAppView('admin')"
               title="系统设置"
             >
@@ -405,20 +405,29 @@ onUnmounted(() => {
               v-else
               variant="outline"
               size="sm"
-              class="h-8 gap-1.5 text-xs font-medium cursor-pointer"
+              class="h-8 px-2.5 sm:px-3 gap-1.5 text-xs font-medium cursor-pointer rounded-md"
               @click="onOpenLogin()"
             >
               <User class="h-3.5 w-3.5" />
-              <span>登录</span>
+              <span class="hidden sm:inline">登录</span>
             </Button>
           </div>
         </header>
 
         <!-- Main Body Content -->
         <div class="flex-1 flex flex-col min-h-0">
+          <!-- 1. 网址导航功能主视图 -->
           <div v-show="currentView === 'home'" class="flex flex-col min-h-[calc(100svh-3.5rem)]">
-            <!-- Search Bar Component -->
+            <!-- 搜索框组件 -->
             <SearchBar v-model="searchQuery" />
+
+            <!-- 每日一言灵感条 (优雅融入搜索栏下方) -->
+            <div v-if="dailyQuote" class="py-2.5 px-4 text-center border-b border-border/40 bg-muted/20">
+              <div class="inline-flex items-center gap-1.5 text-xs text-muted-foreground/80 max-w-lg mx-auto">
+                <MessageSquareQuote class="h-3.5 w-3.5 shrink-0 text-primary/60" />
+                <span class="truncate font-serif italic text-[11px]">{{ dailyQuote }}</span>
+              </div>
+            </div>
 
             <!-- Bookmarks & Categories Container -->
             <div class="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto box-border">
@@ -477,7 +486,7 @@ onUnmounted(() => {
             </footer>
           </div>
 
-          <!-- 子页面面板无缝保活 -->
+          <!-- 2. 在线笔记、AI助手与系统设置面板 (无缝保活) -->
           <AdminPanel v-if="currentView === 'admin'" :categories="categories" @refresh="loadCategories(); loadBookmarks()" />
           <NotesPanel v-show="currentView === 'notes'" :active="currentView === 'notes'" />
           <AIChatPanel v-show="currentView === 'ai'" :active="currentView === 'ai'" />

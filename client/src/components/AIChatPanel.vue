@@ -839,9 +839,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen bg-background text-foreground selection:bg-primary/10">
+  <div class="flex-1 flex flex-col min-h-[calc(100svh-3.5rem)] bg-background text-foreground selection:bg-primary/10">
     <!-- 1. 顶栏 -->
-    <div class="h-12 px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-0 z-20">
+    <div class="h-12 px-4 border-b border-border bg-card/80 backdrop-blur flex items-center justify-between shrink-0 sticky top-14 z-10">
       <div class="flex items-center gap-2 flex-1 min-w-0 pr-2">
         <span class="text-xs font-semibold text-foreground/90 truncate" :title="currentConversationTitle">
           {{ currentConversationTitle }}

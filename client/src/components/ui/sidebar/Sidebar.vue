@@ -25,7 +25,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
   <Sheet v-if="isMobile" :open="openMobile" @update:open="setOpenMobile">
     <SheetContent
       :side="side"
-      class="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+      class="w-72 max-w-[85vw] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
     >
       <div class="flex h-full w-full flex-col">
         <slot />

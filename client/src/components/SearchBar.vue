@@ -190,7 +190,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="w-full py-8 md:py-12 px-4 flex flex-col items-center justify-center border-b border-border relative transition-colors"
+    class="w-full py-5 sm:py-7 md:py-9 px-3 sm:px-4 flex flex-col items-center justify-center border-b border-border relative transition-colors"
     :class="[
       isCustomBg
         ? 'bg-slate-900/90 text-white'
@@ -201,10 +201,11 @@ onUnmounted(() => {
     <!-- 背景遮罩 (仅在自定义背景图时启用) -->
     <div v-if="isCustomBg" class="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"></div>
 
-    <div class="relative z-10 w-full max-w-xl flex flex-col items-center gap-3.5">
+    <div class="relative z-10 w-full max-w-xl flex flex-col items-center gap-3">
       <!-- 搜索引擎切换 Tabs -->
       <Tabs :model-value="selectedEngine.id" @update:model-value="onEngineTabChange">
         <TabsList
+          class="h-8 p-0.5"
           :class="[
             isCustomBg
               ? 'bg-black/50 border-white/15 text-white/70'
@@ -215,6 +216,7 @@ onUnmounted(() => {
             v-for="eng in searchEngines"
             :key="eng.id"
             :value="eng.id"
+            class="h-7 px-2.5 sm:px-3 text-xs"
             :class="[
               isCustomBg && 'data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=inactive]:text-white/80'
             ]"
@@ -226,20 +228,20 @@ onUnmounted(() => {
 
       <!-- 搜索框 (现代简约高质感) -->
       <div
-        class="w-full flex items-center rounded-xl border shadow-xs transition-all duration-200 p-1.5"
+        class="w-full flex items-center rounded-xl border shadow-2xs transition-all duration-200 p-1 sm:p-1.5"
         :class="[
           isCustomBg
             ? 'bg-white/15 border-white/25 focus-within:border-white/60 focus-within:bg-white/20'
             : 'bg-card/90 backdrop-blur border-border/80 hover:border-border focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 shadow-[0_1px_3px_rgba(0,0,0,0.02)]'
         ]"
       >
-        <div class="pl-2.5 pr-1 flex items-center">
+        <div class="pl-2 sm:pl-2.5 pr-1 flex items-center">
           <Search class="h-4 w-4 text-muted-foreground" />
         </div>
         <input
           v-model="modelValue"
           type="text"
-          class="flex-1 bg-transparent px-2.5 py-1.5 text-xs outline-none min-w-0"
+          class="flex-1 bg-transparent px-2 sm:px-2.5 py-1 text-xs outline-none min-w-0"
           :class="[
             isCustomBg
               ? 'text-white placeholder-slate-300'
@@ -251,7 +253,7 @@ onUnmounted(() => {
         />
         <Button
           size="sm"
-          class="h-8 px-4 font-semibold shrink-0"
+          class="h-7 sm:h-8 px-3 sm:px-4 text-xs font-medium shrink-0 cursor-pointer"
           :variant="isCustomBg ? 'secondary' : 'default'"
           @click="handleSearch"
           title="搜索 (Enter)"
