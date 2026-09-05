@@ -163,9 +163,76 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // 2.1 获取所有项目
+  fastify.get('/api/ai/projects', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const projects = dbHelper.all('SELECT id, name, icon, description, created_at, updated_at FROM ai_projects ORDER BY updated_at DESC, created_at DESC');
+    return reply.send({ projects });
+  });
+
+  // 2.2 创建项目
+  fastify.post('/api/ai/projects', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as any) || {};
+    const id = body.id || randomUUID();
+    const name = (body.name || '').trim();
+    if (!name) {
+      return reply.status(400).send({ error: '项目名称不能为空' });
+    }
+    const icon = body.icon || 'pi pi-folder';
+    const description = body.description || '';
+    const now = new Date().toISOString();
+
+    dbHelper.run(
+      'INSERT INTO ai_projects (id, name, icon, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, name, icon, description, now, now]
+    );
+    saveDatabase();
+    const proj = dbHelper.get('SELECT * FROM ai_projects WHERE id = ?', [id]);
+    return reply.status(201).send({ project: proj });
+  });
+
+  // 2.3 更新项目
+  fastify.put('/api/ai/projects/:id', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = (request.body as any) || {};
+    const { name, icon, description } = body;
+    const now = new Date().toISOString();
+
+    if (name !== undefined) {
+      const trimmed = String(name).trim();
+      if (!trimmed) return reply.status(400).send({ error: '项目名称不能为空' });
+      dbHelper.run('UPDATE ai_projects SET name = ?, updated_at = ? WHERE id = ?', [trimmed, now, id]);
+    }
+    if (icon !== undefined) {
+      dbHelper.run('UPDATE ai_projects SET icon = ?, updated_at = ? WHERE id = ?', [icon, now, id]);
+    }
+    if (description !== undefined) {
+      dbHelper.run('UPDATE ai_projects SET description = ?, updated_at = ? WHERE id = ?', [description, now, id]);
+    }
+    saveDatabase();
+    const proj = dbHelper.get('SELECT * FROM ai_projects WHERE id = ?', [id]);
+    return reply.send({ success: true, project: proj });
+  });
+
+  // 2.4 删除项目（同时将所属会话的 project_id 清空）
+  fastify.delete('/api/ai/projects/:id', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    dbHelper.run('UPDATE ai_conversations SET project_id = NULL WHERE project_id = ?', [id]);
+    dbHelper.run('DELETE FROM ai_projects WHERE id = ?', [id]);
+    saveDatabase();
+    return reply.send({ success: true });
+  });
+
   // 3. 获取所有会话（按最新活动时间倒序排序）
   fastify.get('/api/ai/conversations', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const conversations = dbHelper.all('SELECT id, title, model, role_id, icon, created_at, updated_at FROM ai_conversations ORDER BY updated_at DESC, created_at DESC');
+    const { project_id } = (request.query as any) || {};
+    let sql = 'SELECT id, title, model, role_id, icon, project_id, created_at, updated_at FROM ai_conversations';
+    const params: any[] = [];
+    if (project_id) {
+      sql += ' WHERE project_id = ?';
+      params.push(project_id);
+    }
+    sql += ' ORDER BY updated_at DESC, created_at DESC';
+    const conversations = dbHelper.all(sql, params);
     return reply.send({ conversations });
   });
 
@@ -177,11 +244,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const model = body.model || 'deepseek-chat';
     const role_id = body.role_id || 'default';
     const icon = body.icon || '';
+    const project_id = body.project_id || null;
     const now = new Date().toISOString();
 
     dbHelper.run(
-      'INSERT INTO ai_conversations (id, title, model, role_id, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, title, model, role_id, icon, now, now]
+      'INSERT INTO ai_conversations (id, title, model, role_id, icon, project_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, title, model, role_id, icon, project_id, now, now]
     );
     saveDatabase();
 
@@ -189,11 +257,11 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     return reply.status(201).send({ conversation: conv });
   });
 
-  // 4.1 更新会话（重命名标题 / 角色 / 模型 / 图标）
+  // 4.1 更新会话（重命名标题 / 角色 / 模型 / 图标 / 项目归属）
   fastify.put('/api/ai/conversations/:id', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = (request.body as any) || {};
-    const { title, role_id, model, icon } = body;
+    const { title, role_id, model, icon, project_id } = body;
     const now = new Date().toISOString();
 
     if (title !== undefined) {
@@ -207,6 +275,9 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
     if (model !== undefined) {
       dbHelper.run('UPDATE ai_conversations SET model = ?, updated_at = ? WHERE id = ?', [model, now, id]);
+    }
+    if (project_id !== undefined) {
+      dbHelper.run('UPDATE ai_conversations SET project_id = ?, updated_at = ? WHERE id = ?', [project_id || null, now, id]);
     }
     saveDatabase();
     const conv = dbHelper.get('SELECT * FROM ai_conversations WHERE id = ?', [id]);
@@ -258,10 +329,22 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true });
   });
 
-  // 8. 流式对话接口 (SSE / Streaming Completion)
+  // 8. 流式对话接口 (SSE / Streaming Completion，支持私密模式不留痕)
   fastify.post('/api/ai/chat', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
-    let { conversation_id, message, stream = true, custom_prompt, model: requestModel, role_id, temperature, top_p, max_tokens } = body;
+    let {
+      conversation_id,
+      message,
+      stream = true,
+      custom_prompt,
+      model: requestModel,
+      role_id,
+      temperature,
+      top_p,
+      max_tokens,
+      is_private = false,
+      history: clientHistory = [],
+    } = body;
 
     if (!message || !message.trim()) {
       return reply.status(400).send({ error: '消息内容不能为空' });
@@ -269,38 +352,44 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     const now = new Date().toISOString();
 
-    // 若无会话 ID，自动新建一个会话
-    let conversation: any = null;
-    if (conversation_id) {
-      conversation = dbHelper.get('SELECT * FROM ai_conversations WHERE id = ?', [conversation_id]);
-    }
+    if (!is_private) {
+      // 若无会话 ID，自动新建一个会话
+      let conversation: any = null;
+      if (conversation_id) {
+        conversation = dbHelper.get('SELECT * FROM ai_conversations WHERE id = ?', [conversation_id]);
+      }
 
-    if (!conversation) {
-      conversation_id = randomUUID();
-      const title = message.trim().slice(0, 20) + (message.length > 20 ? '...' : '');
+      if (!conversation) {
+        conversation_id = randomUUID();
+        const title = message.trim().slice(0, 20) + (message.length > 20 ? '...' : '');
+        dbHelper.run(
+          'INSERT INTO ai_conversations (id, title, model, role_id, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [conversation_id, title, requestModel || 'deepseek-chat', role_id || 'default', '', now, now]
+        );
+      } else {
+        // 无论是否是新会话，只要发送消息就刷新 updated_at 与 role_id
+        const title = conversation.title === '新对话'
+          ? (message.trim().slice(0, 20) + (message.length > 20 ? '...' : ''))
+          : conversation.title;
+
+        dbHelper.run(
+          'UPDATE ai_conversations SET title = ?, updated_at = ?, role_id = COALESCE(?, role_id), model = COALESCE(?, model) WHERE id = ?',
+          [title, now, role_id || null, requestModel || null, conversation_id]
+        );
+      }
+
+      // 保存用户消息
+      const userMsgTime = new Date().toISOString();
       dbHelper.run(
-        'INSERT INTO ai_conversations (id, title, model, role_id, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [conversation_id, title, requestModel || 'deepseek-chat', role_id || 'default', '', now, now]
+        'INSERT INTO ai_messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)',
+        [conversation_id, 'user', message, userMsgTime]
       );
+      saveDatabase();
     } else {
-      // 无论是否是新会话，只要发送消息就刷新 updated_at 与 role_id
-      const title = conversation.title === '新对话'
-        ? (message.trim().slice(0, 20) + (message.length > 20 ? '...' : ''))
-        : conversation.title;
-
-      dbHelper.run(
-        'UPDATE ai_conversations SET title = ?, updated_at = ?, role_id = COALESCE(?, role_id), model = COALESCE(?, model) WHERE id = ?',
-        [title, now, role_id || null, requestModel || null, conversation_id]
-      );
+      if (!conversation_id) {
+        conversation_id = 'private_' + randomUUID();
+      }
     }
-
-    // 保存用户消息
-    const userMsgTime = new Date().toISOString();
-    dbHelper.run(
-      'INSERT INTO ai_messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)',
-      [conversation_id, 'user', message, userMsgTime]
-    );
-    saveDatabase();
 
     // 读取 AI 设置
     const keyRow = dbHelper.get('SELECT value FROM ai_settings WHERE key = ?', ['api_key']);
@@ -313,16 +402,25 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const model = requestModel || modelRow?.value || 'deepseek-chat';
     const systemPrompt = custom_prompt || promptRow?.value || '你是一个知识渊博、高效简洁的智能全能助理。';
 
-    // 取该会话最近 20 条历史消息
-    const history = dbHelper.all(
-      'SELECT role, content FROM ai_messages WHERE conversation_id = ? ORDER BY id ASC LIMIT 20',
-      [conversation_id]
-    );
-
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...history.map(m => ({ role: m.role, content: m.content })),
-    ];
+    let messages: any[] = [];
+    if (is_private) {
+      const hist = Array.isArray(clientHistory) ? clientHistory.slice(-20) : [];
+      messages = [
+        { role: 'system', content: systemPrompt },
+        ...hist.map((m: any) => ({ role: m.role, content: m.content })),
+        { role: 'user', content: message },
+      ];
+    } else {
+      // 取该会话最近 20 条历史消息
+      const history = dbHelper.all(
+        'SELECT role, content FROM ai_messages WHERE conversation_id = ? ORDER BY id ASC LIMIT 20',
+        [conversation_id]
+      );
+      messages = [
+        { role: 'system', content: systemPrompt },
+        ...history.map((m: any) => ({ role: m.role, content: m.content })),
+      ];
+    }
 
     // 设置 SSE Header 并立刻下发 Header 建立真实双向流
     reply.raw.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -408,8 +506,8 @@ export default async function aiRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // 保存完整 AI 回复
-        if (fullAiText) {
+        // 保存完整 AI 回复（私密模式不落库）
+        if (fullAiText && !is_private) {
           dbHelper.run(
             'INSERT INTO ai_messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)',
             [conversation_id, 'assistant', fullAiText, new Date().toISOString()]
@@ -439,16 +537,18 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         await new Promise(r => setTimeout(r, 45));
       }
 
-      // 保存模拟回复
-      dbHelper.run(
-        'INSERT INTO ai_messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)',
-        [conversation_id, 'assistant', fullMockText, new Date().toISOString()]
-      );
-      dbHelper.run('UPDATE ai_conversations SET updated_at = ? WHERE id = ?', [
-        new Date().toISOString(),
-        conversation_id,
-      ]);
-      saveDatabase();
+      // 保存模拟回复（私密模式不落库）
+      if (!is_private) {
+        dbHelper.run(
+          'INSERT INTO ai_messages (conversation_id, role, content, created_at) VALUES (?, ?, ?, ?)',
+          [conversation_id, 'assistant', fullMockText, new Date().toISOString()]
+        );
+        dbHelper.run('UPDATE ai_conversations SET updated_at = ? WHERE id = ?', [
+          new Date().toISOString(),
+          conversation_id,
+        ]);
+        saveDatabase();
+      }
 
       reply.raw.write('data: [DONE]\n\n');
       reply.raw.end();

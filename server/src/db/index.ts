@@ -45,10 +45,13 @@ export async function initDatabase(): Promise<void> {
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN role_id TEXT DEFAULT 'default';"); } catch {}
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN icon TEXT DEFAULT '';"); } catch {}
   try { db.run("ALTER TABLE notes ADD COLUMN tags TEXT DEFAULT '[]';"); } catch {}
+  try { db.run("CREATE TABLE IF NOT EXISTS ai_projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, icon TEXT DEFAULT 'pi pi-folder', description TEXT DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL);"); } catch {}
+  try { db.run("ALTER TABLE ai_conversations ADD COLUMN project_id TEXT DEFAULT NULL;"); } catch {}
   // 性能索引加速
   try { db.run("CREATE INDEX IF NOT EXISTS idx_bookmarks_sort ON bookmarks(sort_order);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_categories_sort ON categories(sort_order);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_updated ON ai_conversations(updated_at DESC);"); } catch {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_proj ON ai_conversations(project_id);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_note_shares_nid ON note_shares(note_id);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_notes_pinned_updated ON notes(is_pinned DESC, updated_at DESC);"); } catch {}
 

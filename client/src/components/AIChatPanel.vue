@@ -32,6 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { mapIcon } from '@/utils/icon-map';
 import {
   Plus,
   Pencil,
@@ -46,6 +47,7 @@ import {
   ArrowUp,
   Tickets,
   X,
+  VenetianMask,
 } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -56,6 +58,9 @@ const emit = defineEmits<{
   stateChange: [state: {
     conversations: Conversation[];
     activeConversationId: string | null;
+    projects: any[];
+    selectedProjectId: string | null;
+    isPrivateMode: boolean;
   }];
 }>();
 
@@ -77,6 +82,7 @@ interface Conversation {
   model: string;
   role_id?: string;
   icon?: string;
+  project_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -94,6 +100,44 @@ interface RolePreset {
   icon: string;
   prompt: string;
   isCustom?: boolean;
+}
+
+// 私密模式与项目管理状态
+const isPrivateMode = ref(false);
+const projects = ref<any[]>([]);
+const selectedProjectId = ref<string | null>(null);
+
+const currentProject = computed(() => {
+  return projects.value.find(p => p.id === selectedProjectId.value) || null;
+});
+
+function togglePrivateMode() {
+  isPrivateMode.value = !isPrivateMode.value;
+  if (isPrivateMode.value) {
+    toast.info('已开启私密模式：本次对话不会保存到历史记录');
+    activeConversationId.value = '';
+    messages.value = [];
+  } else {
+    toast.info('已退出私密模式');
+    activeConversationId.value = '';
+    messages.value = [];
+    loadConversations(false);
+  }
+}
+
+async function loadProjects() {
+  try {
+    const { data } = await aiApi.getProjects();
+    projects.value = data.projects || [];
+  } catch (e) {
+    console.error('加载项目失败', e);
+  }
+}
+
+function selectProject(projId: string | null) {
+  selectedProjectId.value = projId;
+  createNewConversation();
+  loadConversations(false);
 }
 
 // 预设角色列表
@@ -225,25 +269,6 @@ function deleteCustomRole(roleId: string, e?: Event) {
 const conversations = ref<Conversation[]>([]);
 const activeConversationId = ref<string>('');
 
-watch(
-  [conversations, activeConversationId],
-  () => {
-    emit('stateChange', {
-      conversations: conversations.value,
-      activeConversationId: activeConversationId.value,
-    });
-  },
-  { deep: true, immediate: true }
-);
-
-defineExpose({
-  conversations,
-  activeConversationId,
-  createNewConversation,
-  selectConversation,
-  deleteConversation,
-  loadConversations,
-});
 
 const messages = ref<Message[]>([]);
 const inputPrompt = ref('');
@@ -433,9 +458,9 @@ async function loadAiSettings() {
   }
 }
 
-async function loadConversations(autoSelect = true) {
+async function loadConversations(autoSelect = false) {
   try {
-    const { data } = await aiApi.getConversations();
+    const { data } = await aiApi.getConversations(selectedProjectId.value || undefined);
     conversations.value = data.conversations || [];
     if (autoSelect && conversations.value.length > 0 && !activeConversationId.value && !isStreaming.value) {
       selectConversation(conversations.value[0].id);
@@ -477,11 +502,6 @@ async function createNewConversation() {
     stopGenerating();
   }
   cancelEditingMsg();
-  if (messages.value.length === 0) {
-    nextTick(() => textareaRef.value?.focus());
-    return;
-  }
-
   activeConversationId.value = '';
   messages.value = [];
   attachments.value = [];
@@ -670,7 +690,7 @@ async function sendMessage(customText?: string) {
         Authorization: localStorage.getItem('zenlink_token') ? `Bearer ${localStorage.getItem('zenlink_token')}` : '',
       },
       body: JSON.stringify({
-        conversation_id: activeConversationId.value || undefined,
+        conversation_id: isPrivateMode.value ? undefined : (activeConversationId.value || undefined),
         message: userDisplayText,
         model: selectedModel.value || undefined,
         role_id: selectedRoleId.value || 'default',
@@ -678,6 +698,10 @@ async function sendMessage(customText?: string) {
         temperature: aiSettings.value.temperature,
         top_p: aiSettings.value.top_p,
         max_tokens: aiSettings.value.max_tokens,
+        is_private: isPrivateMode.value,
+        history: isPrivateMode.value
+          ? messages.value.slice(0, -2).map(m => ({ role: m.role, content: m.content }))
+          : undefined,
       }),
     });
 
@@ -708,9 +732,13 @@ async function sendMessage(customText?: string) {
           if (dataStr === '[DONE]') continue;
           try {
             const parsed = JSON.parse(dataStr);
-            if (parsed.conversation_id && !activeConversationId.value) {
+            if (parsed.conversation_id && !activeConversationId.value && !isPrivateMode.value) {
               activeConversationId.value = parsed.conversation_id;
-              aiApi.updateConversation(parsed.conversation_id, { title: promptSummary, role_id: selectedRoleId.value }).catch(() => {});
+              aiApi.updateConversation(parsed.conversation_id, {
+                title: promptSummary,
+                role_id: selectedRoleId.value,
+                project_id: selectedProjectId.value || null,
+              }).catch(() => {});
               loadConversations(false);
             }
             if (parsed.text) {
@@ -729,7 +757,9 @@ async function sendMessage(customText?: string) {
     isStreaming.value = false;
     currentAbortController = null;
     scrollToBottom();
-    loadConversations(false);
+    if (!isPrivateMode.value) {
+      loadConversations(false);
+    }
   }
 }
 
@@ -762,68 +792,102 @@ function handleChatContainerClick(e: MouseEvent) {
   handleCodeCopyClick(e);
 }
 
+function emitState() {
+  emit('stateChange', {
+    conversations: conversations.value,
+    activeConversationId: activeConversationId.value,
+    projects: projects.value,
+    selectedProjectId: selectedProjectId.value,
+    isPrivateMode: isPrivateMode.value,
+  });
+}
+
+watch(
+  [conversations, activeConversationId, projects, selectedProjectId, isPrivateMode],
+  () => {
+    emitState();
+  },
+  { deep: true, immediate: true }
+);
+
+function initData() {
+  if (authStore.isLoggedIn) {
+    loadAiSettings();
+    loadProjects();
+    loadConversations(false);
+    loadCustomRoles();
+  }
+}
+
 watch(
   [() => props.active, () => authStore.isLoggedIn],
   ([isActive, isLoggedIn]) => {
     if (isActive && isLoggedIn) {
-      loadAiSettings();
-      loadConversations();
-      loadCustomRoles();
-      }
+      initData();
+    }
   },
   { immediate: true }
 );
 
 onMounted(() => {
   window.addEventListener('resize', handleResize);
-  if (authStore.isLoggedIn) {
-    loadAiSettings();
-    loadConversations();
-    loadCustomRoles();
-  }
+  initData();
 });
-
-watch(
-  () => props.active,
-  (isActive) => {
-    if (isActive && authStore.isLoggedIn) {
-      loadAiSettings();
-      loadConversations();
-      loadCustomRoles();
-    }
-  }
-);
-
-watch(
-  () => authStore.isLoggedIn,
-  (isLogged) => {
-    if (isLogged) {
-      loadAiSettings();
-      loadConversations();
-      loadCustomRoles();
-    }
-  }
-);
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   stopGenerating();
 });
+
+defineExpose({
+  createNewConversation,
+  selectConversation,
+  deleteConversation,
+  loadConversations,
+  loadProjects,
+  selectProject,
+  togglePrivateMode,
+});
 </script>
 
 <template>
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-      <!-- 1. 顶部控制栏 (无背景色、无边框，极简透视) -->
+      <!-- 1. 顶部控制栏 (无背景色、无边框，极简透视，Grok 风格) -->
       <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
-        <!-- 左上角显示标题 -->
+        <!-- 左上角显示标题 / 项目标识 / 私密标识 -->
         <div class="flex items-center gap-2 select-none min-w-0">
+          <Badge v-if="currentProject" variant="secondary" class="text-[11px] gap-1 px-2 py-0.5 font-normal shrink-0">
+            <component :is="mapIcon(currentProject.icon || '')" class="size-3" />
+            <span>{{ currentProject.name }}</span>
+          </Badge>
+          <Badge v-if="isPrivateMode" variant="outline" class="text-[11px] gap-1 px-1.5 py-0.5 border-primary/40 text-primary shrink-0">
+            私密
+          </Badge>
           <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate" :title="currentConversationTitle">
-            {{ currentConversationTitle || 'AI 对话' }}
+            {{ isPrivateMode ? '私密对话' : (currentConversationTitle || 'AI 对话') }}
           </h1>
         </div>
 
-        <!-- 右上角显示新建AI对话图标及章节跳转 -->
-        <div class="flex items-center gap-1.5 shrink-0">
+        <!-- 右上角：私密模式切换 + 新建AI对话图标 + 移动端章节跳转 -->
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- 私密模式切换按钮 (Grok 原版同款) -->
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <button
+                type="button"
+                class="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer select-none border border-transparent"
+                :class="isPrivateMode ? 'bg-primary text-primary-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-accent/80'"
+                @click="togglePrivateMode"
+              >
+                <VenetianMask class="size-4 shrink-0" />
+                <span class="text-xs">私密模式</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {{ isPrivateMode ? '私密模式已开启 (本次对话不保存)' : '开启私密模式 (不保存对话历史)' }}
+            </TooltipContent>
+          </Tooltip>
+
           <!-- 移动端章节跳转 Popover -->
           <Popover
             v-if="userQuestions.length >= 2"
@@ -882,6 +946,15 @@ onUnmounted(() => {
             <TooltipContent side="bottom">新建对话</TooltipContent>
           </Tooltip>
         </div>
+      </div>
+
+      <!-- 私密模式进行中提示条 -->
+      <div
+        v-if="isPrivateMode"
+        class="bg-primary/10 border-b border-primary/20 py-1 px-4 text-center text-xs text-primary font-medium flex items-center justify-center gap-2 shrink-0 animate-in fade-in"
+      >
+        <VenetianMask class="size-3.5" />
+        <span>私密模式进行中 · 本次对话内容不会保存到任何历史记录或服务器中</span>
       </div>
 
       <!-- 2. 主体对话容器 -->

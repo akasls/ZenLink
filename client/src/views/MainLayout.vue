@@ -154,9 +154,15 @@ const notesData = ref<{
 const aiData = ref<{
   conversations: any[];
   activeConversationId: string | null;
+  projects: any[];
+  selectedProjectId: string | null;
+  isPrivateMode: boolean;
 }>({
   conversations: [],
   activeConversationId: null,
+  projects: [],
+  selectedProjectId: null,
+  isPrivateMode: false,
 });
 
 const selectedAdminTab = ref<'bookmarks' | 'categories' | 'ai' | 'security' | 'site'>('bookmarks');
@@ -346,6 +352,8 @@ onUnmounted(() => {
         :selected-note-id="notesData.selectedNoteId"
         :ai-conversations="aiData.conversations"
         :active-ai-conversation-id="aiData.activeConversationId"
+        :ai-projects="aiData.projects"
+        :selected-ai-project-id="aiData.selectedProjectId"
         :selected-admin-tab="selectedAdminTab"
         @select-category="onSelectTopCategory"
         @select-sub-category="onSelectSubCategory"
@@ -359,7 +367,11 @@ onUnmounted(() => {
         @new-ai-chat="aiChatPanelRef?.createNewConversation()"
         @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
         @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
-        @rename-ai-chat="(id, title, icon) => { const c = aiData.conversations.find((x: any) => x.id === id); if (c) { c.title = title; if (icon !== undefined) c.icon = icon; } }"
+        @rename-ai-chat="(id, title, icon, projId) => { const c = aiData.conversations.find((x: any) => x.id === id); if (c) { c.title = title; if (icon !== undefined) c.icon = icon; if (projId !== undefined) c.project_id = projId; } }"
+        @select-ai-project="(projId) => aiChatPanelRef?.selectProject(projId)"
+        @create-ai-project="aiChatPanelRef?.loadProjects()"
+        @rename-ai-project="(id, name, icon) => { const p = aiData.projects.find((x: any) => x.id === id); if (p) { p.name = name; if (icon !== undefined) p.icon = icon; } }"
+        @delete-ai-project="aiChatPanelRef?.loadProjects(); aiChatPanelRef?.loadConversations()"
         @select-admin-tab="(tab) => selectedAdminTab = (tab as any)"
         @add-bookmark="showAddDialog = true"
       />

@@ -205,13 +205,26 @@ export const aiApi = {
   fetchModels(data?: { base_url?: string; api_key?: string }) {
     return api.post('/ai/fetch-models', data || {});
   },
-  getConversations() {
-    return api.get('/ai/conversations');
+  getProjects() {
+    return api.get('/ai/projects');
   },
-  createConversation(data?: { title?: string; model?: string; role_id?: string; icon?: string }) {
+  createProject(data: { name: string; icon?: string; description?: string }) {
+    return api.post('/ai/projects', data);
+  },
+  updateProject(id: string, data: { name?: string; icon?: string; description?: string }) {
+    return api.put(`/ai/projects/${id}`, data);
+  },
+  deleteProject(id: string) {
+    return api.delete(`/ai/projects/${id}`);
+  },
+  getConversations(projectId?: string) {
+    const params = projectId ? { project_id: projectId } : undefined;
+    return api.get('/ai/conversations', { params });
+  },
+  createConversation(data?: { title?: string; model?: string; role_id?: string; icon?: string; project_id?: string | null }) {
     return api.post('/ai/conversations', data || {});
   },
-  updateConversation(id: string, data: { title?: string; role_id?: string; model?: string; icon?: string }) {
+  updateConversation(id: string, data: { title?: string; role_id?: string; model?: string; icon?: string; project_id?: string | null }) {
     return api.put(`/ai/conversations/${id}`, data);
   },
   deleteConversation(id: string) {

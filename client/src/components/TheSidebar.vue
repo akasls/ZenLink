@@ -107,12 +107,20 @@ interface NoteCategoryItem {
   count?: number;
 }
 
+interface ProjectItem {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
+}
+
 interface ConversationItem {
   id: string;
   title: string;
   model?: string;
   role_id?: string;
   icon?: string;
+  project_id?: string | null;
   updated_at?: string;
 }
 
@@ -130,6 +138,8 @@ const props = withDefaults(
     selectedNoteId?: number | null;
     aiConversations?: ConversationItem[];
     activeAiConversationId?: string | null;
+    aiProjects?: ProjectItem[];
+    selectedAiProjectId?: string | null;
     selectedAdminTab?: string;
   }>(),
   {
@@ -141,6 +151,8 @@ const props = withDefaults(
     selectedNoteId: null,
     aiConversations: () => [],
     activeAiConversationId: null,
+    aiProjects: () => [],
+    selectedAiProjectId: null,
     selectedAdminTab: 'bookmarks',
   }
 );
@@ -159,7 +171,11 @@ const emit = defineEmits<{
   newAiChat: [];
   selectAiChat: [id: string];
   deleteAiChat: [id: string];
-  renameAiChat: [id: string, title: string, icon?: string];
+  renameAiChat: [id: string, title: string, icon?: string, projectId?: string | null];
+  selectAiProject: [projectId: string | null];
+  createAiProject: [];
+  renameAiProject: [id: string, name: string, icon?: string];
+  deleteAiProject: [id: string];
   selectAdminTab: [tab: string];
 }>();
 
@@ -272,6 +288,7 @@ function handleCreateNoteDirect() {
 
 function handleNewAiChatDirect() {
   handleSwitchMode('ai');
+  emit('selectAiProject', null);
   emit('newAiChat');
   if (isMobile.value) setOpenMobile(false);
 }
@@ -296,16 +313,106 @@ function handleDeleteAiChat(id: string) {
   emit('deleteAiChat', id);
 }
 
+// AI 项目状态与弹窗
+const showCreateProjectModal = ref(false);
+const newProjectName = ref('');
+const newProjectIcon = ref('pi pi-folder');
+
+const showEditProjectModal = ref(false);
+const editingProject = ref<any>(null);
+const editProjectName = ref('');
+const editProjectIcon = ref('pi pi-folder');
+
+function openCreateProject() {
+  newProjectName.value = '';
+  newProjectIcon.value = 'pi pi-folder';
+  showCreateProjectModal.value = true;
+}
+
+async function handleCreateProject() {
+  const name = newProjectName.value.trim();
+  if (!name) return;
+  try {
+    await aiApi.createProject({ name, icon: newProjectIcon.value });
+    toast.success('项目创建成功');
+    newProjectName.value = '';
+    showCreateProjectModal.value = false;
+    emit('createAiProject');
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || '创建项目失败');
+  }
+}
+
+function openEditProject(proj: any) {
+  editingProject.value = proj;
+  editProjectName.value = proj.name || '';
+  editProjectIcon.value = proj.icon || 'pi pi-folder';
+  showEditProjectModal.value = true;
+}
+
+async function handleSaveEditProject() {
+  if (!editingProject.value) return;
+  const name = editProjectName.value.trim();
+  if (!name) return;
+  try {
+    await aiApi.updateProject(editingProject.value.id, {
+      name,
+      icon: editProjectIcon.value || 'pi pi-folder',
+    });
+    toast.success('项目已更新');
+    editingProject.value.name = name;
+    editingProject.value.icon = editProjectIcon.value || 'pi pi-folder';
+    showEditProjectModal.value = false;
+    emit('renameAiProject', editingProject.value.id, name, editProjectIcon.value);
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || '更新项目失败');
+  }
+}
+
+async function handleDeleteAiProject(id: string) {
+  try {
+    await confirmBox('确定要删除此项目吗？项目内的会话将移至未分类。', '删除项目');
+    await aiApi.deleteProject(id);
+    toast.success('项目已删除');
+    if (props.selectedAiProjectId === id) {
+      emit('selectAiProject', null);
+    }
+    emit('deleteAiProject', id);
+  } catch {}
+}
+
+function handleSelectAiProject(id: string | null) {
+  if (props.currentView !== 'ai') {
+    handleSwitchMode('ai');
+  }
+  emit('selectAiProject', id);
+  if (isMobile.value) setOpenMobile(false);
+}
+
+const currentAiProjectName = computed(() => {
+  if (!props.selectedAiProjectId) return '';
+  const p = (props.aiProjects || []).find(x => x.id === props.selectedAiProjectId);
+  return p ? p.name : '';
+});
+
+const filteredAiConversations = computed(() => {
+  const all = props.aiConversations || [];
+  if (!props.selectedAiProjectId) return all;
+  return all.filter(c => c.project_id === props.selectedAiProjectId);
+});
+
 // AI 会话编辑状态与弹窗
 const showEditConversationModal = ref(false);
 const editingConversation = ref<ConversationItem | null>(null);
 const editConversationTitle = ref('');
 const editConversationIcon = ref('pi pi-comment');
+const editConversationProjectId = ref<string | null>(null);
 
 function openEditConversation(conv: ConversationItem) {
   editingConversation.value = conv;
   editConversationTitle.value = conv.title || '';
   editConversationIcon.value = conv.icon || 'pi pi-comment';
+  editConversationProjectId.value = conv.project_id || null;
   showEditConversationModal.value = true;
 }
 
@@ -314,13 +421,19 @@ async function handleSaveEditConversation() {
   const title = editConversationTitle.value.trim();
   if (!title) return;
   const icon = editConversationIcon.value || 'pi pi-comment';
+  const projectId = editConversationProjectId.value;
   try {
-    await aiApi.updateConversation(editingConversation.value.id, { title, icon });
+    await aiApi.updateConversation(editingConversation.value.id, {
+      title,
+      icon,
+      project_id: projectId || null,
+    });
     toast.success('已更新会话信息');
     editingConversation.value.title = title;
     editingConversation.value.icon = icon;
+    editingConversation.value.project_id = projectId || null;
     showEditConversationModal.value = false;
-    emit('renameAiChat', editingConversation.value.id, title, icon);
+    emit('renameAiChat', editingConversation.value.id, title, icon, projectId || null);
   } catch (err: any) {
     toast.error(err.response?.data?.error || '更新会话失败');
   }
@@ -444,36 +557,109 @@ async function handleDeleteCategory(cat: any) {
 
     <!-- Content: 专属上下文 (根据当前激活模式精准呈现) -->
     <SidebarContent class="px-2 py-2 scrollbar-none">
-      <!-- ================= 模式 A：AI 对话专属列表 (高仿 Grok「聊天」近期对话流) ================= -->
+      <!-- ================= 模式 A：AI 对话专属列表 (Grok 风格：置顶聊天 + 项目 + 聊天历史) ================= -->
       <template v-if="currentView === 'ai'">
-        <!-- 新建对话按钮 -->
-        <div class="px-1 mb-2 group-data-[collapsible=icon]:hidden">
-          <Button
-            variant="outline"
-            class="w-full justify-start gap-2 h-8 px-2.5 text-xs font-medium rounded-lg border-border/70 hover:border-primary/50 hover:text-primary hover:bg-primary/5 cursor-pointer shadow-none transition-all"
+        <!-- 1. 置顶主入口：聊天 (默认开启新聊天) -->
+        <div class="px-1 mb-2">
+          <SidebarMenuButton
+            :is-active="!selectedAiProjectId && (!activeAiConversationId || activeAiConversationId === '')"
+            tooltip="新聊天"
+            class="h-9 px-2.5 rounded-xl cursor-pointer text-xs font-medium transition-all"
+            :class="!selectedAiProjectId && (!activeAiConversationId || activeAiConversationId === '') ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50'"
             @click="handleNewAiChatDirect"
           >
-            <Plus class="size-3.5 text-primary" />
-            <span>新建对话</span>
-          </Button>
+            <Pencil class="size-3.5 shrink-0" :class="!selectedAiProjectId && (!activeAiConversationId || activeAiConversationId === '') ? 'text-primary' : 'text-muted-foreground'" />
+            <span class="truncate text-xs font-medium">聊天</span>
+          </SidebarMenuButton>
         </div>
 
-        <SidebarGroup class="p-0">
+        <!-- 2. 项目区块 (支持新建项目、项目列表) -->
+        <SidebarGroup class="p-0 mb-3">
           <SidebarGroupLabel class="px-2 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
-            <span>近期对话</span>
+            <span>项目</span>
             <button
               type="button"
               class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-sidebar-accent cursor-pointer transition-colors"
-              title="新建对话"
-              @click="handleNewAiChatDirect"
+              title="新建项目"
+              @click="openCreateProject"
             >
               <Plus class="size-3.5" />
             </button>
           </SidebarGroupLabel>
 
           <SidebarGroupContent>
-            <SidebarMenu v-if="aiConversations.length > 0">
-              <SidebarMenuItem v-for="conv in aiConversations" :key="conv.id">
+            <SidebarMenu v-if="aiProjects && aiProjects.length > 0">
+              <SidebarMenuItem v-for="proj in aiProjects" :key="proj.id">
+                <SidebarMenuButton
+                  :is-active="selectedAiProjectId === proj.id"
+                  :tooltip="proj.name"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-xs"
+                  :class="selectedAiProjectId === proj.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
+                  @click="handleSelectAiProject(proj.id)"
+                >
+                  <component :is="mapIcon(proj.icon || 'pi pi-folder')" class="size-3.5 shrink-0" />
+                  <span class="truncate text-xs">{{ proj.name }}</span>
+                </SidebarMenuButton>
+
+                <!-- 项目操作菜单 (编辑、删除) -->
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <SidebarMenuAction
+                      class="opacity-0 group-hover/menu-item:opacity-100 transition-opacity cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                      title="项目操作"
+                      @click.stop.prevent
+                      @pointerdown.stop
+                    >
+                      <MoreHorizontal class="size-3.5" />
+                    </SidebarMenuAction>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="bottom" :side-offset="4" class="w-28 p-1 shadow-md">
+                    <DropdownMenuItem class="text-xs cursor-pointer gap-2" @click.stop="openEditProject(proj)">
+                      <Pencil class="size-3.5 shrink-0 text-muted-foreground" />
+                      <span>编辑项目</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      class="text-xs cursor-pointer gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                      @click.stop="handleDeleteAiProject(proj.id)"
+                    >
+                      <Trash2 class="size-3.5 shrink-0" />
+                      <span>删除项目</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <!-- 3. 聊天历史区块 (近期历史对话流) -->
+        <SidebarGroup class="p-0">
+          <SidebarGroupLabel class="px-2 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+            <span>{{ selectedAiProjectId ? `${currentAiProjectName} · 聊天` : '聊天' }}</span>
+            <div class="flex items-center gap-1">
+              <button
+                v-if="selectedAiProjectId"
+                type="button"
+                class="text-[10px] text-muted-foreground hover:text-foreground px-1 py-0.5 rounded hover:bg-sidebar-accent cursor-pointer transition-colors"
+                title="查看全部对话"
+                @click="handleSelectAiProject(null)"
+              >
+                全部
+              </button>
+              <button
+                type="button"
+                class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-sidebar-accent cursor-pointer transition-colors"
+                title="新建会话"
+                @click="handleNewAiChatDirect"
+              >
+                <Plus class="size-3.5" />
+              </button>
+            </div>
+          </SidebarGroupLabel>
+
+          <SidebarGroupContent>
+            <SidebarMenu v-if="filteredAiConversations.length > 0">
+              <SidebarMenuItem v-for="conv in filteredAiConversations" :key="conv.id">
                 <SidebarMenuButton
                   :is-active="activeAiConversationId === conv.id"
                   :tooltip="conv.title || '新会话'"
@@ -951,10 +1137,84 @@ async function handleDeleteCategory(cat: any) {
             <label class="font-medium text-foreground/90">会话图标</label>
             <IconPicker v-model="editConversationIcon" title="选择对话图标" />
           </div>
+          <div v-if="aiProjects && aiProjects.length > 0" class="space-y-1.5">
+            <label class="font-medium text-foreground/90">归属项目</label>
+            <select
+              v-model="editConversationProjectId"
+              class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs shadow-2xs focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
+            >
+              <option :value="null">未分类 (通用聊天)</option>
+              <option v-for="p in aiProjects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
         </div>
         <DialogFooter class="gap-2 sm:gap-0">
           <Button variant="outline" @click="showEditConversationModal = false">取消</Button>
           <Button :disabled="!editConversationTitle.trim()" @click="handleSaveEditConversation">保存修改</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 新建 AI 项目弹窗 -->
+    <Dialog :open="showCreateProjectModal" @update:open="showCreateProjectModal = $event">
+      <DialogContent class="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Folder class="size-4 text-primary" />
+            新建 AI 项目
+          </DialogTitle>
+        </DialogHeader>
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">项目名称 <span class="text-destructive">*</span></label>
+            <Input
+              v-model="newProjectName"
+              placeholder="例如：测试、逆向研究、日常开发..."
+              class="h-8 text-xs"
+              autofocus
+              @keydown.enter.prevent="handleCreateProject"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">项目图标</label>
+            <IconPicker v-model="newProjectIcon" title="选择项目图标" />
+          </div>
+        </div>
+        <DialogFooter class="gap-2 sm:gap-0">
+          <Button variant="outline" @click="showCreateProjectModal = false">取消</Button>
+          <Button :disabled="!newProjectName.trim()" @click="handleCreateProject">确定创建</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 编辑 AI 项目弹窗 -->
+    <Dialog :open="showEditProjectModal" @update:open="showEditProjectModal = $event">
+      <DialogContent class="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <Pencil class="size-4 text-primary" />
+            编辑 AI 项目
+          </DialogTitle>
+        </DialogHeader>
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">项目名称 <span class="text-destructive">*</span></label>
+            <Input
+              v-model="editProjectName"
+              placeholder="输入项目名称..."
+              class="h-8 text-xs"
+              autofocus
+              @keydown.enter.prevent="handleSaveEditProject"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">项目图标</label>
+            <IconPicker v-model="editProjectIcon" title="选择项目图标" />
+          </div>
+        </div>
+        <DialogFooter class="gap-2 sm:gap-0">
+          <Button variant="outline" @click="showEditProjectModal = false">取消</Button>
+          <Button :disabled="!editProjectName.trim()" @click="handleSaveEditProject">保存修改</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
