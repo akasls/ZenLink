@@ -895,12 +895,12 @@ onUnmounted(() => {
         >
           <!-- 空状态 -->
           <div v-if="messages.length === 0" class="my-auto py-12 text-center max-w-lg">
-            <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
-              {{ currentRole?.icon || '🤖' }}
+            <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center text-3xl mx-auto mb-5 shadow-xs">
+              {{ currentRole?.icon || '✨' }}
             </div>
-            <h1 class="text-lg font-semibold text-foreground m-0 mb-2 tracking-tight">有什么可以帮到您？</h1>
-            <p class="text-xs text-muted-foreground m-0 leading-relaxed mb-6 max-w-sm mx-auto">
-              当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 支持流式推理、代码高亮与上下文多轮对话
+            <h1 class="text-2xl sm:text-3xl font-semibold text-foreground m-0 mb-2.5 tracking-tight">我们应该探索什么？</h1>
+            <p class="text-xs sm:text-sm text-muted-foreground m-0 leading-relaxed mb-6 max-w-sm mx-auto">
+              当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 智能推理、代码生成与多轮深度对话
             </p>
 
             <!-- 快捷提问启发卡片 -->

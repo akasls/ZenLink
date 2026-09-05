@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { mapIcon } from '@/utils/icon-map';
 import { useSiteStore } from '@/stores/site';
 import { useThemeStore } from '@/stores/theme';
@@ -24,11 +24,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,7 +60,6 @@ import {
   Pencil,
   MoreHorizontal,
   Folder,
-  MessageSquare,
   User,
   LogOut,
   LogIn,
@@ -190,12 +184,6 @@ function getSubCats(parentId: number) {
 
 const totalNoteCount = computed(() => props.notes?.length || 0);
 
-const activeModeTitle = computed(() => {
-  if (props.currentView === 'notes') return '在线笔记';
-  if (props.currentView === 'ai') return 'AI 助手';
-  if (props.currentView === 'admin') return '系统管理';
-  return siteStore.siteName || '网址导航';
-});
 
 const activeModeIcon = computed(() => {
   if (props.currentView === 'notes') return FileText;
@@ -270,30 +258,6 @@ function handleLogout() {
   emit('changeView', 'home');
   if (isMobile.value) setOpenMobile(false);
 }
-
-const expandedSections = ref<{
-  home: boolean;
-  notes: boolean;
-  ai: boolean;
-}>({
-  home: true,
-  notes: true,
-  ai: true,
-});
-
-function toggleSection(sec: 'home' | 'notes' | 'ai') {
-  expandedSections.value[sec] = !expandedSections.value[sec];
-}
-
-watch(
-  () => props.currentView,
-  (newView) => {
-    if (newView === 'home' || newView === 'notes' || newView === 'ai') {
-      expandedSections.value[newView] = true;
-    }
-  },
-  { immediate: true }
-);
 
 function handleCreateNoteDirect() {
   handleSwitchMode('notes');
@@ -442,274 +406,197 @@ async function handleDeleteCategory(cat: any) {
 
 <template>
   <Sidebar collapsible="icon" variant="sidebar">
-    <!-- Header: 网站品牌与展开/收起按钮 + 顶部快速功能切换导航 -->
-    <SidebarHeader class="p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-2 border-b border-border/40">
-      <!-- 展开状态下：网站图标 + 标题在左，展开/收起按钮靠右 -->
+    <!-- Header: Grok 风格极简品牌与折叠开关 -->
+    <SidebarHeader class="p-3 pb-2 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:py-2.5 border-b border-border/40">
       <div class="flex items-center justify-between w-full min-w-0 group-data-[collapsible=icon]:hidden">
         <div
-          class="flex items-center gap-2.5 min-w-0 flex-1 pl-1 cursor-pointer select-none"
+          class="flex items-center gap-2.5 min-w-0 cursor-pointer select-none group/logo"
           title="返回主页"
           @click="handleSwitchMode('home')"
         >
-          <div class="flex aspect-square size-7 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-semibold text-xs shadow-xs shrink-0">
+          <div class="flex aspect-square size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-xs shrink-0 group-hover/logo:scale-105 transition-transform">
             <component :is="activeModeIcon" class="size-3.5" />
           </div>
-          <div class="grid flex-1 text-left leading-tight min-w-0">
-            <span class="truncate font-semibold text-xs text-foreground tracking-tight">{{ siteStore.siteName || 'ZenLink' }}</span>
-            <span class="truncate text-[10px] text-muted-foreground">{{ activeModeTitle }}</span>
-          </div>
+          <span class="truncate font-semibold text-sm text-foreground tracking-tight">{{ siteStore.siteName || 'ZenLink' }}</span>
         </div>
 
-        <SidebarTrigger
-          class="size-8 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded-md cursor-pointer shrink-0 ml-1"
-          title="收起侧边栏"
-        />
-      </div>
-
-      <!-- 展开状态下：顶部功能快速切换胶囊条 (1键直达三大功能) -->
-      <div class="pt-1.5 pb-0.5 group-data-[collapsible=icon]:hidden">
-        <div class="grid grid-cols-3 gap-1 bg-muted/60 p-1 rounded-lg border border-border/40">
-          <button
-            type="button"
-            class="flex items-center justify-center gap-1.5 py-1 px-1.5 text-xs rounded-md transition-all font-medium cursor-pointer"
-            :class="currentView === 'home' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'"
-            title="网址导航 (⌘1)"
-            @click="handleSwitchMode('home')"
-          >
-            <Compass class="size-3.5 shrink-0" />
-            <span class="truncate">导航</span>
-          </button>
-
-          <button
-            v-if="siteStore.enableNotes"
-            type="button"
-            class="flex items-center justify-center gap-1.5 py-1 px-1.5 text-xs rounded-md transition-all font-medium cursor-pointer"
-            :class="currentView === 'notes' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'"
-            title="在线笔记 (⌘2)"
-            @click="handleSwitchMode('notes')"
-          >
-            <FileText class="size-3.5 shrink-0" />
-            <span class="truncate">笔记</span>
-          </button>
-
-          <button
-            v-if="siteStore.enableAi"
-            type="button"
-            class="flex items-center justify-center gap-1.5 py-1 px-1.5 text-xs rounded-md transition-all font-medium cursor-pointer"
-            :class="currentView === 'ai' ? 'bg-background text-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'"
-            title="AI 对话 (⌘3)"
-            @click="handleSwitchMode('ai')"
-          >
-            <Bot class="size-3.5 shrink-0" />
-            <span class="truncate">AI</span>
-          </button>
+        <div class="flex items-center gap-1 shrink-0">
+          <SidebarTrigger
+            class="size-7 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded-md cursor-pointer"
+            title="收起侧边栏"
+          />
         </div>
       </div>
 
-      <!-- 收起状态下 (图标模式)：展开按钮 + 3个快速切换图标 -->
-      <div class="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-1 w-full">
+      <!-- 收起状态下 (图标模式)：居中只显示展开按钮 -->
+      <div class="hidden group-data-[collapsible=icon]:flex items-center justify-center w-full">
         <SidebarTrigger
           class="size-8 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent rounded-md cursor-pointer"
           title="展开侧边栏"
         />
-
-        <div class="w-6 h-px bg-border/60 my-1" />
-
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <button
-              type="button"
-              class="size-8 flex items-center justify-center rounded-md transition-all cursor-pointer"
-              :class="currentView === 'home' ? 'bg-primary text-primary-foreground font-medium shadow-xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent'"
-              @click="handleSwitchMode('home')"
-            >
-              <Compass class="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">网址导航 (⌘1)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip v-if="siteStore.enableNotes">
-          <TooltipTrigger as-child>
-            <button
-              type="button"
-              class="size-8 flex items-center justify-center rounded-md transition-all cursor-pointer"
-              :class="currentView === 'notes' ? 'bg-primary text-primary-foreground font-medium shadow-xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent'"
-              @click="handleSwitchMode('notes')"
-            >
-              <FileText class="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">在线笔记 (⌘2)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip v-if="siteStore.enableAi">
-          <TooltipTrigger as-child>
-            <button
-              type="button"
-              class="size-8 flex items-center justify-center rounded-md transition-all cursor-pointer"
-              :class="currentView === 'ai' ? 'bg-primary text-primary-foreground font-medium shadow-xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent'"
-              @click="handleSwitchMode('ai')"
-            >
-              <Bot class="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">AI 对话助手 (⌘3)</TooltipContent>
-        </Tooltip>
       </div>
     </SidebarHeader>
 
-    <!-- Content: 动态内容分组 (按三大功能优雅组织，支持随时折叠与跨模块直达) -->
-    <SidebarContent class="px-2 py-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 scrollbar-none">
-      <!-- ================= 模式 0：系统设置侧边栏 (显示各设置 Tab) ================= -->
-      <template v-if="currentView === 'admin'">
-        <SidebarGroup>
-          <SidebarGroupLabel>系统管理</SidebarGroupLabel>
+    <!-- Content: Grok 风格现代化单轨侧边栏 (顶部常驻一级工作区 + 下方聚焦次级上下文) -->
+    <SidebarContent class="px-2 py-2 scrollbar-none">
+      <!-- 1. 常驻顶级核心工作区 (Grok 风格圆角高亮项) -->
+      <SidebarGroup class="p-0">
+        <SidebarMenu class="gap-1">
+          <!-- 网址导航 -->
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              :is-active="currentView === 'home'"
+              tooltip="网址导航 (⌘1)"
+              class="h-9 px-2.5 rounded-xl cursor-pointer text-xs font-medium transition-all"
+              :class="currentView === 'home' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50'"
+              @click="handleSwitchMode('home')"
+            >
+              <Compass class="size-4 shrink-0" :class="currentView === 'home' ? 'text-primary' : 'text-muted-foreground'" />
+              <span class="truncate text-xs">网址导航</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          <!-- 在线笔记 -->
+          <SidebarMenuItem v-if="siteStore.enableNotes">
+            <SidebarMenuButton
+              :is-active="currentView === 'notes'"
+              tooltip="在线笔记 (⌘2)"
+              class="h-9 px-2.5 rounded-xl cursor-pointer text-xs font-medium transition-all"
+              :class="currentView === 'notes' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50'"
+              @click="handleSwitchMode('notes')"
+            >
+              <FileText class="size-4 shrink-0" :class="currentView === 'notes' ? 'text-primary' : 'text-muted-foreground'" />
+              <span class="truncate text-xs">在线笔记</span>
+            </SidebarMenuButton>
+            <SidebarMenuAction
+              class="cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+              title="新建笔记"
+              @click.stop="handleCreateNoteDirect"
+            >
+              <Plus class="size-3.5" />
+            </SidebarMenuAction>
+          </SidebarMenuItem>
+
+          <!-- AI 对话 -->
+          <SidebarMenuItem v-if="siteStore.enableAi">
+            <SidebarMenuButton
+              :is-active="currentView === 'ai'"
+              tooltip="AI 对话 (⌘3)"
+              class="h-9 px-2.5 rounded-xl cursor-pointer text-xs font-medium transition-all"
+              :class="currentView === 'ai' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50'"
+              @click="handleSwitchMode('ai')"
+            >
+              <Bot class="size-4 shrink-0" :class="currentView === 'ai' ? 'text-primary' : 'text-muted-foreground'" />
+              <span class="truncate text-xs">AI 对话</span>
+            </SidebarMenuButton>
+            <SidebarMenuAction
+              class="cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+              title="新建对话"
+              @click.stop="handleNewAiChatDirect"
+            >
+              <Plus class="size-3.5" />
+            </SidebarMenuAction>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+
+      <!-- 优雅分割线 (折叠时隐藏) -->
+      <div class="my-2.5 mx-1 border-t border-border/40 group-data-[collapsible=icon]:hidden" />
+
+      <!-- 2. 次级专属上下文 (根据当前激活模式精准呈现，不臃肿堆叠) -->
+      <!-- ================= 模式 A：AI 对话专属列表 (高仿 Grok「聊天」近期对话流) ================= -->
+      <template v-if="currentView === 'ai'">
+        <SidebarGroup class="p-0">
+          <SidebarGroupLabel class="px-2 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+            <span>近期对话</span>
+            <button
+              type="button"
+              class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-sidebar-accent cursor-pointer transition-colors"
+              title="新建对话"
+              @click="handleNewAiChatDirect"
+            >
+              <Plus class="size-3.5" />
+            </button>
+          </SidebarGroupLabel>
+
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem v-for="tab in adminTabs" :key="tab.value">
+            <SidebarMenu v-if="aiConversations.length > 0">
+              <SidebarMenuItem v-for="conv in aiConversations" :key="conv.id">
                 <SidebarMenuButton
-                  :is-active="selectedAdminTab === tab.value"
-                  :tooltip="tab.label"
-                  class="cursor-pointer"
-                  @click="handleSelectAdminTab(tab.value)"
+                  :is-active="activeAiConversationId === conv.id"
+                  :tooltip="conv.title || '新会话'"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-xs group/chat-item"
+                  :class="activeAiConversationId === conv.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
+                  @click="handleSelectAiChat(conv.id)"
                 >
-                  <component
-                    :is="tab.icon"
-                    class="size-4 shrink-0 transition-colors"
-                    :class="selectedAdminTab === tab.value ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
-                  />
-                  <span class="truncate">{{ tab.label }}</span>
+                  <span class="truncate text-xs">{{ conv.title || '新会话' }}</span>
                 </SidebarMenuButton>
+
+                <!-- 对话管理操作 (编辑、删除) -->
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <SidebarMenuAction
+                      class="opacity-0 group-hover/menu-item:opacity-100 transition-opacity cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                      title="对话操作"
+                      @click.stop.prevent
+                      @pointerdown.stop
+                    >
+                      <MoreHorizontal class="size-3.5" />
+                    </SidebarMenuAction>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="bottom" :side-offset="4" class="w-28 p-1 shadow-md">
+                    <DropdownMenuItem class="text-xs cursor-pointer gap-2" @click.stop="openEditConversation(conv)">
+                      <Pencil class="size-3.5 shrink-0 text-muted-foreground" />
+                      <span>编辑对话</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      class="text-xs cursor-pointer gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+                      @click.stop="handleDeleteAiChat(conv.id)"
+                    >
+                      <Trash2 class="size-3.5 shrink-0" />
+                      <span>删除对话</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </SidebarMenuItem>
             </SidebarMenu>
+
+            <div v-else class="py-6 text-center text-xs text-muted-foreground/60">
+              暂无历史对话
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
       </template>
 
-      <!-- ================= 核心三大功能区块 (全局常驻组织) ================= -->
-      <template v-else>
-        <!-- 区块 1：网址导航 -->
-        <SidebarGroup class="py-1">
-          <SidebarGroupLabel as-child>
-            <div
-              class="flex items-center justify-between px-2 py-1 text-xs font-semibold cursor-pointer select-none group/sec-title rounded-md hover:bg-sidebar-accent/50 transition-colors"
-              :class="currentView === 'home' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
-              @click="handleSwitchMode('home')"
+      <!-- ================= 模式 B：在线笔记专属列表 (笔记分类) ================= -->
+      <template v-else-if="currentView === 'notes'">
+        <SidebarGroup class="p-0">
+          <SidebarGroupLabel class="px-2 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
+            <span>笔记分类</span>
+            <button
+              type="button"
+              class="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-sidebar-accent cursor-pointer transition-colors"
+              title="新建分类"
+              @click="openCreateCategory"
             >
-              <div class="flex items-center gap-1.5 min-w-0">
-                <Compass class="size-3.5 shrink-0" :class="currentView === 'home' ? 'text-primary' : 'text-muted-foreground'" />
-                <span class="truncate">网址导航</span>
-                <span v-if="topCats.length" class="text-[10px] text-muted-foreground font-normal">({{ topCats.length }})</span>
-              </div>
-              <button
-                type="button"
-                class="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-sidebar-accent cursor-pointer transition-transform duration-200"
-                :class="expandedSections.home ? 'rotate-90' : ''"
-                title="展开/收起导航分类"
-                @click.stop="toggleSection('home')"
-              >
-                <ChevronRight class="size-3" />
-              </button>
-            </div>
+              <Plus class="size-3.5" />
+            </button>
           </SidebarGroupLabel>
 
-          <SidebarGroupContent v-show="expandedSections.home">
+          <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem v-for="cat in topCats" :key="cat.id">
-                <SidebarMenuButton
-                  :is-active="currentView === 'home' && selectedCategoryId === cat.id"
-                  :tooltip="cat.name"
-                  class="cursor-pointer"
-                  @click="handleSelectCategory(cat.id)"
-                >
-                  <component
-                    :is="mapIcon(cat?.icon)"
-                    class="size-4 shrink-0 transition-colors"
-                    :class="(currentView === 'home' && selectedCategoryId === cat.id) ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
-                  />
-                  <span class="truncate">{{ cat.name }}</span>
-                </SidebarMenuButton>
-
-                <SidebarMenuAction
-                  v-if="getSubCats(cat.id).length > 0"
-                  :class="[
-                    'cursor-pointer transition-transform duration-200',
-                    expandedCatIds.has(cat.id) ? 'rotate-90' : '',
-                  ]"
-                  @click.stop="toggleSubCats(cat.id)"
-                  title="展开/收起子分类"
-                >
-                  <ChevronRight class="size-3.5" />
-                </SidebarMenuAction>
-
-                <!-- 二级子分类列表 -->
-                <SidebarMenuSub v-if="getSubCats(cat.id).length > 0 && expandedCatIds.has(cat.id)">
-                  <SidebarMenuSubItem v-for="sub in getSubCats(cat.id)" :key="sub.id">
-                    <SidebarMenuSubButton
-                      class="cursor-pointer"
-                      @click="handleSelectSubCategory(cat.id, sub.id)"
-                    >
-                      <span class="truncate">{{ sub.name }}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                </SidebarMenuSub>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <!-- 区块 2：在线笔记 -->
-        <SidebarGroup v-if="siteStore.enableNotes" class="py-1">
-          <SidebarGroupLabel as-child>
-            <div
-              class="flex items-center justify-between px-2 py-1 text-xs font-semibold cursor-pointer select-none group/sec-title rounded-md hover:bg-sidebar-accent/50 transition-colors"
-              :class="currentView === 'notes' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
-              @click="handleSwitchMode('notes')"
-            >
-              <div class="flex items-center gap-1.5 min-w-0">
-                <FileText class="size-3.5 shrink-0" :class="currentView === 'notes' ? 'text-primary' : 'text-muted-foreground'" />
-                <span class="truncate">在线笔记</span>
-                <span v-if="totalNoteCount" class="text-[10px] text-muted-foreground font-normal">({{ totalNoteCount }})</span>
-              </div>
-              <div class="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  class="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-sidebar-accent cursor-pointer"
-                  title="新建笔记"
-                  @click.stop="handleCreateNoteDirect"
-                >
-                  <Plus class="size-3" />
-                </button>
-                <button
-                  type="button"
-                  class="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-sidebar-accent cursor-pointer transition-transform duration-200"
-                  :class="expandedSections.notes ? 'rotate-90' : ''"
-                  title="展开/收起笔记分类"
-                  @click.stop="toggleSection('notes')"
-                >
-                  <ChevronRight class="size-3" />
-                </button>
-              </div>
-            </div>
-          </SidebarGroupLabel>
-
-          <SidebarGroupContent v-show="expandedSections.notes">
-            <SidebarMenu>
-              <!-- 全部分类项 (右侧常驻放置新建分类图标) -->
+              <!-- 全部分类项 -->
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  :is-active="currentView === 'notes' && selectedNoteCategoryId === null"
+                  :is-active="selectedNoteCategoryId === null"
                   tooltip="全部分类"
-                  class="cursor-pointer pr-14"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-xs pr-14"
+                  :class="selectedNoteCategoryId === null ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
                   @click="handleFilterNoteCategory(null)"
                 >
-                  <Folder
-                    class="size-4 shrink-0 transition-colors"
-                    :class="(currentView === 'notes' && selectedNoteCategoryId === null) ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
-                  />
+                  <Folder class="size-3.5 shrink-0 transition-colors" />
                   <span class="truncate">全部分类</span>
-                  <SidebarMenuBadge class="right-7">{{ totalNoteCount }}</SidebarMenuBadge>
+                  <SidebarMenuBadge class="right-2">{{ totalNoteCount }}</SidebarMenuBadge>
                 </SidebarMenuButton>
 
                 <SidebarMenuAction
@@ -722,28 +609,25 @@ async function handleDeleteCategory(cat: any) {
                 </SidebarMenuAction>
               </SidebarMenuItem>
 
-              <!-- 各笔记分类项 (固定默认显示图标与操作菜单) -->
+              <!-- 各笔记分类项 -->
               <SidebarMenuItem v-for="cat in noteCategories" :key="cat.id">
                 <SidebarMenuButton
-                  :is-active="currentView === 'notes' && selectedNoteCategoryId === cat.id"
+                  :is-active="selectedNoteCategoryId === cat.id"
                   :tooltip="cat.name"
-                  class="cursor-pointer pr-14"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-xs pr-14"
+                  :class="selectedNoteCategoryId === cat.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
                   @click="handleFilterNoteCategory(cat.id)"
                 >
-                  <component
-                    :is="mapIcon(cat?.icon || '')"
-                    class="size-4 shrink-0 transition-colors"
-                    :class="(currentView === 'notes' && selectedNoteCategoryId === cat.id) ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
-                  />
+                  <component :is="mapIcon(cat?.icon || '')" class="size-3.5 shrink-0 transition-colors" />
                   <span class="truncate">{{ cat.name }}</span>
-                  <SidebarMenuBadge v-if="cat.count !== undefined" class="right-7">{{ cat.count }}</SidebarMenuBadge>
+                  <SidebarMenuBadge v-if="cat.count !== undefined" class="right-2">{{ cat.count }}</SidebarMenuBadge>
                 </SidebarMenuButton>
 
                 <!-- 分类管理操作 (编辑、删除) -->
                 <DropdownMenu>
                   <DropdownMenuTrigger as-child>
                     <SidebarMenuAction
-                      class="cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                      class="opacity-0 group-hover/menu-item:opacity-100 transition-opacity cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
                       title="分类操作"
                       @click.stop.prevent
                       @pointerdown.stop
@@ -769,91 +653,82 @@ async function handleDeleteCategory(cat: any) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+      </template>
 
-        <!-- 区块 3：AI 助手侧边栏 -->
-        <SidebarGroup v-if="siteStore.enableAi" class="py-1">
-          <SidebarGroupLabel as-child>
-            <div
-              class="flex items-center justify-between px-2 py-1 text-xs font-semibold cursor-pointer select-none group/sec-title rounded-md hover:bg-sidebar-accent/50 transition-colors"
-              :class="currentView === 'ai' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'"
-              @click="handleSwitchMode('ai')"
-            >
-              <div class="flex items-center gap-1.5 min-w-0">
-                <Bot class="size-3.5 shrink-0" :class="currentView === 'ai' ? 'text-primary' : 'text-muted-foreground'" />
-                <span class="truncate">AI 对话</span>
-                <span v-if="aiConversations.length" class="text-[10px] text-muted-foreground font-normal">({{ aiConversations.length }})</span>
-              </div>
-              <div class="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  class="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-sidebar-accent cursor-pointer"
-                  title="新建 AI 对话"
-                  @click.stop="handleNewAiChatDirect"
-                >
-                  <Plus class="size-3" />
-                </button>
-                <button
-                  type="button"
-                  class="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-sidebar-accent cursor-pointer transition-transform duration-200"
-                  :class="expandedSections.ai ? 'rotate-90' : ''"
-                  title="展开/收起对话列表"
-                  @click.stop="toggleSection('ai')"
-                >
-                  <ChevronRight class="size-3" />
-                </button>
-              </div>
-            </div>
+      <!-- ================= 模式 C：网址导航专属列表 (书签分类树) ================= -->
+      <template v-else-if="currentView === 'home'">
+        <SidebarGroup class="p-0">
+          <SidebarGroupLabel class="px-2 text-[11px] font-medium text-muted-foreground">
+            <span>分类导航</span>
           </SidebarGroupLabel>
 
-          <SidebarGroupContent v-show="expandedSections.ai">
-            <SidebarMenu v-if="aiConversations.length > 0">
-              <SidebarMenuItem v-for="conv in aiConversations" :key="conv.id">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem v-for="cat in topCats" :key="cat.id">
                 <SidebarMenuButton
-                  :is-active="currentView === 'ai' && activeAiConversationId === conv.id"
-                  :tooltip="conv.title || '新会话'"
-                  class="cursor-pointer pr-14 group/chat-item"
-                  @click="handleSelectAiChat(conv.id)"
+                  :is-active="selectedCategoryId === cat.id"
+                  :tooltip="cat.name"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-xs"
+                  :class="selectedCategoryId === cat.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
+                  @click="handleSelectCategory(cat.id)"
                 >
                   <component
-                    :is="conv.icon ? mapIcon(conv.icon) : MessageSquare"
+                    :is="mapIcon(cat?.icon)"
                     class="size-3.5 shrink-0 transition-colors"
-                    :class="(currentView === 'ai' && activeAiConversationId === conv.id) ? 'text-sidebar-accent-foreground' : 'text-muted-foreground group-hover/menu-item:text-foreground'"
                   />
-                  <span class="truncate text-xs">{{ conv.title || '新会话' }}</span>
+                  <span class="truncate">{{ cat.name }}</span>
                 </SidebarMenuButton>
 
-                <!-- 对话管理操作 (三个点图标：编辑、删除) -->
-                <DropdownMenu>
-                  <DropdownMenuTrigger as-child>
-                    <SidebarMenuAction
-                      class="cursor-pointer text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
-                      title="对话操作"
-                      @click.stop.prevent
-                      @pointerdown.stop
+                <SidebarMenuAction
+                  v-if="getSubCats(cat.id).length > 0"
+                  :class="[
+                    'cursor-pointer transition-transform duration-200',
+                    expandedCatIds.has(cat.id) ? 'rotate-90' : '',
+                  ]"
+                  @click.stop="toggleSubCats(cat.id)"
+                  title="展开/收起子分类"
+                >
+                  <ChevronRight class="size-3.5" />
+                </SidebarMenuAction>
+
+                <!-- 二级子分类列表 -->
+                <SidebarMenuSub v-if="getSubCats(cat.id).length > 0 && expandedCatIds.has(cat.id)">
+                  <SidebarMenuSubItem v-for="sub in getSubCats(cat.id)" :key="sub.id">
+                    <SidebarMenuSubButton
+                      class="cursor-pointer text-xs"
+                      @click="handleSelectSubCategory(cat.id, sub.id)"
                     >
-                      <MoreHorizontal class="size-3.5" />
-                    </SidebarMenuAction>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="bottom" :side-offset="4" class="w-28 p-1 shadow-md">
-                    <DropdownMenuItem class="text-xs cursor-pointer gap-2" @click.stop="openEditConversation(conv)">
-                      <Pencil class="size-3.5 shrink-0 text-muted-foreground" />
-                      <span>编辑对话</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      class="text-xs cursor-pointer gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
-                      @click.stop="handleDeleteAiChat(conv.id)"
-                    >
-                      <Trash2 class="size-3.5 shrink-0" />
-                      <span>删除对话</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      <span class="truncate">{{ sub.name }}</span>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                </SidebarMenuSub>
               </SidebarMenuItem>
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </template>
 
-            <div v-else class="py-4 text-center text-xs text-muted-foreground/70">
-              暂无历史对话
-            </div>
+      <!-- ================= 模式 D：系统设置侧边栏 (显示各设置 Tab) ================= -->
+      <template v-else-if="currentView === 'admin'">
+        <SidebarGroup class="p-0">
+          <SidebarGroupLabel class="px-2 text-[11px] font-medium text-muted-foreground">
+            <span>系统管理</span>
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem v-for="tab in adminTabs" :key="tab.value">
+                <SidebarMenuButton
+                  :is-active="selectedAdminTab === tab.value"
+                  :tooltip="tab.label"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-xs"
+                  :class="selectedAdminTab === tab.value ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
+                  @click="handleSelectAdminTab(tab.value)"
+                >
+                  <component :is="tab.icon" class="size-3.5 shrink-0" />
+                  <span class="truncate">{{ tab.label }}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </template>
