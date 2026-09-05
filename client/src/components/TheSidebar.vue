@@ -320,7 +320,8 @@ function handleDeleteAiChat(id: string) {
   emit('deleteAiChat', id);
 }
 
-// 归档折叠状态 (默认收起)
+// 会话与归档折叠状态
+const isChatExpanded = ref(true);
 const isArchivedExpanded = ref(false);
 
 const activeConversations = computed(() => {
@@ -507,40 +508,47 @@ async function handleDeleteCategory(cat: any) {
 
     <!-- Content: 专属上下文 (根据当前激活模式精准呈现) -->
     <SidebarContent class="px-2 py-2 scrollbar-none">
-      <!-- ================= 模式 A：AI 对话专属列表 (Grok 风格：置顶聊天 + 近期对话（带置顶） + 默认折叠的归档) ================= -->
+      <!-- ================= 模式 A：AI 对话专属列表 (Grok 风格：置顶新聊天 + 聊天列表（带置顶且可折叠） + 默认折叠的归档) ================= -->
       <template v-if="currentView === 'ai'">
         <!-- 1. 置顶主入口：聊天 (默认开启新聊天) -->
         <div class="px-1 mb-2">
           <SidebarMenuButton
             :is-active="!activeAiConversationId || activeAiConversationId === ''"
             tooltip="新聊天"
-            class="h-9 px-2.5 rounded-xl cursor-pointer text-xs font-medium transition-all"
-            :class="!activeAiConversationId || activeAiConversationId === '' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50'"
+            class="h-9 px-2.5 rounded-xl cursor-pointer text-[13.5px] font-medium transition-all"
+            :class="!activeAiConversationId || activeAiConversationId === '' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs' : 'text-foreground/90 hover:text-foreground hover:bg-sidebar-accent/50'"
             @click="handleNewAiChatDirect"
           >
-            <Pencil class="size-3.5 shrink-0" :class="!activeAiConversationId || activeAiConversationId === '' ? 'text-primary' : 'text-muted-foreground'" />
-            <span class="truncate text-xs font-medium">聊天</span>
+            <Pencil class="size-4 shrink-0" :class="!activeAiConversationId || activeAiConversationId === '' ? 'text-primary' : 'text-muted-foreground'" />
+            <span class="truncate text-[13.5px] font-medium">聊天</span>
           </SidebarMenuButton>
         </div>
 
-        <!-- 2. 近期对话列表 (置顶优先排在前面) -->
+        <!-- 2. 聊天列表 (可展开收缩，箭头紧跟文字右侧) -->
         <SidebarGroup class="p-0">
-          <SidebarGroupLabel class="px-2 text-[11px] font-medium text-muted-foreground flex items-center justify-between">
-            <span>近期对话</span>
-          </SidebarGroupLabel>
+          <div class="px-1 mb-0.5">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground/60 hover:text-foreground/80 px-2 py-1 rounded-md select-none cursor-pointer transition-colors"
+              @click="isChatExpanded = !isChatExpanded"
+            >
+              <span>聊天</span>
+              <ChevronRight class="size-3 text-muted-foreground/50 transition-transform duration-200" :class="{ 'rotate-90': isChatExpanded }" />
+            </button>
+          </div>
 
-          <SidebarGroupContent>
+          <SidebarGroupContent v-show="isChatExpanded">
             <SidebarMenu v-if="activeConversations.length > 0">
               <SidebarMenuItem v-for="conv in activeConversations" :key="conv.id">
                 <SidebarMenuButton
                   :is-active="activeAiConversationId === conv.id"
                   :tooltip="conv.title || '新会话'"
-                  class="h-8 px-2 rounded-lg cursor-pointer text-xs group/chat-item flex items-center gap-1.5"
-                  :class="activeAiConversationId === conv.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-[13px] font-normal group/chat-item flex items-center gap-1.5 transition-colors"
+                  :class="activeAiConversationId === conv.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
                   @click="handleSelectAiChat(conv.id)"
                 >
                   <Pin v-if="conv.is_pinned" class="size-3 shrink-0 text-primary" />
-                  <span class="truncate text-xs">{{ conv.title || '新会话' }}</span>
+                  <span class="truncate">{{ conv.title || '新会话' }}</span>
                 </SidebarMenuButton>
 
                 <!-- 对话管理操作 (置顶/取消置顶、归档、重命名、删除) -->
@@ -587,32 +595,29 @@ async function handleDeleteCategory(cat: any) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <!-- 3. 归档对话折叠区块 (默认不展开) -->
-        <div v-if="archivedConversations.length > 0" class="mt-3 px-1">
+        <!-- 3. 归档对话折叠区块 (默认不展开，箭头紧跟文字右侧) -->
+        <div v-if="archivedConversations.length > 0" class="mt-2.5 px-1">
           <button
             type="button"
-            class="w-full px-2 py-1.5 flex items-center justify-between text-[11px] font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-sidebar-accent/50 cursor-pointer transition-colors select-none"
+            class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground/60 hover:text-foreground/80 px-2 py-1 rounded-md select-none cursor-pointer transition-colors"
             @click="isArchivedExpanded = !isArchivedExpanded"
           >
-            <div class="flex items-center gap-1.5">
-              <Archive class="size-3.5" />
-              <span>归档对话 ({{ archivedConversations.length }})</span>
-            </div>
-            <ChevronRight class="size-3.5 transition-transform duration-200" :class="{ 'rotate-90': isArchivedExpanded }" />
+            <span>归档对话 ({{ archivedConversations.length }})</span>
+            <ChevronRight class="size-3 text-muted-foreground/50 transition-transform duration-200" :class="{ 'rotate-90': isArchivedExpanded }" />
           </button>
 
-          <div v-show="isArchivedExpanded" class="mt-1 space-y-0.5">
+          <div v-show="isArchivedExpanded" class="mt-0.5 space-y-0.5">
             <SidebarMenu>
               <SidebarMenuItem v-for="conv in archivedConversations" :key="conv.id">
                 <SidebarMenuButton
                   :is-active="activeAiConversationId === conv.id"
                   :tooltip="conv.title || '归档会话'"
-                  class="h-8 px-2 rounded-lg cursor-pointer text-xs group/chat-item opacity-80 hover:opacity-100 flex items-center gap-1.5"
-                  :class="activeAiConversationId === conv.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
+                  class="h-8 px-2 rounded-lg cursor-pointer text-[13px] font-normal group/chat-item opacity-80 hover:opacity-100 flex items-center gap-1.5 transition-colors"
+                  :class="activeAiConversationId === conv.id ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-2xs' : 'text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40'"
                   @click="handleSelectAiChat(conv.id)"
                 >
                   <Archive class="size-3 shrink-0 text-muted-foreground" />
-                  <span class="truncate text-xs">{{ conv.title || '归档会话' }}</span>
+                  <span class="truncate">{{ conv.title || '归档会话' }}</span>
                 </SidebarMenuButton>
 
                 <!-- 归档对话操作菜单 (取消归档、重命名、删除) -->
