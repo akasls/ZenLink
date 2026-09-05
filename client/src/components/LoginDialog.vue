@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -106,13 +107,12 @@ async function handlePasskeyLogin() {
     <DialogContent class="sm:max-w-[380px]">
       <DialogHeader>
         <DialogTitle>登录后台</DialogTitle>
+        <DialogDescription class="text-xs text-muted-foreground leading-relaxed">
+          {{ targetView ? '该功能需要管理员权限，请先登录' : '登录以管理书签、在线笔记与 AI 助手' }}
+        </DialogDescription>
       </DialogHeader>
 
       <div class="flex flex-col">
-        <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
-          {{ targetView ? '该功能需要管理员权限，请先登录' : '登录以管理书签、在线笔记与 AI 助手' }}
-        </p>
-
         <form class="space-y-3.5" @submit.prevent="handleLogin">
           <!-- 用户名 -->
           <div class="space-y-1.5">
