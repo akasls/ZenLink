@@ -75,6 +75,8 @@ import {
   PinOff,
   Archive,
   ArchiveRestore,
+  Search,
+  X,
 } from 'lucide-vue-next';
 
 const siteStore = useSiteStore();
@@ -323,13 +325,24 @@ function handleDeleteAiChat(id: string) {
 // 会话与归档折叠状态
 const isChatExpanded = ref(true);
 const isArchivedExpanded = ref(false);
+const aiConversationSearchQuery = ref('');
 
 const activeConversations = computed(() => {
-  return (props.aiConversations || []).filter(c => !c.is_archived);
+  const query = aiConversationSearchQuery.value.trim().toLowerCase();
+  let list = (props.aiConversations || []).filter(c => !c.is_archived);
+  if (query) {
+    list = list.filter(c => (c.title || '').toLowerCase().includes(query));
+  }
+  return list;
 });
 
 const archivedConversations = computed(() => {
-  return (props.aiConversations || []).filter(c => !!c.is_archived);
+  const query = aiConversationSearchQuery.value.trim().toLowerCase();
+  let list = (props.aiConversations || []).filter(c => !!c.is_archived);
+  if (query) {
+    list = list.filter(c => (c.title || '').toLowerCase().includes(query));
+  }
+  return list;
 });
 
 async function handleTogglePin(id: string, isPinned: boolean) {
@@ -510,18 +523,40 @@ async function handleDeleteCategory(cat: any) {
     <SidebarContent class="px-2 py-2 scrollbar-none">
       <!-- ================= 模式 A：AI 对话专属列表 (Grok 风格：置顶新聊天 + 聊天列表（带置顶且可折叠） + 默认折叠的归档) ================= -->
       <template v-if="currentView === 'ai'">
-        <!-- 1. 置顶主入口：聊天 (默认开启新聊天) -->
-        <div class="px-1 mb-2">
+        <!-- 1. 置顶主入口：新会话 (默认开启新聊天) -->
+        <div class="px-1 mb-1.5">
           <SidebarMenuButton
             :is-active="!activeAiConversationId || activeAiConversationId === ''"
-            tooltip="新聊天"
+            tooltip="新会话"
             class="h-9 px-2.5 rounded-xl cursor-pointer text-[13.5px] font-medium transition-all"
             :class="!activeAiConversationId || activeAiConversationId === '' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold shadow-2xs' : 'text-foreground/90 hover:text-foreground hover:bg-sidebar-accent/50'"
             @click="handleNewAiChatDirect"
           >
             <Pencil class="size-4 shrink-0" :class="!activeAiConversationId || activeAiConversationId === '' ? 'text-primary' : 'text-muted-foreground'" />
-            <span class="truncate text-[13.5px] font-medium">聊天</span>
+            <span class="truncate text-[13.5px] font-medium">新会话</span>
           </SidebarMenuButton>
+        </div>
+
+        <!-- 搜索会话输入框 -->
+        <div class="px-1 mb-2.5">
+          <div class="relative flex items-center w-full">
+            <Search class="absolute left-2.5 size-3.5 text-muted-foreground/50 pointer-events-none" />
+            <input
+              v-model="aiConversationSearchQuery"
+              type="text"
+              placeholder="搜索会话..."
+              class="w-full h-8 pl-8 pr-7 text-xs bg-muted/40 hover:bg-muted/60 focus:bg-background border border-border/40 focus:border-border rounded-xl outline-none transition-all placeholder:text-muted-foreground/50 text-foreground"
+            />
+            <button
+              v-if="aiConversationSearchQuery"
+              type="button"
+              class="absolute right-2 text-muted-foreground hover:text-foreground p-0.5 rounded-full cursor-pointer"
+              title="清除搜索"
+              @click="aiConversationSearchQuery = ''"
+            >
+              <X class="size-3" />
+            </button>
+          </div>
         </div>
 
         <!-- 2. 聊天列表 (可展开收缩，箭头紧跟文字右侧) -->
