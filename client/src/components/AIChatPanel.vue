@@ -20,7 +20,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -32,7 +31,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { mapIcon } from '@/utils/icon-map';
 import {
   Plus,
   Pencil,
@@ -42,8 +40,6 @@ import {
   ChevronDown,
   Check,
   Square,
-  Paperclip,
-  ArrowDown,
   ArrowUp,
   Tickets,
   X,
@@ -106,10 +102,6 @@ interface RolePreset {
 const isPrivateMode = ref(false);
 const projects = ref<any[]>([]);
 const selectedProjectId = ref<string | null>(null);
-
-const currentProject = computed(() => {
-  return projects.value.find(p => p.id === selectedProjectId.value) || null;
-});
 
 function togglePrivateMode() {
   isPrivateMode.value = !isPrivateMode.value;
@@ -854,12 +846,8 @@ defineExpose({
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
       <!-- 1. 顶部控制栏 (无背景色、无边框，极简透视，Grok 风格) -->
       <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
-        <!-- 左上角显示标题 / 项目标识 / 私密标识 -->
+        <!-- 左上角显示标题 / 私密标识 -->
         <div class="flex items-center gap-2 select-none min-w-0">
-          <Badge v-if="currentProject" variant="secondary" class="text-[11px] gap-1 px-2 py-0.5 font-normal shrink-0">
-            <component :is="mapIcon(currentProject.icon || '')" class="size-3" />
-            <span>{{ currentProject.name }}</span>
-          </Badge>
           <Badge v-if="isPrivateMode" variant="outline" class="text-[11px] gap-1 px-1.5 py-0.5 border-primary/40 text-primary shrink-0">
             私密
           </Badge>
@@ -868,7 +856,7 @@ defineExpose({
           </h1>
         </div>
 
-        <!-- 右上角：私密模式切换 + 新建AI对话图标 + 移动端章节跳转 -->
+        <!-- 右上角：私密模式切换 + 移动端章节跳转 (无新建按钮) -->
         <div class="flex items-center gap-2 shrink-0">
           <!-- 私密模式切换按钮 (Grok 原版同款) -->
           <Tooltip>
@@ -930,21 +918,6 @@ defineExpose({
               </div>
             </PopoverContent>
           </Popover>
-
-          <!-- 新建AI对话图标 -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer"
-                @click="createNewConversation"
-              >
-                <Plus class="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">新建对话</TooltipContent>
-          </Tooltip>
         </div>
       </div>
 
@@ -966,49 +939,15 @@ defineExpose({
           @scroll="onChatScroll"
           @click="handleChatContainerClick"
         >
-          <!-- 空状态 -->
-          <div v-if="messages.length === 0" class="my-auto py-12 text-center max-w-lg">
+          <!-- 空状态 (极简现代探索画卷) -->
+          <div v-if="messages.length === 0" class="my-auto py-16 text-center max-w-lg select-none">
             <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center text-3xl mx-auto mb-5 shadow-xs">
               {{ currentRole?.icon || '✨' }}
             </div>
             <h1 class="text-2xl sm:text-3xl font-semibold text-foreground m-0 mb-2.5 tracking-tight">我们应该探索什么？</h1>
-            <p class="text-xs sm:text-sm text-muted-foreground m-0 leading-relaxed mb-6 max-w-sm mx-auto">
-              当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 智能推理、代码生成与多轮深度对话
+            <p class="text-xs sm:text-sm text-muted-foreground m-0 leading-relaxed max-w-sm mx-auto">
+              当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 智能推理与多轮深度对话
             </p>
-
-            <!-- 快捷提问启发卡片 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left w-full max-w-md mx-auto">
-              <Card
-                class="p-3 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-xs transition-all cursor-pointer select-none"
-                @click="sendMessage('请帮我分析这段代码的优化空间与潜在问题')"
-              >
-                <div class="text-xs font-medium text-foreground flex items-center justify-between gap-1.5 mb-1">
-                  <div class="flex items-center gap-1.5">
-                    <span>💻</span>
-                    <span>代码分析与重构</span>
-                  </div>
-                  <Badge variant="secondary" class="text-[10px] px-1.5 py-0 h-4 font-normal">编程</Badge>
-                </div>
-                <div class="text-[11px] text-muted-foreground line-clamp-1">
-                  分析逻辑缺陷、提高执行效率与可读性
-                </div>
-              </Card>
-              <Card
-                class="p-3 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-xs transition-all cursor-pointer select-none"
-                @click="sendMessage('请帮我润色以下内容，使其语言凝练且富有说服力')"
-              >
-                <div class="text-xs font-medium text-foreground flex items-center justify-between gap-1.5 mb-1">
-                  <div class="flex items-center gap-1.5">
-                    <span>✍️</span>
-                    <span>文章润色与提炼</span>
-                  </div>
-                  <Badge variant="secondary" class="text-[10px] px-1.5 py-0 h-4 font-normal">写作</Badge>
-                </div>
-                <div class="text-[11px] text-muted-foreground line-clamp-1">
-                  语言修辞润色、段落结构梳理与核心提要
-                </div>
-              </Card>
-            </div>
           </div>
 
           <!-- 正常对话消息流 -->
@@ -1162,24 +1101,71 @@ defineExpose({
           </div>
         </div>
 
-        <!-- 3. 底部输入卡片 -->
+        <!-- 3. 底部输入卡片 (Grok 风格圆角一体化输入胶囊) -->
         <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
-          <Card class="shadow-sm flex flex-col focus-within:ring-2 focus-within:ring-primary/10 focus-within:border-primary/40 transition-all overflow-hidden border-border/80 rounded-2xl p-0 gap-0">
-            <!-- 上部快捷工具栏 -->
-            <div class="px-3 py-1.5 border-b border-border/70 flex items-center justify-between bg-muted/30 text-xs">
-              <div class="flex items-center gap-2">
-                <!-- 角色选择 Popover -->
+          <div class="relative rounded-[26px] border border-border/80 dark:border-border/60 bg-card/90 dark:bg-card/60 backdrop-blur-md shadow-xs focus-within:shadow-md focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-primary/10 transition-all p-3 sm:p-3.5 flex flex-col gap-2">
+            <!-- 附件预览 -->
+            <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 px-1 py-0.5">
+              <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted border border-border text-xs">
+                <span>{{ att.isImage ? '🖼️' : '📎' }}</span>
+                <span class="max-w-[140px] truncate text-[11px]">{{ att.name }}</span>
+                <X class="h-3 w-3 text-muted-foreground hover:text-destructive cursor-pointer shrink-0 transition-colors ml-0.5" @click="removeAttachment(idx)" />
+              </div>
+            </div>
+
+            <!-- 编辑状态提示条 -->
+            <div v-if="editingMsgIndex !== null" class="px-3 py-1 bg-amber-500/10 rounded-lg flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
+              <div class="flex items-center gap-1.5">
+                <Pencil class="h-3.5 w-3.5" />
+                <span>正在编辑提问 #{{ editingMsgIndex + 1 }}</span>
+              </div>
+              <Button variant="link" size="xs" class="p-0 h-auto text-xs text-amber-600 dark:text-amber-400 cursor-pointer" @click="cancelEditingMsg">
+                取消编辑
+              </Button>
+            </div>
+
+            <!-- 输入文本框 (Grok 占位符 "畅所欲言") -->
+            <textarea
+              ref="textareaRef"
+              v-model="inputPrompt"
+              class="w-full px-1.5 py-1 text-xs sm:text-[13px] bg-transparent text-foreground outline-none resize-none min-h-[44px] max-h-48 leading-relaxed placeholder:text-muted-foreground/60 scrollbar-none"
+              placeholder="畅所欲言"
+              rows="2"
+              :disabled="isStreaming"
+              @keydown="handleKeyDown"
+              @paste="handlePaste"
+            />
+
+            <!-- 底部操作行 (左侧：+ 附件与助手角色；右侧：模型切换与 Grok 圆形发送钮) -->
+            <div class="flex items-center justify-between pt-0.5">
+              <!-- 左侧操作区 -->
+              <div class="flex items-center gap-1.5">
+                <!-- + 附件上传按钮 -->
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <button
+                      type="button"
+                      class="size-7 sm:size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors cursor-pointer"
+                      @click="fileInputRef?.click()"
+                    >
+                      <Plus class="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">上传附件 / 图片</TooltipContent>
+                </Tooltip>
+                <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
+
+                <!-- 角色选择 Popover (Grok 式药丸按钮) -->
                 <Popover v-model:open="rolePopoverVisible">
                   <PopoverTrigger as-child>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 font-medium cursor-pointer"
+                    <button
+                      type="button"
+                      class="h-7 px-2.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-normal text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <span class="text-xs">{{ currentRole?.icon || '🤖' }}</span>
-                      <span>{{ currentRole?.name || '默认助手' }}</span>
-                      <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                    </Button>
+                      <span class="max-w-[90px] truncate text-[11px] font-medium">{{ currentRole?.name || '默认助手' }}</span>
+                      <ChevronDown class="size-3 text-muted-foreground/70" />
+                    </button>
                   </PopoverTrigger>
 
                   <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
@@ -1239,84 +1225,18 @@ defineExpose({
                 </Popover>
               </div>
 
-              <!-- 右侧返回底部按钮 -->
-              <Button
-                v-if="showScrollBottomBtn"
-                variant="ghost"
-                size="xs"
-                class="gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-                @click="scrollToBottomSmooth"
-              >
-                <ArrowDown class="h-3.5 w-3.5" />
-                <span>回到底部</span>
-              </Button>
-            </div>
-
-            <!-- 附件预览 -->
-            <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 p-2 bg-muted/20 border-b border-border">
-              <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-background border border-border text-xs">
-                <span>{{ att.isImage ? '🖼️' : '📎' }}</span>
-                <span class="max-w-[120px] truncate text-[11px]">{{ att.name }}</span>
-                <X class="h-2.5 w-2.5 text-muted-foreground hover:text-destructive cursor-pointer shrink-0 transition-colors" @click="removeAttachment(idx)" />
-              </div>
-            </div>
-
-            <!-- 编辑状态提示条 -->
-            <div v-if="editingMsgIndex !== null" class="px-3 py-1 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between text-xs text-amber-600 dark:text-amber-400">
-              <div class="flex items-center gap-1">
-                <Pencil class="h-3.5 w-3.5" />
-                <span>正在编辑提问 #{{ editingMsgIndex + 1 }}</span>
-              </div>
-              <Button variant="link" size="xs" class="p-0 h-auto text-xs text-amber-600 dark:text-amber-400 cursor-pointer" @click="cancelEditingMsg">
-                取消编辑
-              </Button>
-            </div>
-
-            <!-- 输入文本框 -->
-            <textarea
-              ref="textareaRef"
-              v-model="inputPrompt"
-              class="w-full px-3.5 py-2.5 text-xs bg-transparent text-foreground outline-none resize-none min-h-[48px] max-h-40 leading-relaxed placeholder:text-muted-foreground/70"
-              placeholder="输入您的问题，Enter 发送，Shift+Enter 换行，支持粘贴图片..."
-              rows="2"
-              :disabled="isStreaming"
-              @keydown="handleKeyDown"
-              @paste="handlePaste"
-            />
-
-            <!-- 底部发送与模型切换行 -->
-            <div class="px-3 py-1.5 flex items-center justify-between border-t border-border/60 bg-muted/20">
-              <!-- 左侧：附件上传 -->
-              <div class="flex items-center gap-1.5">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      class="text-muted-foreground hover:text-foreground cursor-pointer"
-                      @click="fileInputRef?.click()"
-                    >
-                      <Paperclip class="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">上传附件 / 图片</TooltipContent>
-                </Tooltip>
-                <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
-              </div>
-
-              <!-- 右侧：模型选择 (靠右) + 圆形发送按钮 (无文字) -->
+              <!-- 右侧操作区：模型选择 + 圆形 Grok 发送钮 -->
               <div class="flex items-center gap-2">
-                <!-- 模型选择 Popover (靠右显示) -->
+                <!-- 模型选择 Popover (Grok 式药丸标签) -->
                 <Popover v-model:open="modelPopoverVisible">
                   <PopoverTrigger as-child>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      class="h-7 gap-1 text-[11px] font-medium text-foreground cursor-pointer"
+                    <button
+                      type="button"
+                      class="h-7 px-2.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-normal text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <span>{{ selectedModel || '暂无模型' }}</span>
-                      <ChevronDown class="h-3 w-3 text-muted-foreground" />
-                    </Button>
+                      <span class="max-w-[120px] truncate text-[11px] font-medium">{{ selectedModel || '暂无模型' }}</span>
+                      <ChevronDown class="size-3 text-muted-foreground/70" />
+                    </button>
                   </PopoverTrigger>
 
                   <PopoverContent side="top" align="end" class="w-64 p-2 shadow-lg">
@@ -1353,19 +1273,25 @@ defineExpose({
                   </PopoverContent>
                 </Popover>
 
-                <!-- 发送 / 停止圆形按钮 (无文字，纯圆形) -->
+                <!-- 发送 / 停止圆形按钮 (Grok 原生纯圆高亮箭头钮) -->
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Button
-                      size="icon"
-                      class="size-7 rounded-full shrink-0 shadow-xs cursor-pointer p-0"
-                      :variant="isStreaming ? 'destructive' : 'default'"
+                    <button
+                      type="button"
+                      class="size-8 rounded-full flex items-center justify-center transition-all cursor-pointer select-none"
+                      :class="[
+                        isStreaming
+                          ? 'bg-destructive text-destructive-foreground hover:opacity-90 active:scale-95'
+                          : (inputPrompt.trim() || attachments.length > 0)
+                            ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-xs active:scale-95'
+                            : 'bg-muted text-muted-foreground/40 cursor-not-allowed'
+                      ]"
                       :disabled="!isStreaming && !inputPrompt.trim() && attachments.length === 0"
                       @click="isStreaming ? stopGenerating() : sendMessage()"
                     >
                       <Square v-if="isStreaming" class="size-3.5 fill-current" />
-                      <ArrowUp v-else class="size-4" />
-                    </Button>
+                      <ArrowUp v-else class="size-4 stroke-[2.5]" />
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
                     {{ isStreaming ? '停止生成' : '发送 (Enter)' }}
@@ -1373,7 +1299,7 @@ defineExpose({
                 </Tooltip>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
 

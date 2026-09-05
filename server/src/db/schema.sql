@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS ai_conversations (
   model TEXT DEFAULT 'deepseek-chat',
   role_id TEXT DEFAULT 'default',
   icon TEXT DEFAULT '',
+  is_pinned INTEGER DEFAULT 0,
+  is_archived INTEGER DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

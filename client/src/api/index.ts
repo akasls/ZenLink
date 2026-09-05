@@ -217,14 +217,20 @@ export const aiApi = {
   deleteProject(id: string) {
     return api.delete(`/ai/projects/${id}`);
   },
-  getConversations(projectId?: string) {
-    const params = projectId ? { project_id: projectId } : undefined;
-    return api.get('/ai/conversations', { params });
+  getConversations(options?: { projectId?: string; isArchived?: number } | string) {
+    const params: any = {};
+    if (typeof options === 'string') {
+      params.project_id = options;
+    } else if (options) {
+      if (options.projectId) params.project_id = options.projectId;
+      if (options.isArchived !== undefined) params.is_archived = options.isArchived;
+    }
+    return api.get('/ai/conversations', { params: Object.keys(params).length ? params : undefined });
   },
-  createConversation(data?: { title?: string; model?: string; role_id?: string; icon?: string; project_id?: string | null }) {
+  createConversation(data?: { title?: string; model?: string; role_id?: string; icon?: string; project_id?: string | null; is_pinned?: number; is_archived?: number }) {
     return api.post('/ai/conversations', data || {});
   },
-  updateConversation(id: string, data: { title?: string; role_id?: string; model?: string; icon?: string; project_id?: string | null }) {
+  updateConversation(id: string, data: { title?: string; role_id?: string; model?: string; icon?: string; project_id?: string | null; is_pinned?: number; is_archived?: number }) {
     return api.put(`/ai/conversations/${id}`, data);
   },
   deleteConversation(id: string) {

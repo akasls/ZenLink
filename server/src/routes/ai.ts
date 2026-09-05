@@ -222,16 +222,24 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true });
   });
 
-  // 3. 获取所有会话（按最新活动时间倒序排序）
+  // 3. 获取所有会话（置顶优先、按最新活动时间倒序排序）
   fastify.get('/api/ai/conversations', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { project_id } = (request.query as any) || {};
-    let sql = 'SELECT id, title, model, role_id, icon, project_id, created_at, updated_at FROM ai_conversations';
+    const { project_id, is_archived } = (request.query as any) || {};
+    let sql = 'SELECT id, title, model, role_id, icon, project_id, is_pinned, is_archived, created_at, updated_at FROM ai_conversations';
     const params: any[] = [];
+    const where: string[] = [];
     if (project_id) {
-      sql += ' WHERE project_id = ?';
+      where.push('project_id = ?');
       params.push(project_id);
     }
-    sql += ' ORDER BY updated_at DESC, created_at DESC';
+    if (is_archived !== undefined) {
+      where.push('is_archived = ?');
+      params.push(Number(is_archived));
+    }
+    if (where.length > 0) {
+      sql += ' WHERE ' + where.join(' AND ');
+    }
+    sql += ' ORDER BY is_pinned DESC, updated_at DESC, created_at DESC';
     const conversations = dbHelper.all(sql, params);
     return reply.send({ conversations });
   });
@@ -245,11 +253,13 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const role_id = body.role_id || 'default';
     const icon = body.icon || '';
     const project_id = body.project_id || null;
+    const is_pinned = body.is_pinned ? 1 : 0;
+    const is_archived = body.is_archived ? 1 : 0;
     const now = new Date().toISOString();
 
     dbHelper.run(
-      'INSERT INTO ai_conversations (id, title, model, role_id, icon, project_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, title, model, role_id, icon, project_id, now, now]
+      'INSERT INTO ai_conversations (id, title, model, role_id, icon, project_id, is_pinned, is_archived, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, title, model, role_id, icon, project_id, is_pinned, is_archived, now, now]
     );
     saveDatabase();
 
@@ -257,11 +267,11 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     return reply.status(201).send({ conversation: conv });
   });
 
-  // 4.1 更新会话（重命名标题 / 角色 / 模型 / 图标 / 项目归属）
+  // 4.1 更新会话（重命名标题 / 角色 / 模型 / 图标 / 项目归属 / 置顶 / 归档）
   fastify.put('/api/ai/conversations/:id', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = (request.body as any) || {};
-    const { title, role_id, model, icon, project_id } = body;
+    const { title, role_id, model, icon, project_id, is_pinned, is_archived } = body;
     const now = new Date().toISOString();
 
     if (title !== undefined) {
@@ -278,6 +288,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
     if (project_id !== undefined) {
       dbHelper.run('UPDATE ai_conversations SET project_id = ?, updated_at = ? WHERE id = ?', [project_id || null, now, id]);
+    }
+    if (is_pinned !== undefined) {
+      dbHelper.run('UPDATE ai_conversations SET is_pinned = ?, updated_at = ? WHERE id = ?', [is_pinned ? 1 : 0, now, id]);
+    }
+    if (is_archived !== undefined) {
+      dbHelper.run('UPDATE ai_conversations SET is_archived = ?, updated_at = ? WHERE id = ?', [is_archived ? 1 : 0, now, id]);
     }
     saveDatabase();
     const conv = dbHelper.get('SELECT * FROM ai_conversations WHERE id = ?', [id]);
