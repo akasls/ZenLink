@@ -58,6 +58,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
     <DialogContent
       :class="cn(sheetVariants({ side }), props.class)"
       v-bind="forwarded"
+      :aria-describedby="(props as any)?.ariaDescribedby ?? (props as any)?.['aria-describedby'] ?? 'undefined'"
     >
       <slot />
 

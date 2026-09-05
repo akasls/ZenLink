@@ -346,21 +346,35 @@ const archivedConversations = computed(() => {
 });
 
 async function handleTogglePin(id: string, isPinned: boolean) {
+  const target = props.aiConversations?.find(c => c.id === id);
+  if (target) {
+    target.is_pinned = isPinned ? 1 : 0;
+  }
   try {
     await aiApi.updateConversation(id, { is_pinned: isPinned ? 1 : 0 });
     toast.success(isPinned ? '已置顶会话' : '已取消置顶');
     emit('refreshAiChat');
   } catch (err: any) {
+    if (target) {
+      target.is_pinned = isPinned ? 0 : 1;
+    }
     toast.error('操作失败');
   }
 }
 
 async function handleToggleArchive(id: string, isArchived: boolean) {
+  const target = props.aiConversations?.find(c => c.id === id);
+  if (target) {
+    target.is_archived = isArchived ? 1 : 0;
+  }
   try {
     await aiApi.updateConversation(id, { is_archived: isArchived ? 1 : 0 });
     toast.success(isArchived ? '已归档会话' : '已恢复会话');
     emit('refreshAiChat');
   } catch (err: any) {
+    if (target) {
+      target.is_archived = isArchived ? 0 : 1;
+    }
     toast.error('操作失败');
   }
 }

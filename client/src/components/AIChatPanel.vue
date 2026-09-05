@@ -323,9 +323,22 @@ function onChatScroll() {
   updateActiveChapterOnScroll();
 }
 
+let scrollRafId: number | null = null;
+
 function scrollToBottom(force = false) {
-  nextTick(() => {
-    if (chatContainerRef.value && (force || shouldAutoScroll)) {
+  if (force) {
+    nextTick(() => {
+      if (chatContainerRef.value) {
+        chatContainerRef.value.scrollTop = chatContainerRef.value.scrollHeight;
+      }
+    });
+    return;
+  }
+  if (!shouldAutoScroll) return;
+  if (scrollRafId !== null) return;
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = null;
+    if (chatContainerRef.value && shouldAutoScroll) {
       chatContainerRef.value.scrollTop = chatContainerRef.value.scrollHeight;
     }
   });
@@ -827,6 +840,10 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (scrollRafId !== null) {
+    cancelAnimationFrame(scrollRafId);
+    scrollRafId = null;
+  }
   window.removeEventListener('resize', handleResize);
   stopGenerating();
 });
