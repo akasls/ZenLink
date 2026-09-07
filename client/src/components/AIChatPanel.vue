@@ -20,7 +20,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Avatar,
@@ -284,24 +283,7 @@ function toggleMsgExpand(idx: number) {
   expandedMsgMap.value[idx] = !expandedMsgMap.value[idx];
 }
 
-// 顶栏动态标题
-const currentConversationTitle = computed(() => {
-  if (messages.value.length === 0 || !activeConversationId.value) {
-    return '新对话';
-  }
-  const current = conversations.value.find(c => c.id === activeConversationId.value);
-  if (current && current.title && current.title !== '新对话') {
-    return current.title;
-  }
-  if (messages.value.length > 0) {
-    const firstUserMsg = messages.value.find(m => m.role === 'user');
-    if (firstUserMsg) {
-      const summary = firstUserMsg.content.slice(0, 18).replace(/[\r\n]/g, ' ');
-      return summary || '新对话';
-    }
-  }
-  return '新对话';
-});
+
 
 // DOM 引用
 const chatContainerRef = ref<HTMLElement | null>(null);
@@ -863,15 +845,8 @@ defineExpose({
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
       <!-- 1. 顶部控制栏 (无背景色、无边框，极简透视，Grok 风格) -->
       <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
-        <!-- 左上角显示标题 / 私密标识 -->
-        <div class="flex items-center gap-2 select-none min-w-0">
-          <Badge v-if="isPrivateMode" variant="outline" class="text-[11px] gap-1 px-1.5 py-0.5 border-primary/40 text-primary shrink-0">
-            私密
-          </Badge>
-          <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate" :title="currentConversationTitle">
-            {{ isPrivateMode ? '私密对话' : (currentConversationTitle || 'AI 对话') }}
-          </h1>
-        </div>
+        <!-- 左上角极简留白 (已移除标题) -->
+        <div class="flex-1 min-w-0" />
 
         <!-- 右上角：私密模式切换 + 移动端章节跳转 (无新建按钮) -->
         <div class="flex items-center gap-2 shrink-0">
@@ -938,15 +913,6 @@ defineExpose({
         </div>
       </div>
 
-      <!-- 私密模式进行中提示条 -->
-      <div
-        v-if="isPrivateMode"
-        class="bg-primary/10 border-b border-primary/20 py-1 px-4 text-center text-xs text-primary font-medium flex items-center justify-center gap-2 shrink-0 animate-in fade-in"
-      >
-        <VenetianMask class="size-3.5" />
-        <span>私密模式进行中 · 本次对话内容不会保存到任何历史记录或服务器中</span>
-      </div>
-
       <!-- 2. 主体对话容器 -->
       <div class="flex-1 flex flex-col min-h-0 relative">
         <!-- 消息滚动区 -->
@@ -956,15 +922,26 @@ defineExpose({
           @scroll="onChatScroll"
           @click="handleChatContainerClick"
         >
-          <!-- 空状态 (极简现代探索画卷) -->
+          <!-- 空状态 (支持常规探索与私密模式呈现) -->
           <div v-if="messages.length === 0" class="my-auto py-16 text-center max-w-lg select-none">
-            <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center text-3xl mx-auto mb-5 shadow-xs">
-              {{ currentRole?.icon || '✨' }}
-            </div>
-            <h1 class="text-2xl sm:text-3xl font-semibold text-foreground m-0 mb-2.5 tracking-tight">我们应该探索什么？</h1>
-            <p class="text-xs sm:text-sm text-muted-foreground m-0 leading-relaxed max-w-sm mx-auto">
-              当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 智能推理与多轮深度对话
-            </p>
+            <template v-if="isPrivateMode">
+              <div class="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5 shadow-xs text-primary">
+                <VenetianMask class="size-7" />
+              </div>
+              <h1 class="text-2xl sm:text-3xl font-semibold text-foreground m-0 mb-2.5 tracking-tight">私密对话模式</h1>
+              <p class="text-xs sm:text-sm text-muted-foreground m-0 leading-relaxed max-w-sm mx-auto">
+                本次会话产生的所有内容均不会写入历史记录或云端服务器，安全无痕。
+              </p>
+            </template>
+            <template v-else>
+              <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center text-3xl mx-auto mb-5 shadow-xs">
+                {{ currentRole?.icon || '✨' }}
+              </div>
+              <h1 class="text-2xl sm:text-3xl font-semibold text-foreground m-0 mb-2.5 tracking-tight">我们应该探索什么？</h1>
+              <p class="text-xs sm:text-sm text-muted-foreground m-0 leading-relaxed max-w-sm mx-auto">
+                当前预设：<strong class="text-foreground font-medium">{{ currentRole?.name || '默认助手' }}</strong> · 智能推理与多轮深度对话
+              </p>
+            </template>
           </div>
 
           <!-- 正常对话消息流 -->

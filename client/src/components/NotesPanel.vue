@@ -54,7 +54,6 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import {
-  Search,
   Plus,
   ArrowLeft,
   Pencil,
@@ -103,8 +102,6 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-const isMobileSearchOpen = ref(false);
-const isSearchOpen = ref(false);
 
 function onResize() {
   const mobile = window.innerWidth < 768;
@@ -114,7 +111,6 @@ function onResize() {
       viewMode.value = 'edit';
     }
   } else {
-    isMobileSearchOpen.value = false;
     if (viewMode.value === 'edit' || viewMode.value === 'preview') {
       viewMode.value = 'split';
     }
@@ -1327,7 +1323,13 @@ watch(
   { deep: true, immediate: true }
 );
 
+function setSearchQuery(q: string) {
+  searchQuery.value = q || '';
+}
+
 defineExpose({
+  setSearchQuery,
+  searchQuery,
   exportMarkdownFile,
   exportHtmlFile,
   createNote,
@@ -1427,119 +1429,40 @@ watch(
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
       <!-- ==================== 1. 顶部控制栏 (无背景色) ==================== -->
       <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
-        <!-- 场景 A：列表视图顶部 -->
+        <!-- 场景 A：列表视图顶部 (无标题，顶部横向自适应标签胶囊列表) -->
         <template v-if="!selectedNote">
-          <!-- 左上角显示标题笔记列表 -->
-          <div class="flex items-center gap-2 select-none min-w-0">
-            <h1 class="text-base sm:text-lg font-semibold tracking-tight text-foreground m-0 truncate">
-              笔记列表
-            </h1>
-          </div>
+          <div class="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5 w-full min-w-0">
+            <!-- 全部标签项 -->
+            <button
+              type="button"
+              class="h-7 px-3 rounded-full text-xs font-medium transition-all duration-150 shrink-0 cursor-pointer select-none flex items-center gap-1.5"
+              :class="
+                selectedTag === null
+                  ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+                  : 'bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground'
+              "
+              @click="filterByTag(null)"
+            >
+              <span>全部</span>
+              <span class="text-[10px] opacity-70 font-mono">({{ totalNoteCount }})</span>
+            </button>
 
-          <!-- 右上角显示搜索、标签和新建图标 -->
-          <div class="flex items-center gap-1.5 shrink-0">
-            <!-- 搜索图标与展开输入框 -->
-            <div v-if="isSearchOpen || searchQuery" class="relative flex items-center">
-              <Search class="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <Input
-                v-model="searchQuery"
-                type="text"
-                placeholder="搜索笔记..."
-                class="h-8 pl-8 pr-7 text-xs w-36 sm:w-52 bg-background/90"
-                autofocus
-                @input="loadNotes"
-                @keydown.esc="isSearchOpen = false; searchQuery = ''; loadNotes()"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                class="size-6 absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                @click="isSearchOpen = false; searchQuery = ''; loadNotes()"
-              >
-                <X class="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <Tooltip v-else>
-              <TooltipTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer"
-                  @click="isSearchOpen = true"
-                >
-                  <Search class="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">搜索笔记</TooltipContent>
-            </Tooltip>
-
-            <!-- 标签筛选组件 (点击展开) -->
-            <Popover>
-              <PopoverTrigger as-child>
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer relative"
-                      :class="{ 'text-primary bg-primary/10': selectedTag }"
-                    >
-                      <Tag class="size-4" />
-                      <span v-if="selectedTag" class="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">按标签筛选</TooltipContent>
-                </Tooltip>
-              </PopoverTrigger>
-              <PopoverContent align="end" class="w-56 p-2 shadow-lg">
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
-                    <span>按标签筛选</span>
-                    <button
-                      v-if="selectedTag"
-                      class="text-muted-foreground hover:text-foreground text-[10px] cursor-pointer"
-                      @click="filterByTag(null)"
-                    >清除筛选</button>
-                  </div>
-                  <ScrollArea class="h-56">
-                    <div class="space-y-0.5 pr-2">
-                      <div
-                        class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                        :class="{ 'bg-accent font-medium text-foreground': selectedTag === null }"
-                        @click="filterByTag(null)"
-                      >
-                        <span class="truncate">全部标签</span>
-                        <span class="text-[10px] text-muted-foreground font-mono">({{ totalNoteCount }})</span>
-                      </div>
-                      <div
-                        v-for="tag in availableTags"
-                        :key="tag.name"
-                        class="flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                        :class="{ 'bg-accent font-medium text-foreground': selectedTag === tag.name }"
-                        @click="filterByTag(tag.name)"
-                      >
-                        <span class="truncate">#{{ tag.name }}</span>
-                        <span class="text-[10px] text-muted-foreground font-mono">({{ tag.count }})</span>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <!-- 新建笔记图标按钮 -->
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  size="icon"
-                  class="size-8 rounded-md cursor-pointer shadow-xs"
-                  @click="createNote"
-                >
-                  <Plus class="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">新建笔记</TooltipContent>
-            </Tooltip>
+            <!-- 各独立标签项 -->
+            <button
+              v-for="tag in availableTags"
+              :key="tag.name"
+              type="button"
+              class="h-7 px-3 rounded-full text-xs font-medium transition-all duration-150 shrink-0 cursor-pointer select-none flex items-center gap-1.5"
+              :class="
+                selectedTag === tag.name
+                  ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+                  : 'bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground'
+              "
+              @click="filterByTag(tag.name)"
+            >
+              <span>#{{ tag.name }}</span>
+              <span class="text-[10px] opacity-70 font-mono">({{ tag.count }})</span>
+            </button>
           </div>
         </template>
 

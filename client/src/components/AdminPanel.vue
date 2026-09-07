@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
 import { useSiteStore } from '@/stores/site';
-import { authApi, bookmarkApi, categoryApi, aiApi, storageApi, noteApi } from '@/api';
+import { authApi, bookmarkApi, categoryApi, aiApi, storageApi, noteApi, noteCategoryApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
 import { confirmBox } from '@/utils/confirm';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,7 @@ import {
   Check,
   Upload,
   FolderOpen,
+  NotebookPen,
   Cloud,
   Network,
   Download,
@@ -72,7 +73,7 @@ const siteStore = useSiteStore();
 const props = withDefaults(
   defineProps<{
     categories: any[];
-    activeTab?: 'bookmarks' | 'categories' | 'ai' | 'security' | 'site';
+    activeTab?: 'bookmarks' | 'categories' | 'note_categories' | 'ai' | 'security' | 'site';
   }>(),
   {
     activeTab: 'bookmarks',
@@ -80,7 +81,7 @@ const props = withDefaults(
 );
 const emit = defineEmits<{
   refresh: [];
-  'update:activeTab': [tab: 'bookmarks' | 'categories' | 'ai' | 'security' | 'site'];
+  'update:activeTab': [tab: 'bookmarks' | 'categories' | 'note_categories' | 'ai' | 'security' | 'site'];
 }>();
 
 const rowImgErrors = ref<Record<number, boolean>>({});
@@ -93,7 +94,7 @@ function onResize() {
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
 
-const activeTab = ref<'bookmarks' | 'categories' | 'ai' | 'security' | 'site'>(props.activeTab || 'bookmarks');
+const activeTab = ref<'bookmarks' | 'categories' | 'note_categories' | 'ai' | 'security' | 'site'>(props.activeTab || 'bookmarks');
 watch(() => props.activeTab, (val) => {
   if (val) activeTab.value = val;
 });
@@ -104,7 +105,8 @@ watch(activeTab, (val) => {
 const activeTabTitle = computed(() => {
   switch (activeTab.value) {
     case 'bookmarks': return '书签管理';
-    case 'categories': return '分类管理';
+    case 'categories': return '书签分类管理';
+    case 'note_categories': return '笔记分类管理';
     case 'ai': return 'AI 模型配置';
     case 'security': return '安全与认证';
     case 'site': return '系统常规设置';
@@ -452,6 +454,95 @@ function initSubCategorySortables() {
 }
 
 function topCategories() { return props.categories.filter(c => !c.parent_id); }
+
+// ==========================================
+// 笔记分类管理 (添加/编辑/排序/删除)
+// ==========================================
+const noteCategories = ref<any[]>([]);
+const loadingNoteCategories = ref(false);
+const showNoteCategoryDialog = ref(false);
+const editingNoteCategory = ref<any>({ name: '', icon: 'Folder' });
+const noteCategoryListRef = ref<HTMLElement | null>(null);
+let noteCategorySortable: Sortable | null = null;
+
+async function loadNoteCategories() {
+  loadingNoteCategories.value = true;
+  try {
+    const { data } = await noteCategoryApi.getAll();
+    noteCategories.value = (data.categories || []).sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
+    nextTick(initNoteCategorySortable);
+  } catch {
+    toast.error('加载笔记分类失败');
+  } finally {
+    loadingNoteCategories.value = false;
+  }
+}
+
+function openNoteCategoryDialog(cat?: any) {
+  editingNoteCategory.value = cat
+    ? { ...cat }
+    : { name: '', icon: 'Folder' };
+  showNoteCategoryDialog.value = true;
+}
+
+async function saveNoteCategory() {
+  const cat = editingNoteCategory.value;
+  const name = cat.name?.trim();
+  if (!name) {
+    toast.warning('请填写分类名称');
+    return;
+  }
+  try {
+    if (cat.id) {
+      await noteCategoryApi.update(cat.id, { name, icon: cat.icon || 'Folder' });
+      toast.success('笔记分类已修改');
+    } else {
+      await noteCategoryApi.create({ name, icon: cat.icon || 'Folder' });
+      toast.success('笔记分类已创建');
+    }
+    showNoteCategoryDialog.value = false;
+    await loadNoteCategories();
+    emit('refresh');
+  } catch (err: any) {
+    toast.error(err.response?.data?.error || '保存分类失败');
+  }
+}
+
+async function confirmDeleteNoteCategory(cat: any) {
+  try {
+    await confirmBox(`确定删除笔记分类「${cat.name}」？该分类下的笔记将变为未分类。`, '确认删除');
+    await noteCategoryApi.delete(cat.id);
+    toast.success('已删除笔记分类');
+    await loadNoteCategories();
+    emit('refresh');
+  } catch {}
+}
+
+function initNoteCategorySortable() {
+  nextTick(() => {
+    if (!noteCategoryListRef.value) return;
+    if (noteCategorySortable) noteCategorySortable.destroy();
+    noteCategorySortable = Sortable.create(noteCategoryListRef.value, {
+      animation: 150,
+      handle: '.note-cat-drag',
+      onEnd: async (evt) => {
+        if (evt.oldIndex === undefined || evt.newIndex === undefined || evt.oldIndex === evt.newIndex) return;
+        const list = [...noteCategories.value];
+        const [moved] = list.splice(evt.oldIndex, 1);
+        list.splice(evt.newIndex, 0, moved);
+        noteCategories.value = list;
+        try {
+          await noteCategoryApi.reorder(list.map((c) => c.id));
+          toast.success('笔记分类排序已保存');
+          emit('refresh');
+        } catch {
+          toast.error('排序保存失败');
+          loadNoteCategories();
+        }
+      },
+    });
+  });
+}
 
 // ==========================================
 // 3. AI 模型 (URL在上/Key在下 + 获取 + 框内+添加 + 星标默认)
@@ -957,6 +1048,7 @@ async function handleImportBookmarks(e: Event) {
 watch(activeTab, (t) => {
   if (t === 'bookmarks') initBookmarkSortable();
   if (t === 'categories') initCategorySortable();
+  if (t === 'note_categories') { loadNoteCategories(); initNoteCategorySortable(); }
   if (t === 'ai') loadAiSettings();
 });
 
@@ -969,6 +1061,7 @@ function handleLogout() {
 onMounted(() => {
   loadBookmarks();
   loadAiSettings();
+  loadNoteCategories();
   siteStore.fetchSettings();
   props.categories.filter(c => !c.parent_id).forEach(c => expandedCategories.value.push(c.id));
 });
@@ -1006,6 +1099,7 @@ onMounted(() => {
         <TabsList class="hidden">
           <TabsTrigger value="bookmarks">书签管理</TabsTrigger>
           <TabsTrigger value="categories">分类管理</TabsTrigger>
+          <TabsTrigger value="note_categories">笔记分类</TabsTrigger>
           <TabsTrigger value="ai">AI 模型</TabsTrigger>
           <TabsTrigger value="security">安全中心</TabsTrigger>
           <TabsTrigger value="site">站点设置</TabsTrigger>
@@ -1324,6 +1418,70 @@ onMounted(() => {
                   暂无二级子分类
                 </div>
               </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <!-- Tab: 笔记分类管理 -->
+        <TabsContent value="note_categories" class="space-y-3 mt-0">
+          <div class="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap bg-card p-2.5 rounded-lg border border-border shadow-xs">
+            <div class="flex items-center gap-2">
+              <Button size="sm" class="h-8 gap-1.5 text-xs font-medium cursor-pointer" @click="openNoteCategoryDialog()">
+                <Plus class="h-3.5 w-3.5" />
+                <span>新建笔记分类</span>
+              </Button>
+            </div>
+            <div class="text-xs text-muted-foreground">
+              共 <strong class="text-foreground font-semibold">{{ noteCategories.length }}</strong> 个分类 · 可按住左侧手柄拖拽排序
+            </div>
+          </div>
+
+          <!-- 分类列表 (支持拖拽排序) -->
+          <div class="space-y-2">
+            <div ref="noteCategoryListRef" class="space-y-1.5">
+              <div
+                v-for="cat in noteCategories"
+                :key="cat.id"
+                class="group flex items-center justify-between px-3.5 py-2.5 rounded-lg border border-border bg-card hover:bg-muted/30 transition-all shadow-2xs"
+              >
+                <div class="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                  <span class="note-cat-drag text-muted-foreground/60 hover:text-foreground cursor-grab inline-flex items-center p-1 rounded hover:bg-muted transition-colors" title="按住拖拽排序">
+                    <GripVertical class="h-4 w-4" />
+                  </span>
+                  <div class="size-7 rounded-md bg-muted flex items-center justify-center text-foreground/80 shrink-0">
+                    <component :is="mapIcon(cat.icon || 'Folder')" class="size-4" />
+                  </div>
+                  <span class="text-xs sm:text-sm font-medium text-foreground truncate">{{ cat.name }}</span>
+                  <span v-if="cat.count !== undefined" class="text-xs font-mono text-muted-foreground bg-muted/80 px-2 py-0.5 rounded-full">
+                    {{ cat.count }} 篇
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-foreground cursor-pointer"
+                    @click.stop="openNoteCategoryDialog(cat)"
+                    title="编辑分类"
+                  >
+                    <Pencil class="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    class="text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                    @click.stop="confirmDeleteNoteCategory(cat)"
+                    title="删除分类"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="noteCategories.length === 0 && !loadingNoteCategories" class="text-center py-16 text-xs text-muted-foreground border border-dashed rounded-lg">
+              暂无笔记分类，点击上方「新建笔记分类」进行添加
             </div>
           </div>
         </TabsContent>
@@ -2165,6 +2323,38 @@ onMounted(() => {
         <DialogFooter>
           <Button variant="outline" size="sm" @click="showCategoryDialog = false">取消</Button>
           <Button size="sm" @click="saveCategory">保存</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 对话框：笔记分类新建/编辑 -->
+    <Dialog :open="showNoteCategoryDialog" @update:open="showNoteCategoryDialog = $event">
+      <DialogContent class="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2">
+            <NotebookPen class="size-4 text-primary" />
+            <span>{{ editingNoteCategory.id ? '编辑笔记分类' : '新建笔记分类' }}</span>
+          </DialogTitle>
+        </DialogHeader>
+        <div class="space-y-3 py-2 text-xs">
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">分类名称 <span class="text-destructive">*</span></label>
+            <Input
+              v-model="editingNoteCategory.name"
+              placeholder="输入分类名称..."
+              class="h-8 text-xs"
+              autofocus
+              @keydown.enter.prevent="saveNoteCategory"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <label class="font-medium text-foreground/90">分类图标</label>
+            <IconPicker v-model="editingNoteCategory.icon" title="选择分类图标" />
+          </div>
+        </div>
+        <DialogFooter class="gap-2 sm:gap-0">
+          <Button variant="outline" size="sm" @click="showNoteCategoryDialog = false">取消</Button>
+          <Button size="sm" :disabled="!editingNoteCategory.name?.trim()" @click="saveNoteCategory">保存</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

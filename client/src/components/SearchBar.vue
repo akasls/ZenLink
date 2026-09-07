@@ -190,11 +190,11 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="w-full py-5 sm:py-7 md:py-9 px-3 sm:px-4 flex flex-col items-center justify-center border-b border-border relative transition-colors"
+    class="w-full py-4 sm:py-6 md:py-8 px-3.5 sm:px-6 flex flex-col items-center justify-center border-b border-border/70 relative transition-colors"
     :class="[
       isCustomBg
         ? 'bg-slate-900/90 text-white'
-        : 'bg-gradient-to-b from-muted/30 via-background to-background text-foreground'
+        : 'bg-gradient-to-b from-muted/20 via-background to-background text-foreground'
     ]"
     :style="customBgStyle"
   >

@@ -14,7 +14,6 @@ import {
   Loader2,
   FolderOpen,
   ArrowUp,
-  Plus,
   MessageSquareQuote,
 } from 'lucide-vue-next';
 
@@ -33,7 +32,6 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const siteStore = useSiteStore();
-
 const showLoginDialog = ref(false);
 const pendingTargetView = ref<string>('');
 
@@ -165,7 +163,7 @@ const aiData = ref<{
   isPrivateMode: false,
 });
 
-const selectedAdminTab = ref<'bookmarks' | 'categories' | 'ai' | 'security' | 'site'>('bookmarks');
+const selectedAdminTab = ref<'bookmarks' | 'categories' | 'note_categories' | 'ai' | 'security' | 'site'>('bookmarks');
 
 function onNotesStateChange(state: any) {
   notesData.value = state;
@@ -369,9 +367,10 @@ onUnmounted(() => {
         @refresh-ai-chat="aiChatPanelRef?.loadConversations()"
         @select-admin-tab="(tab) => selectedAdminTab = (tab as any)"
         @add-bookmark="showAddDialog = true"
+        @search-note="(q) => notesPanelRef?.setSearchQuery(q)"
       />
 
-      <!-- Canonical Shadcn Vue Inset Main Content (无顶栏，极致沉浸画布) -->
+      <!-- Canonical Shadcn Vue Inset Main Content (极致沉浸画布) -->
       <SidebarInset>
         <div class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden">
           <!-- 1. 网址导航功能主视图 -->
@@ -450,7 +449,7 @@ onUnmounted(() => {
             :categories="categories"
             :active-tab="selectedAdminTab"
             @update:active-tab="(tab) => selectedAdminTab = tab"
-            @refresh="loadCategories(); loadBookmarks()"
+            @refresh="loadCategories(); loadBookmarks(); notesPanelRef?.loadCategories()"
           />
           <NotesPanel ref="notesPanelRef" v-show="currentView === 'notes'" :active="currentView === 'notes'" @state-change="onNotesStateChange" />
           <AIChatPanel ref="aiChatPanelRef" v-show="currentView === 'ai'" :active="currentView === 'ai'" @state-change="onAiStateChange" />
@@ -479,17 +478,6 @@ onUnmounted(() => {
             <ArrowUp class="h-4 w-4" />
           </Button>
         </transition>
-
-        <!-- 添加书签 -->
-        <Button
-          v-if="authStore.isLoggedIn"
-          size="icon"
-          class="shadow-sm cursor-pointer"
-          @click="showAddDialog = true"
-          title="添加书签"
-        >
-          <Plus class="h-4 w-4" />
-        </Button>
       </div>
 
       <!-- 弹窗列表 -->
