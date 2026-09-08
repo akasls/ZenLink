@@ -7,6 +7,7 @@ import compress from '@fastify/compress';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { isIP } from 'net';
 import crypto from 'crypto';
 
 import { initDatabase, saveDatabase } from './db/index.js';
@@ -61,7 +62,7 @@ await fastify.register(compress, {
   threshold: 1024,
 });
 
-// 严格收敛 CORS：杜绝 origin: true 导致的跨域凭证与敏感数据泄露
+// CORS 配置：兼顾自建多网段即开即用与跨域数据安全防护
 const allowedOrigins = new Set([
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -79,16 +80,42 @@ if (process.env.APP_URL) {
 
 await fastify.register(cors, {
   origin: (origin, cb) => {
-    // 允许非跨域直连、移动端或测试客户端
+    // 1. 无 Origin 标头的同源直接访问、移动端或内部服务请求直接放行
     if (!origin) return cb(null, true);
+
+    // 2. 显式配置的白名单匹配放行
     if (allowedOrigins.has(origin)) {
       return cb(null, true);
     }
-    // 开发/本地调试网段放行
-    if (process.env.NODE_ENV !== 'production' && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
-      return cb(null, true);
-    }
-    cb(new Error(`Blocked by CORS policy: Origin ${origin} not allowed`), false);
+
+    try {
+      const parsed = new URL(origin);
+      const hostname = parsed.hostname;
+
+      // 3. 本地环回地址放行 (localhost, 0.0.0.0, ::1 等)
+      if (hostname === 'localhost' || hostname === '0.0.0.0' || hostname === '::1') {
+        return cb(null, true);
+      }
+
+      // 4. 自建服务器直接 IP 访问放行 (包含公网 VPS IP 与局域网私网 IP)
+      if (isIP(hostname) !== 0) {
+        return cb(null, true);
+      }
+
+      // 5. 本地私有服务域名放行 (*.local, *.internal, *.lan, *.home 等)
+      if (
+        hostname.endsWith('.local') ||
+        hostname.endsWith('.internal') ||
+        hostname.endsWith('.lan') ||
+        hostname.endsWith('.home') ||
+        hostname.endsWith('.arpa')
+      ) {
+        return cb(null, true);
+      }
+    } catch {}
+
+    // 6. 未授权第三方公网域名跨域请求：合规静默阻断（不附带 Access-Control-Allow-Origin 标头，由浏览器阻断跨域读取），切勿抛出 500 导致静态资源 Vite 模块脚本加载崩溃
+    cb(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
