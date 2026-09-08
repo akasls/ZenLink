@@ -1,5 +1,17 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import dbHelper, { saveDatabase } from '../db/index.js';
+import crypto from 'crypto';
+
+function safeTimingCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    // 恒定耗时虚拟比对，避免因长度分支泄露时间信息
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 interface ShareAttempt {
   count: number;
@@ -119,7 +131,7 @@ export default async function shareRoutes(fastify: FastifyInstance) {
       return reply.status(410).send({ error: '该分享链接已过期失效' });
     }
 
-    if (noteShare.password && noteShare.password.trim() !== String(password).trim()) {
+    if (noteShare.password && !safeTimingCompare(noteShare.password.trim(), String(password).trim())) {
       const rec = shareVerifyAttempts.get(rateLimitKey) || { count: 0, lockedUntil: 0, lastAttempt: nowTime };
       rec.count += 1;
       rec.lastAttempt = nowTime;

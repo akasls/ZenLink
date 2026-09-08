@@ -41,7 +41,6 @@ function onSelectSub(subId: number) {
     <div class="flex items-center gap-2">
       <component :is="mapIcon(category?.icon)" class="h-4 w-4 text-primary/80" />
       <h2 class="text-sm font-semibold text-foreground tracking-tight m-0">{{ category?.name }}</h2>
-      <span v-if="bookmarks.length" class="text-[10px] font-mono text-muted-foreground/80 bg-muted/90 px-1.5 py-0.5 rounded-full">{{ bookmarks.length }}</span>
     </div>
 
     <!-- 二级分类圆角胶囊组件 -->

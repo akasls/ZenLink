@@ -42,7 +42,7 @@ ZenLink 是一个高颜值、极速响应、开箱即用的现代化自建网址
 
 ## 🐳 Docker 一键实机部署
 
-### 方式一：Docker Run 命令快速启动
+### 方式一：Docker Run 极简一行启动（推荐）
 
 ```bash
 docker run -d \
@@ -50,15 +50,13 @@ docker run -d \
   --restart unless-stopped \
   -p 3000:3000 \
   -v $(pwd)/zenlink_data:/app/server/data \
-  -e PORT=3000 \
-  -e HOST=0.0.0.0 \
-  -e JWT_SECRET=your_custom_jwt_secret_here \
   ghcr.io/akasls/zenlink:latest
 ```
 
-> **说明**：
-> - 容器内部数据（SQLite 数据库、本地 Favicon 缓存、用户上传附件）将持久化保存在当前目录下的 `zenlink_data` 文件夹中，容器升级或重启数据不丢失。
-> - 访问地址：`http://你的服务器IP:3000`
+> 💡 **极简提示**：
+> - **无需手动填写任何密钥**！系统首次启动时会自动生成 256 位强随机 `JWT_SECRET` 并持久化保存在挂载的数据卷中，容器重启或平滑升级时自动加载，用户会话永不丢失。
+> - 容器数据（SQLite 数据库、Favicon 磁盘缓存、附件上传等）均自动保存在宿主机的 `zenlink_data` 目录中。
+> - 浏览器访问：`http://你的服务器IP:3000`
 
 ---
 
@@ -76,10 +74,6 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      - PORT=3000
-      - HOST=0.0.0.0
-      - JWT_SECRET=zenlink_secure_secret_key_change_me
     volumes:
       - ./zenlink_data:/app/server/data
     healthcheck:

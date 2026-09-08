@@ -116,9 +116,9 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     // 登录成功，清除失败计数
     loginAttempts.delete(clientIp);
 
-    // 签发 JWT
+    // 签发 JWT（嵌入 tokenVersion 实现会话版本与修改密码快速吊销）
     const token = fastify.jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.id, username: user.username, tokenVersion: user.token_version || 1 },
       { expiresIn: '7d' }
     );
 
@@ -323,10 +323,10 @@ function getWebAuthnContext(request: any) {
         );
         saveDatabase();
 
-        const user = dbHelper.get('SELECT id, username FROM users WHERE id = ?', [credential.user_id]);
+        const user = dbHelper.get('SELECT id, username, token_version FROM users WHERE id = ?', [credential.user_id]);
 
         const token = fastify.jwt.sign(
-          { userId: user.id, username: user.username },
+          { userId: user.id, username: user.username, tokenVersion: user.token_version || 1 },
           { expiresIn: '7d' }
         );
 
@@ -361,16 +361,17 @@ function getWebAuthnContext(request: any) {
       return reply.status(400).send({ error: '新密码至少6位' });
     }
 
-    const user = dbHelper.get('SELECT password_hash FROM users WHERE id = ?', [userId]);
+    const user = dbHelper.get('SELECT password_hash, token_version FROM users WHERE id = ?', [userId]);
     if (!user || !bcrypt.compareSync(currentPassword, user.password_hash)) {
       return reply.status(400).send({ error: '当前密码错误' });
     }
 
     const newHash = bcrypt.hashSync(newPassword, 12);
-    dbHelper.run('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, userId]);
+    // 密码变更时自动递增 token_version，即刻注销所有旧会话与旧 JWT
+    dbHelper.run('UPDATE users SET password_hash = ?, token_version = COALESCE(token_version, 1) + 1, updated_at = datetime("now") WHERE id = ?', [newHash, userId]);
     saveDatabase();
 
-    return { success: true, message: '密码已修改' };
+    return { success: true, message: '密码已修改，所有既有设备会话已安全注销' };
   });
 
   // ==================== 修改用户名 ====================

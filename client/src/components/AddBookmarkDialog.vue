@@ -339,7 +339,7 @@ async function handleSave() {
         </div>
       </div>
 
-      <DialogFooter class="gap-2 sm:gap-0">
+      <DialogFooter class="gap-2">
         <Button variant="outline" @click="emit('update:visible', false)">取消</Button>
         <Button :disabled="saving" class="gap-1.5" @click="handleSave">
           <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />

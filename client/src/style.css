@@ -142,8 +142,8 @@
 
 /* ===== Markdown Prose Styles (.ai-markdown-body) ===== */
 .ai-markdown-body {
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 13.5px;
+  line-height: 1.7;
   color: hsl(var(--foreground));
   word-break: break-word;
 }
@@ -151,19 +151,43 @@
   margin: 0.5em 0;
 }
 .ai-markdown-body h1 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 1em 0 0.4em;
+  font-size: 1.75em;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 1.2em 0 0.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid hsl(var(--border) / 50%);
+  color: hsl(var(--foreground));
 }
 .ai-markdown-body h2 {
-  font-size: 13.5px;
+  font-size: 1.4em;
   font-weight: 600;
-  margin: 0.8em 0 0.3em;
+  line-height: 1.4;
+  margin: 1.1em 0 0.4em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid hsl(var(--border) / 30%);
+  color: hsl(var(--foreground));
 }
 .ai-markdown-body h3 {
-  font-size: 12.5px;
+  font-size: 1.2em;
+  font-weight: 600;
+  line-height: 1.45;
+  margin: 0.9em 0 0.3em;
+  color: hsl(var(--foreground));
+}
+.ai-markdown-body h4 {
+  font-size: 1.08em;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 0.7em 0 0.25em;
+  color: hsl(var(--foreground));
+}
+.ai-markdown-body h5,
+.ai-markdown-body h6 {
+  font-size: 0.95em;
   font-weight: 600;
   margin: 0.6em 0 0.2em;
+  color: hsl(var(--muted-foreground));
 }
 .ai-markdown-body ul,
 .ai-markdown-body ol {
@@ -279,6 +303,7 @@
 
 /* 侧边栏及通用无滚动条样式 */
 .scrollbar-none,
+.no-scrollbar,
 aside,
 aside * {
   -ms-overflow-style: none !important;
@@ -286,10 +311,25 @@ aside * {
 }
 
 .scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
 aside::-webkit-scrollbar,
 aside *::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+}
+
+/* AI 对话章节跳转高亮动画 */
+.jump-highlight {
+  animation: jump-flash 1.6s ease-out;
+}
+@keyframes jump-flash {
+  0% {
+    background-color: hsl(var(--primary) / 12%);
+    border-radius: 0.75rem;
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 

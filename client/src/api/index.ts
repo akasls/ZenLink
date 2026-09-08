@@ -90,6 +90,9 @@ export const bookmarkApi = {
   reorder(ids: number[]) {
     return api.put('/bookmarks/reorder', { ids });
   },
+  batch(data: { action: 'update_category' | 'set_private' | 'delete'; ids: number[]; categoryId?: number | null; isPrivate?: boolean }) {
+    return api.post('/bookmarks/batch', data);
+  },
 };
 
 // ==================== Categories API ====================
@@ -247,6 +250,9 @@ export const aiApi = {
   },
   deleteMessage(id: number | string) {
     return api.delete(`/ai/messages/${id}`);
+  },
+  truncateMessagesFrom(conversationId: string, messageId: number | string) {
+    return api.delete(`/ai/conversations/${conversationId}/messages-from/${messageId}`);
   },
 };
 

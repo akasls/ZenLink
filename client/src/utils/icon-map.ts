@@ -183,14 +183,47 @@ const iconComponentMap: Record<string, Component> = {
   'pi pi-wifi': Wifi,
 };
 
+const lucideByName: Record<string, Component> = {
+  Folder, FolderOpen, Bookmark, BookOpen,
+  Code, Monitor, Smartphone, Tablet,
+  Globe, Link, ExternalLink, Home,
+  Wrench, Settings, Zap, Shield,
+  Lock, Unlock, Key, User,
+  Users, Heart, Star,
+  Sun, Moon, Cloud, CloudUpload,
+  CloudDownload, Database, Server, Wifi,
+  BarChart2, LineChart, PieChart, Table,
+  List, LayoutGrid, Palette, Image,
+  Camera, Video, Play,
+  Mic, Volume2, Headphones, Music,
+  FileText, FileEdit,
+  Inbox, Send, Mail, MessageSquare,
+  MessagesSquare, Phone, Map, MapPin,
+  Car, ShoppingCart, ShoppingBag, Wallet,
+  Banknote, CreditCard, Gift, Tag,
+  Tags, Flag, Megaphone,
+  Bell, Calendar, Clock, Timer,
+  GraduationCap, Building2, Briefcase, Hammer,
+  Cpu, Package, Truck, Receipt,
+  Sparkles, CheckCircle2, Trophy, ThumbsUp,
+  Eye, Search, Filter, ArrowUpDown,
+  Download, Upload, Share2, RefreshCw,
+  RotateCcw, History, Trash2,
+  Pencil, Plus, Minus, Check,
+  X, Info, HelpCircle, AlertTriangle,
+};
+
 /**
- * 将 PrimeIcons 类名转换为 Lucide Vue 图标组件
- * @param piClass - PrimeIcons 类名，如 "pi pi-folder"
+ * 将 PrimeIcons 类名或 Lucide 图标名转换为 Lucide Vue 图标组件
+ * @param iconName - 图标类名或名称，如 "pi pi-folder" 或 "BookOpen"
  * @returns Lucide Vue 图标组件
  */
-export function mapIcon(piClass: string): Component {
-  if (!piClass) return Folder;
-  return iconComponentMap[piClass] || Folder;
+export function mapIcon(iconName: string): Component {
+  if (!iconName) return Folder;
+  if (iconComponentMap[iconName]) return iconComponentMap[iconName];
+  if (lucideByName[iconName]) return lucideByName[iconName];
+  return Folder;
 }
 
 export default iconComponentMap;
+

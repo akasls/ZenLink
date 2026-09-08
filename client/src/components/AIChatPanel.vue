@@ -22,10 +22,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Avatar,
-  AvatarFallback,
-} from '@/components/ui/avatar';
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -40,7 +36,6 @@ import {
   Check,
   Square,
   ArrowUp,
-  Tickets,
   X,
   VenetianMask,
 } from 'lucide-vue-next';
@@ -142,16 +137,12 @@ const defaultRoles: RolePreset[] = [
 
 const roles = ref<RolePreset[]>([...defaultRoles]);
 const selectedRoleId = ref<string>('default');
-const mobileChapterPopoverVisible = ref(false);
 const roleSearchQuery = ref('');
 const filteredRoles = computed(() => {
   if (!roleSearchQuery.value.trim()) return roles.value;
   const q = roleSearchQuery.value.trim().toLowerCase();
   return roles.value.filter(r => r.name.toLowerCase().includes(q) || r.prompt.toLowerCase().includes(q));
 });
-function deleteRole(id: string, e?: Event) {
-  deleteCustomRole(id, e);
-}
 
 function selectRole(r: RolePreset) {
   selectedRoleId.value = r.id;
@@ -164,19 +155,51 @@ function selectRole(r: RolePreset) {
   toast.success('已应用角色「' + r.name + '」');
 }
 
+function deduplicateRoles(list: RolePreset[]): RolePreset[] {
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  const res: RolePreset[] = [];
+  for (const r of list) {
+    if (!r || !r.id || !r.name) continue;
+    const nameKey = r.name.trim().toLowerCase();
+    if (seenIds.has(r.id) || seenNames.has(nameKey)) continue;
+    seenIds.add(r.id);
+    seenNames.add(nameKey);
+    res.push(r);
+  }
+  return res;
+}
+
 function loadCustomRoles() {
   try {
-    const saved = localStorage.getItem('zenlink_ai_roles');
-    if (saved) {
-      const customList: RolePreset[] = JSON.parse(saved);
-      roles.value = [...defaultRoles, ...customList];
+    const v2Saved = localStorage.getItem('zenlink_ai_roles_v2');
+    if (v2Saved) {
+      const parsed: RolePreset[] = JSON.parse(v2Saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        roles.value = deduplicateRoles(parsed);
+        return;
+      }
+    }
+
+    // 兼容迁移旧版本 zenlink_ai_roles 并做深度去重，解决历史重复克隆问题
+    const legacySaved = localStorage.getItem('zenlink_ai_roles');
+    if (legacySaved) {
+      const oldList: RolePreset[] = JSON.parse(legacySaved);
+      const merged = deduplicateRoles([...defaultRoles, ...(Array.isArray(oldList) ? oldList : [])]);
+      roles.value = merged.length > 0 ? merged : [...defaultRoles];
+      localStorage.setItem('zenlink_ai_roles_v2', JSON.stringify(roles.value));
+      localStorage.removeItem('zenlink_ai_roles');
     } else {
       roles.value = [...defaultRoles];
+      localStorage.setItem('zenlink_ai_roles_v2', JSON.stringify(roles.value));
     }
   } catch {
     roles.value = [...defaultRoles];
   }
 }
+
+// 立即在模块顶层加载角色并去重
+loadCustomRoles();
 
 const currentRole = computed<RolePreset>(() => {
   return roles.value.find(r => r.id === selectedRoleId.value) || roles.value[0] || defaultRoles[0];
@@ -213,46 +236,56 @@ function openEditRoleModal(role: RolePreset, e?: Event) {
 }
 
 function saveCustomRole() {
-  if (!editingRole.value.name.trim()) {
+  const name = editingRole.value.name.trim();
+  const prompt = editingRole.value.prompt.trim();
+  if (!name) {
     toast.warning('请输入角色名称');
     return;
   }
-  if (!editingRole.value.prompt.trim()) {
+  if (!prompt) {
     toast.warning('请输入角色的提示词');
     return;
   }
 
-  const customOnly = roles.value.filter(r => r.isCustom);
-  const existingIdx = customOnly.findIndex(r => r.id === editingRole.value.id);
-  
+  const existingIdx = roles.value.findIndex(r => r.id === editingRole.value.id);
   if (existingIdx !== -1) {
-    customOnly[existingIdx] = { ...editingRole.value, isCustom: true };
+    // 就地修改已有角色（无论是否原默认角色），不产生重复克隆
+    roles.value[existingIdx] = {
+      ...roles.value[existingIdx],
+      ...editingRole.value,
+      name,
+      prompt,
+    };
   } else {
-    const isDefault = defaultRoles.some(d => d.id === editingRole.value.id);
-    if (isDefault) {
-      const newId = 'custom_' + Date.now();
-      customOnly.push({ ...editingRole.value, id: newId, isCustom: true });
-      editingRole.value.id = newId;
-    } else {
-      customOnly.push({ ...editingRole.value, isCustom: true });
-    }
+    // 新增角色
+    const newRole: RolePreset = {
+      id: editingRole.value.id || ('custom_' + Date.now()),
+      name,
+      icon: editingRole.value.icon?.trim() || '⚡',
+      prompt,
+      isCustom: true,
+    };
+    roles.value.push(newRole);
+    editingRole.value.id = newRole.id;
   }
 
-  localStorage.setItem('zenlink_ai_roles', JSON.stringify(customOnly));
-  loadCustomRoles();
+  localStorage.setItem('zenlink_ai_roles_v2', JSON.stringify(roles.value));
   selectedRoleId.value = editingRole.value.id;
   showRoleModal.value = false;
-  toast.success(`已保存角色「${editingRole.value.name}」`);
+  toast.success(`已保存角色「${name}」`);
 }
 
-function deleteCustomRole(roleId: string, e?: Event) {
+function deleteRole(roleId: string, e?: Event) {
   e?.stopPropagation();
-  const customOnly = roles.value.filter(r => r.isCustom && r.id !== roleId);
-  localStorage.setItem('zenlink_ai_roles', JSON.stringify(customOnly));
-  if (selectedRoleId.value === roleId) {
-    selectedRoleId.value = 'default';
+  if (roles.value.length <= 1) {
+    toast.warning('至少需要保留一个助手');
+    return;
   }
-  loadCustomRoles();
+  roles.value = roles.value.filter(r => r.id !== roleId);
+  localStorage.setItem('zenlink_ai_roles_v2', JSON.stringify(roles.value));
+  if (selectedRoleId.value === roleId) {
+    selectedRoleId.value = roles.value[0]?.id || 'default';
+  }
   toast.success('已删除角色');
 }
 
@@ -384,8 +417,6 @@ function jumpToMessage(msgIndex: number) {
   const el = document.getElementById(targetId);
   if (el && chatContainerRef.value) {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    el.classList.add('jump-highlight');
-    setTimeout(() => el.classList.remove('jump-highlight'), 1800);
   }
 }
 
@@ -627,12 +658,27 @@ async function sendMessage(customText?: string) {
   let userDisplayText = (customText || inputPrompt.value).trim();
   if ((!userDisplayText && attachments.value.length === 0) || isStreaming.value) return;
 
-  // 如果是在编辑历史提问，从此处截断后续回复
+  // 如果是在编辑历史提问，从此处截断后续回复并同步清理数据库历史
   if (editingMsgIndex.value !== null && customText === undefined) {
     const editIdx = editingMsgIndex.value;
     editingMsgIndex.value = null;
+
+    const toDelete = messages.value.slice(editIdx);
     const deleteCount = messages.value.length - editIdx;
     messages.value.splice(editIdx, deleteCount);
+
+    if (activeConversationId.value && !isPrivateMode.value) {
+      const firstMsgWithId = toDelete.find(m => m.id != null);
+      if (firstMsgWithId?.id) {
+        try {
+          await aiApi.truncateMessagesFrom(activeConversationId.value, firstMsgWithId.id);
+        } catch {}
+      }
+      const idsToDelete = toDelete.filter(m => m.id != null).map(m => m.id!);
+      if (idsToDelete.length > 0) {
+        await Promise.all(idsToDelete.map(id => aiApi.deleteMessage(id).catch(() => {})));
+      }
+    }
   }
 
   if (attachments.value.length > 0) {
@@ -724,6 +770,7 @@ async function sendMessage(customText?: string) {
               aiApi.updateConversation(parsed.conversation_id, {
                 title: promptSummary,
                 role_id: selectedRoleId.value,
+                icon: currentRole.value?.icon || '💬',
                 project_id: selectedProjectId.value || null,
               }).catch(() => {});
               loadConversations(false);
@@ -746,6 +793,14 @@ async function sendMessage(customText?: string) {
     scrollToBottom();
     if (!isPrivateMode.value) {
       loadConversations(false);
+      if (activeConversationId.value) {
+        try {
+          const { data } = await aiApi.getMessages(activeConversationId.value);
+          if (data?.messages) {
+            messages.value = data.messages;
+          }
+        } catch {}
+      }
     }
   }
 }
@@ -754,10 +809,16 @@ async function sendMessage(customText?: string) {
 function regenerateMessage(assistantIndex: number) {
   if (isStreaming.value) return;
   const prevUserMsg = messages.value[assistantIndex - 1];
+  const curAssistantMsg = messages.value[assistantIndex];
   if (prevUserMsg && prevUserMsg.role === 'user') {
-    messages.value.splice(assistantIndex, 1);
     const userText = prevUserMsg.content;
-    messages.value.splice(assistantIndex - 1, 1);
+    if (curAssistantMsg?.id) {
+      aiApi.deleteMessage(curAssistantMsg.id).catch(() => {});
+    }
+    if (prevUserMsg?.id) {
+      aiApi.deleteMessage(prevUserMsg.id).catch(() => {});
+    }
+    messages.value.splice(assistantIndex - 1, 2);
     sendMessage(userText);
   }
 }
@@ -842,68 +903,89 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-      <!-- 1. 顶部控制栏 (无背景色、无边框，极简透视，Grok 风格) -->
-      <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
-        <!-- 左上角极简留白 (已移除标题) -->
-        <div class="flex-1 min-w-0" />
-
-        <!-- 右上角：私密模式切换 + 移动端章节跳转 (无新建按钮) -->
-        <div class="flex items-center gap-2 shrink-0">
-          <!-- 私密模式切换按钮 (Grok 原版同款) -->
-          <Tooltip>
-            <TooltipTrigger as-child>
+  <div class="flex-1 flex flex-col h-full max-h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-[#f8f9fa] dark:bg-background text-foreground selection:bg-primary/10 relative">
+      <!-- 1. 顶部控制栏 (极简透视，Grok 风格) -->
+      <div class="h-12 px-3 sm:px-5 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
+        <!-- 左上角：精美聊天助手展示与切换 -->
+        <div class="flex items-center min-w-0">
+          <Popover v-model:open="rolePopoverVisible">
+            <PopoverTrigger as-child>
               <button
                 type="button"
-                class="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer select-none border border-transparent"
-                :class="isPrivateMode ? 'bg-primary text-primary-foreground shadow-xs font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-accent/80'"
-                @click="togglePrivateMode"
+                class="group h-8 px-1 text-xs text-foreground inline-flex items-center gap-1.5 transition-all cursor-pointer bg-transparent border-none outline-none select-none"
               >
-                <VenetianMask class="size-4 shrink-0" />
-                <span class="text-xs">私密模式</span>
+                <!-- 助手图标 (仅图标响应悬浮微缩放) -->
+                <div class="size-6 rounded-md flex items-center justify-center text-sm shrink-0 group-hover:scale-110 transition-transform">
+                  {{ currentRole?.icon || '🤖' }}
+                </div>
+                <!-- 助手名称 (不加粗，尺寸适中精炼) 与下拉小箭头 -->
+                <div class="flex items-center gap-1 min-w-0">
+                  <span class="font-normal text-xs text-foreground/80 group-hover:text-foreground transition-colors truncate max-w-[120px] sm:max-w-[180px]">
+                    {{ currentRole?.name || '智能助手' }}
+                  </span>
+                  <ChevronDown class="size-3 text-muted-foreground/60 group-hover:text-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 shrink-0" />
+                </div>
               </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {{ isPrivateMode ? '私密模式已开启 (本次对话不保存)' : '开启私密模式 (不保存对话历史)' }}
-            </TooltipContent>
-          </Tooltip>
-
-          <!-- 移动端章节跳转 Popover -->
-          <Popover
-            v-if="userQuestions.length >= 2"
-            v-model:open="mobileChapterPopoverVisible"
-          >
-            <PopoverTrigger as-child>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="size-8 text-muted-foreground hover:text-foreground hover:bg-accent/80 rounded-md cursor-pointer md:hidden"
-                  >
-                    <Tickets class="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">历史提问章节</TooltipContent>
-              </Tooltip>
             </PopoverTrigger>
 
-            <PopoverContent align="end" class="w-64 p-2 shadow-lg">
-              <div class="space-y-1">
-                <div class="text-xs font-semibold text-muted-foreground px-1 pb-1 border-b border-border">
-                  提问列表 ({{ userQuestions.length }})
+            <PopoverContent side="bottom" align="start" class="w-72 sm:w-80 p-2.5 shadow-xl border-border/80">
+              <div class="space-y-2">
+                <div class="flex items-center gap-1.5">
+                  <Input
+                    v-model="roleSearchQuery"
+                    placeholder="搜索助手预设..."
+                    class="h-8 text-xs flex-1"
+                  />
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <Button
+                        size="icon-xs"
+                        class="h-8 w-8 shrink-0 cursor-pointer"
+                        @click="openAddRoleModal"
+                      >
+                        <Plus class="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">自定义新助手</TooltipContent>
+                  </Tooltip>
                 </div>
-                <ScrollArea class="h-48">
-                  <div class="space-y-0.5 pr-2">
+
+                <div class="text-[11px] font-medium text-muted-foreground px-1 flex items-center justify-between">
+                  <span>选择助手预设</span>
+                  <span class="text-[10px] text-muted-foreground/60">{{ filteredRoles.length }} 个预设</span>
+                </div>
+
+                <ScrollArea class="h-56">
+                  <div class="space-y-1 pr-2">
                     <div
-                      v-for="(item, qIdx) in userQuestions"
-                      :key="'mq-' + item.index"
-                      class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-foreground/80 hover:bg-accent hover:text-foreground cursor-pointer transition-colors"
-                      :class="{ 'bg-accent font-semibold text-primary': activeChapterMsgIndex === item.index }"
-                      @click="jumpToMessage(item.index); mobileChapterPopoverVisible = false;"
+                      v-for="r in filteredRoles"
+                      :key="r.id"
+                      class="group/item flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-colors"
+                      :class="[
+                        r.id === selectedRoleId
+                          ? 'bg-primary/10 text-primary font-semibold'
+                          : 'text-foreground/80 hover:bg-muted/70 hover:text-foreground',
+                      ]"
+                      @click="selectRole(r)"
                     >
-                      <span class="font-mono text-[11px] text-primary shrink-0">#{{ qIdx + 1 }}</span>
-                      <span class="truncate">{{ item.msg.content.slice(0, 30) || '（空提问）' }}</span>
+                      <div class="size-7 rounded-md bg-muted flex items-center justify-center mr-2 text-sm shrink-0">
+                        {{ r.icon }}
+                      </div>
+                      <div class="flex-1 min-w-0 pr-1">
+                        <div class="font-medium text-xs truncate">
+                          {{ r.name }}
+                        </div>
+                        <div class="text-[11px] text-muted-foreground truncate">{{ r.prompt }}</div>
+                      </div>
+
+                      <div class="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity" @click.stop>
+                        <Button variant="ghost" size="icon-xs" class="h-6 w-6 text-muted-foreground hover:text-foreground" title="编辑" @click="openEditRoleModal(r, $event)">
+                          <Pencil class="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon-xs" class="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="删除" @click="deleteRole(r.id, $event)">
+                          <Trash2 class="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </ScrollArea>
@@ -911,10 +993,29 @@ defineExpose({
             </PopoverContent>
           </Popover>
         </div>
+
+        <!-- 右上角：私密模式切换 (仅图标，极简优雅) -->
+        <div class="flex items-center gap-2 shrink-0">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <button
+                type="button"
+                class="p-1.5 transition-colors cursor-pointer select-none bg-transparent hover:opacity-80 active:scale-95 flex items-center justify-center rounded-lg"
+                @click="togglePrivateMode"
+              >
+                <VenetianMask
+                  class="size-5 shrink-0 transition-colors"
+                  :class="isPrivateMode ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">无痕模式</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
-      <!-- 2. 主体对话容器 -->
-      <div class="flex-1 flex flex-col min-h-0 relative">
+      <!-- 2. 主体对话容器 (自适应撑满一屏，内部历史滚动) -->
+      <div class="flex-1 flex flex-col min-h-0 relative overflow-hidden">
         <!-- 消息滚动区 -->
         <div
           ref="chatContainerRef"
@@ -984,7 +1085,7 @@ defineExpose({
                           <Pencil class="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">编辑提问</TooltipContent>
+                      <TooltipContent side="bottom">编辑</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -998,7 +1099,7 @@ defineExpose({
                           <Copy class="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">复制文本</TooltipContent>
+                      <TooltipContent side="bottom">复制</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -1012,7 +1113,7 @@ defineExpose({
                           <Trash2 class="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom">删除消息</TooltipContent>
+                      <TooltipContent side="bottom">删除</TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
@@ -1020,74 +1121,67 @@ defineExpose({
 
               <!-- AI 回复 -->
               <template v-else>
-                <div class="group flex items-start gap-3 w-full">
-                  <!-- AI 头像 -->
-                  <Avatar class="size-7 rounded-lg border border-border/80 bg-card shadow-2xs shrink-0 mt-0.5 select-none">
-                    <AvatarFallback class="rounded-lg text-xs bg-muted/70 font-medium">
-                      {{ currentRole?.icon || '🤖' }}
-                    </AvatarFallback>
-                  </Avatar>
+                <!-- 思考阶段 (无正文内容时)：不显示图标和文字，仅显示动态思考波纹 -->
+                <div
+                  v-if="!msg.content && isStreaming && index === messages.length - 1"
+                  class="flex items-center gap-1.5 py-3.5 px-1 select-none"
+                >
+                  <span class="inline-block size-2 rounded-full bg-primary animate-bounce" style="animation-duration: 0.85s; animation-delay: 0ms;" />
+                  <span class="inline-block size-2 rounded-full bg-primary/80 animate-bounce" style="animation-duration: 0.85s; animation-delay: 170ms;" />
+                  <span class="inline-block size-2 rounded-full bg-primary/55 animate-bounce" style="animation-duration: 0.85s; animation-delay: 340ms;" />
+                </div>
 
-                  <div class="flex-1 min-w-0 flex flex-col items-start">
-                    <div
-                      v-if="msg.content"
-                      class="ai-markdown-body w-full"
-                      v-html="renderMarkdown(msg.content)"
-                    />
-                    <div
-                      v-else-if="isStreaming && index === messages.length - 1"
-                      class="flex items-center gap-1.5 py-2 text-muted-foreground text-xs"
-                    >
-                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-100"></span>
-                      <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse delay-200"></span>
-                      <span class="ml-1 text-[11px]">正在思考与回复...</span>
-                    </div>
+                <div v-else class="group flex flex-col items-start w-full">
+                  <!-- AI 回复正文 (已彻底移除头像，全宽流畅呈现) -->
+                  <div
+                    v-if="msg.content"
+                    class="ai-markdown-body w-full"
+                    v-html="renderMarkdown(msg.content)"
+                  />
 
-                    <!-- AI 操作栏 -->
-                    <div v-if="msg.content && !isStreaming" class="flex items-center gap-0.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Tooltip>
-                        <TooltipTrigger as-child>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            class="text-muted-foreground hover:text-foreground"
-                            @click="regenerateMessage(index)"
-                          >
-                            <RotateCw class="h-3.5 w-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">重新生成</TooltipContent>
-                      </Tooltip>
+                  <!-- AI 操作栏 (默认常驻显示，提示为：重新生成 复制 删除) -->
+                  <div v-if="msg.content && !isStreaming" class="flex items-center gap-1 mt-2.5 select-none">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="h-7 w-7 text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 rounded-md cursor-pointer transition-colors"
+                          @click="regenerateMessage(index)"
+                        >
+                          <RotateCw class="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">重新生成</TooltipContent>
+                    </Tooltip>
 
-                      <Tooltip>
-                        <TooltipTrigger as-child>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            class="text-muted-foreground hover:text-foreground"
-                            @click="copyMessage(msg.content)"
-                          >
-                            <Copy class="h-3.5 w-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">复制回复</TooltipContent>
-                      </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="h-7 w-7 text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 rounded-md cursor-pointer transition-colors"
+                          @click="copyMessage(msg.content)"
+                        >
+                          <Copy class="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">复制</TooltipContent>
+                    </Tooltip>
 
-                      <Tooltip>
-                        <TooltipTrigger as-child>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            class="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            @click="deleteMessage(index)"
-                          >
-                            <Trash2 class="h-3.5 w-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">删除回复</TooltipContent>
-                      </Tooltip>
-                    </div>
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          class="h-7 w-7 text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer transition-colors"
+                          @click="deleteMessage(index)"
+                        >
+                          <Trash2 class="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">删除</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </template>
@@ -1095,9 +1189,43 @@ defineExpose({
           </div>
         </div>
 
-        <!-- 3. 底部输入卡片 (Grok 风格圆角一体化输入胶囊) -->
-        <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
-          <div class="relative rounded-[26px] border border-border/80 dark:border-border/60 bg-card/90 dark:bg-card/60 backdrop-blur-md shadow-xs focus-within:shadow-md focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-primary/10 transition-all p-3 sm:p-3.5 flex flex-col gap-2">
+        <!-- 页面右边中间：章节快速导航工具 (统一小横条规格，与主侧边栏一致的 Tooltip 浮动提示) -->
+        <div
+          v-if="userQuestions.length >= 1"
+          class="absolute right-2 sm:right-3.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-end gap-1 py-1.5 select-none max-h-[70vh] overflow-y-auto scrollbar-none"
+        >
+          <Tooltip
+            v-for="(item, qIdx) in userQuestions"
+            :key="'nav-chapter-' + item.index"
+            :delay-duration="100"
+          >
+            <TooltipTrigger as-child>
+              <button
+                type="button"
+                class="group/bar relative flex items-center justify-end py-0.5 px-1 cursor-pointer outline-none bg-transparent border-none shrink-0"
+                @click="jumpToMessage(item.index)"
+              >
+                <!-- 章节横条：统一高4px，紧凑间距，默认宽度统一为16px，选中不变宽，仅鼠标悬停时动态变宽至24px -->
+                <div
+                  class="h-1 min-h-[4px] max-h-[4px] w-4 rounded-full transition-all duration-200 shrink-0 group-hover/bar:w-6 group-hover/bar:bg-neutral-950 dark:group-hover/bar:bg-white"
+                  :class="activeChapterMsgIndex === item.index ? 'bg-neutral-950 dark:bg-white' : 'bg-neutral-400 dark:bg-neutral-600'"
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="left"
+              :side-offset="8"
+              class="max-w-[260px] truncate"
+            >
+              <span class="font-semibold mr-1.5 opacity-80">#{{ qIdx + 1 }}</span>
+              <span>{{ item.msg.content || '对话提问' }}</span>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        <!-- 3. 底部输入卡片 (默认多层柔和深阴影，底色与主页完全统一) -->
+        <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-[#f8f9fa] via-[#f8f9fa]/90 to-transparent dark:from-background dark:via-background/90 shrink-0">
+          <div class="relative rounded-[26px] border border-border/80 dark:border-border/60 bg-card/95 dark:bg-card/80 backdrop-blur-md shadow-xl shadow-black/8 dark:shadow-[0_12px_36px_rgba(0,0,0,0.4)] focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-primary/10 transition-all p-3 sm:p-3.5 flex flex-col gap-2">
             <!-- 附件预览 -->
             <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 px-1 py-0.5">
               <div v-for="(att, idx) in attachments" :key="'att-' + idx" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted border border-border text-xs">
@@ -1130,7 +1258,7 @@ defineExpose({
               @paste="handlePaste"
             />
 
-            <!-- 底部操作行 (左侧：+ 附件与助手角色；右侧：模型切换与 Grok 圆形发送钮) -->
+            <!-- 底部操作行 (左侧：+ 附件；右侧：模型切换与 Grok 圆形发送钮) -->
             <div class="flex items-center justify-between pt-0.5">
               <!-- 左侧操作区 -->
               <div class="flex items-center gap-1.5">
@@ -1148,88 +1276,19 @@ defineExpose({
                   <TooltipContent side="top">上传附件 / 图片</TooltipContent>
                 </Tooltip>
                 <input ref="fileInputRef" type="file" hidden @change="onFileSelect" />
-
-                <!-- 角色选择 Popover (Grok 式药丸按钮) -->
-                <Popover v-model:open="rolePopoverVisible">
-                  <PopoverTrigger as-child>
-                    <button
-                      type="button"
-                      class="h-7 px-2.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-normal text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <span class="text-xs">{{ currentRole?.icon || '🤖' }}</span>
-                      <span class="max-w-[90px] truncate text-[11px] font-medium">{{ currentRole?.name || '默认助手' }}</span>
-                      <ChevronDown class="size-3 text-muted-foreground/70" />
-                    </button>
-                  </PopoverTrigger>
-
-                  <PopoverContent side="top" align="start" class="w-72 p-2.5 shadow-lg">
-                    <div class="space-y-2">
-                      <div class="flex items-center gap-1.5">
-                        <Input
-                          v-model="roleSearchQuery"
-                          placeholder="搜索角色预设..."
-                          class="h-7 text-xs flex-1"
-                        />
-                        <Tooltip>
-                          <TooltipTrigger as-child>
-                            <Button
-                              size="icon-xs"
-                              class="h-7 w-7 shrink-0 cursor-pointer"
-                              @click="openAddRoleModal"
-                            >
-                              <Plus class="h-3.5 w-3.5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">自定义新角色</TooltipContent>
-                        </Tooltip>
-                      </div>
-
-                      <ScrollArea class="h-48">
-                        <div class="space-y-1 pr-2">
-                          <div
-                            v-for="r in filteredRoles"
-                            :key="r.id"
-                            class="group flex items-center justify-between p-1.5 rounded-md text-xs cursor-pointer transition-colors"
-                            :class="[
-                              r.id === selectedRoleId
-                                ? 'bg-accent text-accent-foreground font-semibold'
-                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                            ]"
-                            @click="selectRole(r)"
-                          >
-                            <span class="mr-1.5 text-sm">{{ r.icon }}</span>
-                            <div class="flex-1 min-w-0 pr-1">
-                              <div class="font-medium text-xs truncate">{{ r.name }}</div>
-                              <div class="text-[10px] text-muted-foreground truncate">{{ r.prompt }}</div>
-                            </div>
-
-                            <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" @click.stop>
-                              <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-foreground" title="编辑" @click="openEditRoleModal(r, $event)">
-                                <Pencil class="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon-xs" class="text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="删除" @click="deleteRole(r.id, $event)">
-                                <Trash2 class="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  </PopoverContent>
-                </Popover>
               </div>
 
               <!-- 右侧操作区：模型选择 + 圆形 Grok 发送钮 -->
               <div class="flex items-center gap-2">
-                <!-- 模型选择 Popover (Grok 式药丸标签) -->
+                <!-- 模型选择 Popover (与左上角助手一致的通透样式，无底色包裹) -->
                 <Popover v-model:open="modelPopoverVisible">
                   <PopoverTrigger as-child>
                     <button
                       type="button"
-                      class="h-7 px-2.5 rounded-full bg-muted/50 hover:bg-muted text-xs font-normal text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                      class="group h-7 sm:h-8 px-2.5 sm:px-3 rounded-full hover:bg-muted/80 active:bg-muted data-[state=open]:bg-muted text-xs font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-all cursor-pointer border border-transparent hover:border-border/40 data-[state=open]:border-border/40 select-none"
                     >
-                      <span class="max-w-[120px] truncate text-[11px] font-medium">{{ selectedModel || '暂无模型' }}</span>
-                      <ChevronDown class="size-3 text-muted-foreground/70" />
+                      <span class="max-w-[130px] truncate text-[11px] sm:text-xs font-medium text-foreground/80 group-hover:text-foreground">{{ selectedModel || '暂无模型' }}</span>
+                      <ChevronDown class="size-3 text-muted-foreground/70 group-hover:text-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 shrink-0" />
                     </button>
                   </PopoverTrigger>
 
@@ -1267,7 +1326,7 @@ defineExpose({
                   </PopoverContent>
                 </Popover>
 
-                <!-- 发送 / 停止圆形按钮 (Grok 原生纯圆高亮箭头钮) -->
+                <!-- 发送 / 停止圆形按钮 (原生纯圆高亮箭头钮) -->
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <button
@@ -1277,7 +1336,7 @@ defineExpose({
                         isStreaming
                           ? 'bg-destructive text-destructive-foreground hover:opacity-90 active:scale-95'
                           : (inputPrompt.trim() || attachments.length > 0)
-                            ? 'bg-sky-500 hover:bg-sky-600 text-white shadow-xs active:scale-95'
+                            ? 'bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100 shadow-sm active:scale-95'
                             : 'bg-muted text-muted-foreground/40 cursor-not-allowed'
                       ]"
                       :disabled="!isStreaming && !inputPrompt.trim() && attachments.length === 0"
@@ -1324,7 +1383,7 @@ defineExpose({
             </div>
           </div>
 
-          <DialogFooter class="gap-2 sm:gap-0">
+          <DialogFooter class="gap-2">
             <Button variant="outline" @click="showRoleModal = false">取消</Button>
             <Button @click="saveCustomRole">保存并启用</Button>
           </DialogFooter>

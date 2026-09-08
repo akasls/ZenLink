@@ -14,6 +14,7 @@ interface Props {
   defaultOpen?: boolean;
   open?: boolean;
   class?: HTMLAttributes['class'];
+  style?: HTMLAttributes['style'];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -97,10 +98,13 @@ onUnmounted(() => {
 <template>
   <TooltipProvider :delay-duration="0">
     <div
-      :style="{
-        '--sidebar-width': SIDEBAR_WIDTH,
-        '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
-      }"
+      :style="[
+        {
+          '--sidebar-width': SIDEBAR_WIDTH,
+          '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
+        },
+        props.style as any,
+      ]"
       :class="
         cn(
           'group/sidebar-wrapper flex min-h-screen w-full min-w-0 max-w-full overflow-x-hidden has-[[data-variant=inset]]:bg-sidebar',

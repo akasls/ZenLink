@@ -172,10 +172,22 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     return { buffer: svgBuffer, contentType: 'image/svg+xml', filename: `${key}.svg` };
   }
 
+  const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+  const faviconRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of faviconRateLimitMap.entries()) {
+      if (v.resetAt < now) faviconRateLimitMap.delete(k);
+    }
+  }, 60000);
+
   // 静态直读本地缓存文件（极速 1ms 响应）
   fastify.get('/api/favicon/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
     const safeName = basename(filename);
+    if (WINDOWS_RESERVED.test(safeName) || safeName.includes('..') || !safeName.trim()) {
+      return reply.status(404).send({ error: 'Favicon not found' });
+    }
     const filePath = join(FAVICON_DIR, safeName);
     try {
       const buffer = await fsPromises.readFile(filePath);
@@ -195,7 +207,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     }
   });
 
-  // 主 Favicon 获取接口：优先 100% 磁盘读取，彻底避免前台用户浏览时产生外部网络开销
+  // 主 Favicon 获取接口：优先 100% 磁盘读取，防范 DoS 滥刷
   fastify.get('/api/favicon', async (request, reply) => {
     const { url, icon, title } = request.query as { url?: string; icon?: string; title?: string };
     const targetUrl = url || '';
@@ -214,7 +226,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
 
     const key = getFaviconKey(targetUrl, domain, customIcon);
 
-    // 1. 优先直接从磁盘读取（0 毫秒，0 外部请求）
+    // 1. 优先直接从磁盘读取（0 毫秒，0 外部请求，不计入频控）
     const diskCached = await getDiskFavicon(key);
     if (diskCached) {
       return reply
@@ -223,7 +235,20 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
         .send(diskCached.buffer);
     }
 
-    // 2. 磁盘不存在时拉取并永久落盘
+    // 2. 磁盘不存在时，应用 IP 频控（每分钟限制未命中请求最多 60 次，防止磁盘被耗尽）
+    const clientIp = request.ip || 'unknown';
+    const now = Date.now();
+    const rate = faviconRateLimitMap.get(clientIp);
+    if (rate && rate.resetAt > now) {
+      if (rate.count >= 60) {
+        return reply.status(429).send({ error: 'Favicon 请求过于频繁，请稍后再试' });
+      }
+      rate.count++;
+    } else {
+      faviconRateLimitMap.set(clientIp, { count: 1, resetAt: now + 60000 });
+    }
+
+    // 3. 拉取并永久落盘
     const result = await fetchAndPersistFavicon(targetUrl, customIcon, siteTitle, key, domain);
     return reply
       .header('Content-Type', result.contentType)
@@ -403,6 +428,56 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
     return { success: true };
   });
 
+  // ==================== 批量管理书签 (修改分类 / 私有状态 / 删除) ====================
+
+  const batchBookmarkSchema = z.object({
+    action: z.enum(['update_category', 'set_private', 'delete']),
+    ids: z.array(z.number()).min(1),
+    categoryId: z.number().nullable().optional(),
+    isPrivate: z.boolean().optional(),
+  });
+
+  fastify.post('/api/bookmarks/batch', { preHandler: [requireAuth] }, async (request, reply) => {
+    const parseResult = batchBookmarkSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({ error: parseResult.error.errors[0]?.message || '参数无效' });
+    }
+    const { action, ids, categoryId, isPrivate } = parseResult.data;
+    if (!ids.length) {
+      return { success: true, count: 0 };
+    }
+
+    const placeholders = ids.map(() => '?').join(',');
+
+    if (action === 'update_category') {
+      const targetCatId = categoryId && categoryId > 0 ? categoryId : null;
+      dbHelper.run(
+        `UPDATE bookmarks SET category_id = ?, updated_at = datetime('now') WHERE id IN (${placeholders})`,
+        [targetCatId, ...ids]
+      );
+      saveDatabase();
+      return { success: true, count: ids.length };
+    }
+
+    if (action === 'set_private') {
+      const privVal = isPrivate ? 1 : 0;
+      dbHelper.run(
+        `UPDATE bookmarks SET is_private = ?, updated_at = datetime('now') WHERE id IN (${placeholders})`,
+        [privVal, ...ids]
+      );
+      saveDatabase();
+      return { success: true, count: ids.length };
+    }
+
+    if (action === 'delete') {
+      dbHelper.run(`DELETE FROM bookmarks WHERE id IN (${placeholders})`, ids);
+      saveDatabase();
+      return { success: true, count: ids.length };
+    }
+
+    return reply.status(400).send({ error: '不支持的操作类型' });
+  });
+
   // ==================== 自动抓取网站元信息与 AI 智能精炼 ====================
 
   const KNOWN_SITES: Record<string, { title: string; desc: string }> = {
@@ -569,7 +644,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 7000);
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const res = await safeFetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -615,7 +690,7 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
           try {
             const transController = new AbortController();
             const transTimer = setTimeout(() => transController.abort(), 4000);
-            const transRes = await fetch(`${baseUrl}/chat/completions`, {
+            const transRes = await safeFetch(`${baseUrl}/chat/completions`, {
               method: 'POST',
               signal: transController.signal,
               headers: {

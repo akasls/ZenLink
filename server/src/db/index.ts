@@ -41,7 +41,7 @@ export async function initDatabase(): Promise<void> {
   // 保存到文件
   saveDatabase(true);
   // 扩展表字段与配置
-  try { db.run("CREATE TABLE IF NOT EXISTS storage_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);"); } catch {}
+  try { db.run("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1;"); } catch {}
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN role_id TEXT DEFAULT 'default';"); } catch {}
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN icon TEXT DEFAULT '';"); } catch {}
   try { db.run("ALTER TABLE notes ADD COLUMN tags TEXT DEFAULT '[]';"); } catch {}
@@ -52,6 +52,7 @@ export async function initDatabase(): Promise<void> {
   // 性能索引加速
   try { db.run("CREATE INDEX IF NOT EXISTS idx_bookmarks_sort ON bookmarks(sort_order);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_categories_sort ON categories(sort_order);"); } catch {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_bookmarks_perf_query ON bookmarks(is_private, category_id, sort_order ASC, created_at DESC);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_updated ON ai_conversations(updated_at DESC);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_status ON ai_conversations(is_archived, is_pinned DESC, updated_at DESC);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_proj ON ai_conversations(project_id);"); } catch {}

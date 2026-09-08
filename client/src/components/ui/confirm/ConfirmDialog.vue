@@ -42,7 +42,7 @@ function onOpenChange(val: boolean) {
           {{ confirmState.options.message }}
         </DialogDescription>
       </DialogHeader>
-      <DialogFooter class="gap-2 sm:gap-0 pt-2">
+      <DialogFooter class="gap-2 pt-2">
         <Button variant="outline" size="sm" @click="onCancel">
           {{ confirmState.options.cancelText || '取消' }}
         </Button>

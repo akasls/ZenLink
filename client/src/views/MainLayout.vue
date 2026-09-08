@@ -5,7 +5,6 @@ import { useAuthStore } from '@/stores/auth';
 import { useSiteStore } from '@/stores/site';
 import { bookmarkApi, categoryApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
-import { Button } from '@/components/ui/button';
 import {
   SidebarProvider,
   SidebarInset,
@@ -13,12 +12,9 @@ import {
 import {
   Loader2,
   FolderOpen,
-  ArrowUp,
-  MessageSquareQuote,
 } from 'lucide-vue-next';
 
 import TheSidebar from '@/components/TheSidebar.vue';
-import SearchBar from '@/components/SearchBar.vue';
 import BookmarkGrid from '@/components/BookmarkGrid.vue';
 import CategorySection from '@/components/CategorySection.vue';
 import AddBookmarkDialog from '@/components/AddBookmarkDialog.vue';
@@ -39,18 +35,6 @@ const currentView = ref<'home' | 'admin' | 'notes' | 'ai'>(
   (route.meta.view as any) || 'home'
 );
 
-const dailyQuote = ref('');
-
-async function fetchQuote() {
-  try {
-    const res = await fetch('https://v1.hitokoto.cn/?c=d&c=i&c=k&encode=json');
-    const data = await res.json();
-    dailyQuote.value = data.hitokoto || '';
-  } catch {
-    dailyQuote.value = '';
-  }
-}
-
 function onOpenLogin(targetView?: string) {
   pendingTargetView.value = targetView || '';
   showLoginDialog.value = true;
@@ -65,6 +49,13 @@ function onLoginSuccess(targetView?: string) {
   }
 }
 
+const viewScrollPositions: Record<string, number> = {
+  home: 0,
+  notes: 0,
+  ai: 0,
+  admin: 0,
+};
+
 function onChangeAppView(v: string) {
   if (v !== 'home' && !authStore.token && v !== 'admin') {
     onOpenLogin(v);
@@ -73,6 +64,9 @@ function onChangeAppView(v: string) {
   if (v === 'admin' && !authStore.token) {
     onOpenLogin('admin');
     return;
+  }
+  if (currentView.value && typeof window !== 'undefined') {
+    viewScrollPositions[currentView.value] = window.scrollY;
   }
   currentView.value = v as any;
   selectedCategoryId.value = null;
@@ -84,6 +78,20 @@ function onChangeAppView(v: string) {
   };
   router.push(routes[v] || '/');
 }
+
+// 监听视图切换，独立隔离与恢复各模块的滚动位置，互不影响
+watch(currentView, (newView, oldView) => {
+  if (oldView && typeof window !== 'undefined') {
+    viewScrollPositions[oldView] = window.scrollY;
+  }
+  nextTick(() => {
+    const targetY = viewScrollPositions[newView] ?? 0;
+    window.scrollTo({ top: targetY, behavior: 'instant' });
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: 'instant' });
+    });
+  });
+});
 
 // 监听快捷键 ⌘1/Ctrl+1 (导航), ⌘2/Ctrl+2 (笔记), ⌘3/Ctrl+3 (AI), ⌘,/Ctrl+, (设置)
 function handleGlobalShortcuts(e: KeyboardEvent) {
@@ -308,20 +316,15 @@ async function onReorder(items: any[]) {
   }
 }
 
-const showBackToTop = ref(false);
-
-function scrollTop() {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 function onScroll() {
-  showBackToTop.value = window.scrollY > window.innerHeight * 0.8;
+  if (currentView.value && typeof window !== 'undefined') {
+    viewScrollPositions[currentView.value] = window.scrollY;
+  }
 }
 
 onMounted(() => {
   loadCategories();
   loadBookmarks();
-  fetchQuote();
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('keydown', handleGlobalShortcuts);
   onScroll();
@@ -334,58 +337,50 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <SidebarProvider>
-    <div class="flex min-h-svh w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground selection:bg-primary/10">
-      <!-- Canonical Shadcn Vue Sidebar (动态自适应三大模式 + 展开收起 + NavUser) -->
-      <TheSidebar
-        :categories="categories"
-        :selected-category-id="selectedCategoryId"
-        :current-view="currentView"
-        :is-logged-in="authStore.isLoggedIn"
-        :notes="notesData.notes"
-        :note-tags="notesData.tags"
-        :note-categories="notesData.categories"
-        :selected-note-tag="notesData.selectedTag"
-        :selected-note-category-id="notesData.selectedCategoryId"
-        :selected-note-id="notesData.selectedNoteId"
-        :ai-conversations="aiData.conversations"
-        :active-ai-conversation-id="aiData.activeConversationId"
-        :selected-admin-tab="selectedAdminTab"
-        @select-category="onSelectTopCategory"
-        @select-sub-category="onSelectSubCategory"
-        @change-view="onChangeAppView"
-        @login="onOpenLogin"
-        @create-note="notesPanelRef?.createNote()"
-        @select-note="(n) => notesPanelRef?.selectNote(n)"
-        @filter-note-tag="(t) => notesPanelRef?.filterByTag(t)"
-        @filter-note-category="(catId) => notesPanelRef?.filterByCategory(catId)"
-        @create-note-category="notesPanelRef?.loadCategories(); notesPanelRef?.loadNotes()"
-        @new-ai-chat="aiChatPanelRef?.createNewConversation()"
-        @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
-        @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
-        @rename-ai-chat="(id, title, icon) => { const c = aiData.conversations.find((x: any) => x.id === id); if (c) { c.title = title; if (icon !== undefined) c.icon = icon; } }"
-        @refresh-ai-chat="aiChatPanelRef?.loadConversations()"
-        @select-admin-tab="(tab) => selectedAdminTab = (tab as any)"
-        @add-bookmark="showAddDialog = true"
-        @search-note="(q) => notesPanelRef?.setSearchQuery(q)"
-      />
+  <SidebarProvider :style="{ '--sidebar-width': '260px', '--sidebar-width-icon': '52px' }">
+    <TheSidebar
+      :categories="categories"
+      :selected-category-id="selectedCategoryId"
+      :current-view="currentView"
+      :is-logged-in="authStore.isLoggedIn"
+      :bookmarks="bookmarks"
+      :notes="notesData.notes"
+      :note-tags="notesData.tags"
+      :note-categories="notesData.categories"
+      :selected-note-tag="notesData.selectedTag"
+      :selected-note-category-id="notesData.selectedCategoryId"
+      :selected-note-id="notesData.selectedNoteId"
+      :ai-conversations="aiData.conversations"
+      :active-ai-conversation-id="aiData.activeConversationId"
+      :selected-admin-tab="selectedAdminTab"
+      @select-category="onSelectTopCategory"
+      @select-sub-category="onSelectSubCategory"
+      @change-view="onChangeAppView"
+      @login="onOpenLogin"
+      @create-note="notesPanelRef?.createNote()"
+      @select-note="(n) => notesPanelRef?.selectNote(n)"
+      @filter-note-tag="(t) => notesPanelRef?.filterByTag(t)"
+      @filter-note-category="(catId) => notesPanelRef?.filterByCategory(catId)"
+      @create-note-category="notesPanelRef?.loadCategories(); notesPanelRef?.loadNotes()"
+      @new-ai-chat="aiChatPanelRef?.createNewConversation()"
+      @select-ai-chat="(id) => aiChatPanelRef?.selectConversation(id)"
+      @delete-ai-chat="(id) => aiChatPanelRef?.deleteConversation(id)"
+      @rename-ai-chat="(id, title, icon) => { const c = aiData.conversations.find((x: any) => x.id === id); if (c) { c.title = title; if (icon !== undefined) c.icon = icon; } }"
+      @refresh-ai-chat="aiChatPanelRef?.loadConversations()"
+      @select-admin-tab="(tab) => selectedAdminTab = (tab as any)"
+      @add-bookmark="showAddDialog = true"
+      @search-bookmark="(q) => searchQuery = q"
+      @search-note="(q) => notesPanelRef?.setSearchQuery(q)"
+    />
 
-      <!-- Canonical Shadcn Vue Inset Main Content (极致沉浸画布) -->
-      <SidebarInset>
-        <div class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden">
-          <!-- 1. 网址导航功能主视图 -->
-          <div v-show="currentView === 'home'" class="flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden">
-            <!-- 搜索框组件 -->
-            <SearchBar v-model="searchQuery" />
-
-            <!-- 每日一言灵感条 (优雅融入搜索栏下方) -->
-            <div v-if="dailyQuote" class="py-2 px-4 text-center border-b border-border/40 bg-muted/20">
-              <div class="inline-flex items-center gap-1.5 text-xs text-muted-foreground/80 max-w-lg mx-auto">
-                <MessageSquareQuote class="h-3.5 w-3.5 shrink-0 text-primary/60" />
-                <span class="truncate font-serif italic text-[11px]">{{ dailyQuote }}</span>
-              </div>
-            </div>
-
+    <!-- Canonical Shadcn Vue Inset Main Content -->
+    <SidebarInset :class="{ 'h-screen max-h-screen overflow-hidden': currentView === 'ai' || (currentView === 'notes' && notesData.selectedNoteId) }">
+      <div
+        class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden"
+        :class="{ 'h-screen max-h-screen overflow-hidden': currentView === 'ai' || (currentView === 'notes' && notesData.selectedNoteId) }"
+      >
+        <!-- 1. 网址导航功能主视图 -->
+        <div v-show="currentView === 'home'" class="flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-[#f8f9fa] dark:bg-background">
             <!-- Bookmarks & Categories Container -->
             <div class="flex-1 p-3 sm:p-5 md:p-6 max-w-[1600px] w-full min-w-0 max-w-full overflow-x-hidden mx-auto box-border">
               <div v-if="!loading">
@@ -437,8 +432,23 @@ onUnmounted(() => {
 
             <!-- Footer -->
             <footer class="mt-auto border-t border-border py-6 px-4 text-center">
-              <p class="text-xs text-muted-foreground leading-relaxed m-0">
-                Copyright &copy; 2026 <strong class="font-medium text-foreground">{{ siteStore.siteName || 'ZenLink' }}</strong> · {{ siteStore.siteDesc || '干净简洁的导航！' }}
+              <p class="text-xs text-muted-foreground leading-relaxed m-0 flex items-center justify-center gap-2 flex-wrap">
+                <span>Copyright &copy; 2026 <strong class="font-medium text-foreground">{{ siteStore.siteName || 'ZenLink' }}</strong></span>
+                <span class="hidden sm:inline opacity-40">·</span>
+                <span>{{ siteStore.siteDesc || '干净简洁的导航！' }}</span>
+                <span class="hidden sm:inline opacity-40">·</span>
+                <a
+                  href="https://github.com/akasls/ZenLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors underline-offset-4 hover:underline font-medium"
+                  title="访问 GitHub 开源项目仓库"
+                >
+                  <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                  </svg>
+                  <span>GitHub</span>
+                </a>
               </p>
             </footer>
           </div>
@@ -456,34 +466,9 @@ onUnmounted(() => {
         </div>
       </SidebarInset>
 
-      <!-- 浮动操作按钮 (小巧紧凑) -->
-      <div v-if="currentView === 'home'" class="fixed bottom-6 right-6 flex flex-col items-center gap-2 z-40">
-        <!-- 回到顶部 -->
-        <transition
-          enter-active-class="transition duration-150 ease-out"
-          enter-from-class="opacity-0 translate-y-2 scale-90"
-          enter-to-class="opacity-100 translate-y-0 scale-100"
-          leave-active-class="transition duration-100 ease-in"
-          leave-from-class="opacity-100 translate-y-0 scale-100"
-          leave-to-class="opacity-0 translate-y-2 scale-90"
-        >
-          <Button
-            v-if="showBackToTop"
-            variant="outline"
-            size="icon"
-            class="shadow-sm cursor-pointer"
-            @click="scrollTop"
-            title="返回顶部"
-          >
-            <ArrowUp class="h-4 w-4" />
-          </Button>
-        </transition>
-      </div>
-
       <!-- 弹窗列表 -->
       <AddBookmarkDialog v-model:visible="showAddDialog" :categories="categories" @saved="onSaved" />
       <EditBookmarkDialog v-model:visible="showEditDialog" :bookmark="editingBookmark" :categories="categories" @saved="onSaved" />
       <LoginDialog v-model:visible="showLoginDialog" :target-view="pendingTargetView" @success="onLoginSuccess" />
-    </div>
   </SidebarProvider>
 </template>

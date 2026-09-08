@@ -9,6 +9,7 @@ import { mapIcon } from '@/utils/icon-map';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -55,7 +56,6 @@ import {
 } from '@/components/ui/context-menu';
 import {
   Plus,
-  ArrowLeft,
   Pencil,
   Eye,
   Tag,
@@ -82,6 +82,9 @@ import {
   X,
   Paperclip,
   CheckCircle2,
+  MoreHorizontal,
+  Download,
+  ChevronLeft,
 } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -111,7 +114,7 @@ function onResize() {
       viewMode.value = 'edit';
     }
   } else {
-    if (viewMode.value === 'edit' || viewMode.value === 'preview') {
+    if (viewMode.value === 'edit') {
       viewMode.value = 'split';
     }
   }
@@ -169,10 +172,18 @@ const showCategoryManageModal = ref(false);
 const newCategoryName = ref('');
 const isCategoryPopoverVisible = ref(false);
 
-// 视图模式: PC 端默认 'split' (双栏对照)，移动端 'edit' (纯编辑) / 'preview' (纯预览)
-const viewMode = ref<'edit' | 'split' | 'preview'>(
-  typeof window !== 'undefined' && window.innerWidth >= 768 ? 'split' : 'edit'
-);
+// 视图模式: 默认为沉浸式阅读预览态 'preview'，进入编辑时为 'edit' (移动端) 或 'split' (PC分栏)
+const viewMode = ref<'edit' | 'split' | 'preview'>('preview');
+const mobileEditTab = ref<'edit' | 'preview'>('edit');
+
+function toggleMobilePreview() {
+  mobileEditTab.value = mobileEditTab.value === 'edit' ? 'preview' : 'edit';
+  if (mobileEditTab.value === 'edit') {
+    nextTick(() => {
+      textareaRef.value?.focus();
+    });
+  }
+}
 
 // 编辑器状态
 const editTitle = ref('');
@@ -181,13 +192,40 @@ const editTags = ref<string[]>([]);
 const newTagInput = ref('');
 const isTagInputVisible = ref(false);
 const isTagPopoverVisible = ref(false);
-function setEditMode() {
+
+const editSource = ref<'list' | 'preview'>('preview');
+
+function startEditing(source: 'list' | 'preview' = 'preview') {
+  editSource.value = source;
   viewMode.value = isMobile.value ? 'edit' : 'split';
+  mobileEditTab.value = 'edit';
+  nextTick(() => {
+    if (!isMobile.value || mobileEditTab.value === 'edit') {
+      textareaRef.value?.focus();
+    }
+  });
 }
-function setPreviewMode() {
-  viewMode.value = 'preview';
+
+async function finishEditing() {
+  if (autoSaveTimer.value) {
+    clearTimeout(autoSaveTimer.value);
+    autoSaveTimer.value = null;
+  }
+  await saveNote();
+  if (editSource.value === 'list') {
+    selectedNote.value = null;
+    loadTags();
+    loadNotes();
+  } else {
+    viewMode.value = 'preview';
+  }
+  mobileEditTab.value = 'edit';
 }
-function setScrollSource(_src: 'editor' | 'preview') {}
+
+const activeScrollSource = ref<'editor' | 'preview'>('editor');
+function setScrollSource(src: 'editor' | 'preview') {
+  activeScrollSource.value = src;
+}
 const isAiWorking = ref(false);
 
 const saveStatus = ref<'saved' | 'saving' | 'unsaved'>('saved');
@@ -231,11 +269,10 @@ const draggedNoteIndex = ref<number | null>(null);
 const dragOverNoteIndex = ref<number | null>(null);
 
 // 双栏同步滚动
-let isSyncingScroll = false;
+let isProgrammaticScroll = false;
 
 function onEditorScroll() {
-  if (isSyncingScroll || viewMode.value !== 'split') return;
-  isSyncingScroll = true;
+  if (isProgrammaticScroll || viewMode.value !== 'split' || activeScrollSource.value !== 'editor') return;
   const textarea = textareaRef.value;
   const preview = previewWrapperRef.value;
   if (textarea && preview) {
@@ -243,17 +280,17 @@ function onEditorScroll() {
     const maxPreview = preview.scrollHeight - preview.clientHeight;
     if (maxTextarea > 0 && maxPreview > 0) {
       const ratio = textarea.scrollTop / maxTextarea;
+      isProgrammaticScroll = true;
       preview.scrollTop = ratio * maxPreview;
+      requestAnimationFrame(() => {
+        isProgrammaticScroll = false;
+      });
     }
   }
-  requestAnimationFrame(() => {
-    isSyncingScroll = false;
-  });
 }
 
 function onPreviewScroll() {
-  if (isSyncingScroll || viewMode.value !== 'split') return;
-  isSyncingScroll = true;
+  if (isProgrammaticScroll || viewMode.value !== 'split' || activeScrollSource.value !== 'preview') return;
   const textarea = textareaRef.value;
   const preview = previewWrapperRef.value;
   if (textarea && preview) {
@@ -261,12 +298,13 @@ function onPreviewScroll() {
     const maxPreview = preview.scrollHeight - preview.clientHeight;
     if (maxTextarea > 0 && maxPreview > 0) {
       const ratio = preview.scrollTop / maxPreview;
+      isProgrammaticScroll = true;
       textarea.scrollTop = ratio * maxTextarea;
+      requestAnimationFrame(() => {
+        isProgrammaticScroll = false;
+      });
     }
   }
-  requestAnimationFrame(() => {
-    isSyncingScroll = false;
-  });
 }
 
 const filteredNotes = computed(() => {
@@ -434,15 +472,8 @@ function selectNote(note: Note) {
     lastSavedTime.value = '';
   }
 
-  if (isMobile.value) {
-    viewMode.value = 'edit';
-  } else {
-    viewMode.value = 'split'; // PC 端默认分栏
-  }
-
-  nextTick(() => {
-    textareaRef.value?.focus();
-  });
+  // 点击打开笔记默认进入沉浸式阅读预览模式
+  viewMode.value = 'preview';
 }
 
 // 标签管理
@@ -473,6 +504,7 @@ async function createNote() {
 
   if (existingEmptyNote) {
     selectNote(existingEmptyNote);
+    startEditing('list');
     toast.info('已定位到未编写的空白笔记');
     return;
   }
@@ -486,54 +518,75 @@ async function createNote() {
     await loadNotes();
     await loadTags();
     selectNote(data.note);
-    nextTick(() => {
-      textareaRef.value?.focus();
-    });
+    startEditing('list');
   } catch {
     toast.error('创建笔记失败');
   }
 }
 
+let savePromise: Promise<void> | null = null;
+
 async function saveNote() {
-  if (!selectedNote.value) return;
-  saveStatus.value = 'saving';
-  try {
-    const updatedTitle = editTitle.value || '未命名笔记';
-    const updatedContent = editContent.value;
-    const updatedTags = [...editTags.value];
+  if (savePromise) return savePromise;
+  const currentNote = selectedNote.value;
+  if (!currentNote) return;
+  const targetId = currentNote.id;
 
-    await noteApi.update(selectedNote.value.id, {
-      title: updatedTitle,
-      content: updatedContent,
-      categoryId: selectedNoteCategoryId.value,
-      tags: updatedTags,
-    });
-
-    const idx = notes.value.findIndex(n => n.id === selectedNote.value!.id);
-    const nowIso = new Date().toISOString();
-    if (idx >= 0) {
-      notes.value[idx].title = updatedTitle;
-      notes.value[idx].content = updatedContent;
-      notes.value[idx].category_id = selectedNoteCategoryId.value;
-      notes.value[idx].tags = updatedTags;
-      notes.value[idx].updated_at = nowIso;
-    }
-    selectedNote.value.title = updatedTitle;
-    selectedNote.value.content = updatedContent;
-    selectedNote.value.category_id = selectedNoteCategoryId.value;
-    selectedNote.value.tags = updatedTags;
-    selectedNote.value.updated_at = nowIso;
-
-    saveStatus.value = 'saved';
-    const now = new Date();
-    const h = now.getHours().toString().padStart(2, '0');
-    const m = now.getMinutes().toString().padStart(2, '0');
-    const s = now.getSeconds().toString().padStart(2, '0');
-    lastSavedTime.value = `${h}:${m}:${s}`;
-  } catch (err) {
-    saveStatus.value = 'unsaved';
-    console.error('Save note error', err);
+  if (autoSaveTimer.value) {
+    clearTimeout(autoSaveTimer.value);
+    autoSaveTimer.value = null;
   }
+
+  saveStatus.value = 'saving';
+
+  savePromise = (async () => {
+    try {
+      const updatedTitle = editTitle.value || '未命名笔记';
+      const updatedContent = editContent.value;
+      const updatedTags = [...editTags.value];
+      const updatedCategoryId = selectedNoteCategoryId.value;
+
+      await noteApi.update(targetId, {
+        title: updatedTitle,
+        content: updatedContent,
+        categoryId: updatedCategoryId,
+        tags: updatedTags,
+      });
+
+      const nowIso = new Date().toISOString();
+      const idx = notes.value.findIndex(n => n.id === targetId);
+      if (idx >= 0) {
+        notes.value[idx].title = updatedTitle;
+        notes.value[idx].content = updatedContent;
+        notes.value[idx].category_id = updatedCategoryId;
+        notes.value[idx].tags = updatedTags;
+        notes.value[idx].updated_at = nowIso;
+      }
+
+      // 如果当前选中的仍然是该笔记，安全同步内存对象及保存时间
+      if (selectedNote.value && selectedNote.value.id === targetId) {
+        selectedNote.value.title = updatedTitle;
+        selectedNote.value.content = updatedContent;
+        selectedNote.value.category_id = updatedCategoryId;
+        selectedNote.value.tags = updatedTags;
+        selectedNote.value.updated_at = nowIso;
+
+        saveStatus.value = 'saved';
+        const now = new Date();
+        const h = now.getHours().toString().padStart(2, '0');
+        const m = now.getMinutes().toString().padStart(2, '0');
+        const s = now.getSeconds().toString().padStart(2, '0');
+        lastSavedTime.value = `${h}:${m}:${s}`;
+      }
+    } catch (err) {
+      saveStatus.value = 'unsaved';
+      console.error('Save note error', err);
+    } finally {
+      savePromise = null;
+    }
+  })();
+
+  return savePromise;
 }
 
 // 自动保存防抖 (500ms)
@@ -737,8 +790,13 @@ function insertHeading(level: string) {
   const lvl = parseInt(level, 10);
   const prefix = lvl > 0 ? '#'.repeat(lvl) + ' ' : '';
 
+  let hasEmptyLine = false;
   const newLines = lines.map(l => {
     const clean = l.replace(/^#+\s*/, '');
+    if (!clean && lvl > 0) {
+      hasEmptyLine = true;
+      return `${prefix}标题`;
+    }
     return prefix + clean;
   });
 
@@ -747,7 +805,10 @@ function insertHeading(level: string) {
 
   nextTick(() => {
     textarea.focus();
-    if (start === end) {
+    if (hasEmptyLine && lines.length === 1) {
+      const selectStart = lineStart + prefix.length;
+      textarea.setSelectionRange(selectStart, selectStart + 2);
+    } else if (start === end) {
       const delta = replacement.length - block.length;
       const targetPos = Math.max(lineStart, start + delta);
       textarea.setSelectionRange(targetPos, targetPos);
@@ -1325,6 +1386,9 @@ watch(
 
 function setSearchQuery(q: string) {
   searchQuery.value = q || '';
+  if (q && q.trim()) {
+    selectedNote.value = null;
+  }
 }
 
 defineExpose({
@@ -1334,6 +1398,8 @@ defineExpose({
   exportHtmlFile,
   createNote,
   selectNote,
+  startEditing,
+  finishEditing,
   selectNoteById(id: number) {
     const found = notes.value.find((n) => n.id === id);
     if (found) selectNote(found);
@@ -1426,12 +1492,15 @@ watch(
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-background text-foreground">
-      <!-- ==================== 1. 顶部控制栏 (无背景色) ==================== -->
-      <div class="h-12 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
+  <div
+    class="flex-1 flex flex-col w-full min-w-0 max-w-full bg-[#f8f9fa] dark:bg-background text-foreground"
+    :class="selectedNote ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen overflow-x-hidden'"
+  >
+      <!-- ==================== 1. 顶部控制栏 (高度对齐侧边栏h-11，分割线高度与颜色一致) ==================== -->
+      <div class="h-11 pl-1 sm:pl-2.5 pr-2 sm:pr-4 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent border-b border-sidebar-border">
         <!-- 场景 A：列表视图顶部 (无标题，顶部横向自适应标签胶囊列表) -->
         <template v-if="!selectedNote">
-          <div class="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5 w-full min-w-0">
+          <div class="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5 w-full min-w-0 pl-1">
             <!-- 全部标签项 -->
             <button
               type="button"
@@ -1466,105 +1535,145 @@ watch(
           </div>
         </template>
 
-        <!-- 场景 B：编辑视图顶部 -->
-        <template v-else>
-          <div class="flex-1 min-w-0 flex items-center gap-2">
+        <!-- 场景 B1：阅读预览视图顶部导航 (极简纯图标、无文字) -->
+        <template v-else-if="viewMode === 'preview'">
+          <div class="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2 mr-2">
+            <!-- 左上角返回图标 (靠近左侧) -->
             <Tooltip>
               <TooltipTrigger as-child>
                 <Button
-                  variant="outline"
-                  size="icon-sm"
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
                   @click="selectedNote = null; loadTags(); loadNotes()"
                 >
-                  <ArrowLeft class="h-3.5 w-3.5" />
+                  <ChevronLeft class="size-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">返回笔记列表</TooltipContent>
+              <TooltipContent side="bottom">返回列表</TooltipContent>
             </Tooltip>
 
+            <!-- 笔记标题 (放置在顶栏) -->
+            <h2 class="text-sm sm:text-base font-semibold text-foreground truncate select-text cursor-default m-0 px-1">
+              {{ editTitle || '未命名笔记' }}
+            </h2>
+          </div>
+
+          <!-- 右上角操作 (纯图标、无文字) -->
+          <div class="flex items-center gap-1 shrink-0">
+              <!-- 编辑按钮 -->
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 cursor-pointer"
+                    @click="startEditing('preview')"
+                  >
+                    <Pencil class="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">编辑笔记</TooltipContent>
+              </Tooltip>
+
+              <!-- 分享按钮 -->
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 cursor-pointer"
+                    @click="openShareModal(selectedNote, $event)"
+                  >
+                    <Share2 class="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">分享笔记</TooltipContent>
+              </Tooltip>
+
+              <!-- 更多操作下拉 -->
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="ghost" size="icon" class="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 cursor-pointer">
+                    <MoreHorizontal class="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-44">
+                  <DropdownMenuItem class="cursor-pointer text-xs" @click="copyNoteContent(editContent)">
+                    <Copy class="mr-2 h-3.5 w-3.5" />
+                    <span>复制 Markdown</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem class="cursor-pointer text-xs" @click="exportMarkdownFile">
+                    <Download class="mr-2 h-3.5 w-3.5" />
+                    <span>导出 .md 文件</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem class="cursor-pointer text-xs" @click="exportHtmlFile">
+                    <BookOpen class="mr-2 h-3.5 w-3.5" />
+                    <span>导出 HTML 文件</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem class="cursor-pointer text-xs text-destructive focus:text-destructive" @click="deleteNote(selectedNote)">
+                    <Trash2 class="mr-2 h-3.5 w-3.5" />
+                    <span>删除笔记</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+        </template>
+
+        <!-- 场景 B2：编辑视图顶部导航 (极简纯图标、无文字) -->
+        <template v-else>
+          <div class="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2">
+            <!-- 左上角返回图标 (靠近左边缘) -->
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                  @click="finishEditing"
+                >
+                  <ChevronLeft class="size-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">完成并返回预览</TooltipContent>
+            </Tooltip>
+
+            <!-- 笔记标题编辑框 (默认显示编辑框外观) -->
             <Input
               v-model="editTitle"
               type="text"
-              class="flex-1 h-7 border-0 bg-transparent text-sm font-semibold focus-visible:ring-1 focus-visible:ring-border px-2"
+              class="flex-1 h-8 text-sm sm:text-base font-semibold px-2.5 rounded-md border border-input bg-muted/20 hover:bg-muted/40 focus:bg-background focus:border-primary/80 focus-visible:ring-1 focus-visible:ring-primary/40 transition-all placeholder:text-muted-foreground/60 shadow-xs"
               placeholder="输入笔记标题..."
               @blur="saveNote"
             />
           </div>
 
-          <div class="shrink-0 flex items-center gap-1.5 pl-2">
-            <!-- 模式切换 Tabs -->
-            <Tabs :model-value="viewMode === 'preview' ? 'preview' : 'edit'" @update:model-value="(val) => val === 'preview' ? setPreviewMode() : setEditMode()">
-              <TabsList class="h-7 p-0.5">
-                <TabsTrigger value="edit" class="text-xs px-2.5 h-6 gap-1">
-                  <Pencil class="h-3 w-3" />
-                  <span>编辑</span>
-                </TabsTrigger>
-                <TabsTrigger value="preview" class="text-xs px-2.5 h-6 gap-1">
-                  <Eye class="h-3 w-3" />
-                  <span>预览</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div class="shrink-0 flex items-center gap-1 pl-1.5">
+            <!-- 1. 移动端实时编辑/预览切换 (仅移动端显示，排序：预览图标 标签 分类) -->
+            <Button
+              variant="ghost"
+              size="icon"
+              class="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 md:hidden cursor-pointer shrink-0"
+              :class="{ 'text-primary bg-primary/10': mobileEditTab === 'preview' }"
+              :title="mobileEditTab === 'preview' ? '返回继续编辑' : '实时预览排版'"
+              @click="toggleMobilePreview"
+            >
+              <Pencil v-if="mobileEditTab === 'preview'" class="size-4" />
+              <Eye v-else class="size-4" />
+            </Button>
 
-            <!-- 分类选择 -->
-            <Popover v-model:open="isCategoryPopoverVisible">
-              <PopoverTrigger as-child>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-7 text-xs gap-1 border-border/70"
-                  :class="{ 'bg-accent text-accent-foreground font-semibold': isCategoryPopoverVisible }"
-                  title="设置所属分类"
-                >
-                  <Folder class="h-3 w-3 text-muted-foreground" />
-                  <span class="max-w-[70px] sm:max-w-[100px] truncate">{{ currentNoteCategoryName }}</span>
-                </Button>
-              </PopoverTrigger>
-
-              <PopoverContent align="end" class="w-56 p-2 shadow-lg">
-                <div class="space-y-1">
-                  <div class="text-[11px] font-medium text-muted-foreground px-2 py-1 flex items-center justify-between">
-                    <span>选择笔记分类</span>
-                    <button class="text-primary hover:underline text-[11px] cursor-pointer" @click="openManageCategories">管理分类</button>
-                  </div>
-                  <ScrollArea class="h-48">
-                    <div class="space-y-0.5 pr-2">
-                      <div
-                        class="flex items-center px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                        :class="{ 'bg-accent font-medium text-foreground': selectedNoteCategoryId === null }"
-                        @click="setNoteCategory(null); isCategoryPopoverVisible = false;"
-                      >
-                        <Folder class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
-                        <span>未分类</span>
-                      </div>
-                      <div
-                        v-for="cat in noteCategories"
-                        :key="cat.id"
-                        class="flex items-center px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                        :class="{ 'bg-accent font-medium text-foreground': selectedNoteCategoryId === cat.id }"
-                        @click="setNoteCategory(cat.id); isCategoryPopoverVisible = false;"
-                      >
-                        <component :is="mapIcon(cat.icon || '')" class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
-                        <span class="truncate">{{ cat.name }}</span>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <!-- 标签管理 -->
+            <!-- 2. 标签管理 (纯图标，无徽章) -->
             <Popover v-model:open="isTagPopoverVisible">
               <PopoverTrigger as-child>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-7 text-xs gap-1"
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 cursor-pointer shrink-0"
                   :class="{ 'bg-accent text-accent-foreground font-semibold': isTagPopoverVisible }"
-                  title="管理文章标签"
+                  :title="`文章标签 (${editTags.length})`"
                 >
-                  <Tag class="h-3 w-3" />
-                  <span>标签{{ editTags.length ? ` (${editTags.length})` : '' }}</span>
+                  <Tag class="size-4" />
                 </Button>
               </PopoverTrigger>
 
@@ -1594,8 +1703,53 @@ watch(
                       class="h-7 text-xs flex-1"
                       @keydown.enter="addTag"
                     />
-                    <Button size="sm" class="h-7 px-2.5 text-xs" @click="addTag">添加</Button>
+                    <Button size="sm" class="h-7 px-2.5 text-xs cursor-pointer" @click="addTag">添加</Button>
                   </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <!-- 3. 分类选择 (纯图标) -->
+            <Popover v-model:open="isCategoryPopoverVisible">
+              <PopoverTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 cursor-pointer shrink-0"
+                  :class="{ 'bg-accent text-accent-foreground font-semibold': isCategoryPopoverVisible }"
+                  :title="currentNoteCategoryName ? `分类: ${currentNoteCategoryName}` : '设置分类'"
+                >
+                  <Folder class="size-4" />
+                </Button>
+              </PopoverTrigger>
+
+              <PopoverContent align="end" class="w-56 p-2 shadow-lg">
+                <div class="space-y-1">
+                  <div class="text-[11px] font-medium text-muted-foreground px-2 py-1">
+                    <span>选择笔记分类</span>
+                  </div>
+                  <ScrollArea class="h-48">
+                    <div class="space-y-0.5 pr-2">
+                      <div
+                        class="flex items-center px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                        :class="{ 'bg-accent font-medium text-foreground': selectedNoteCategoryId === null }"
+                        @click="setNoteCategory(null); isCategoryPopoverVisible = false;"
+                      >
+                        <Folder class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
+                        <span>未分类</span>
+                      </div>
+                      <div
+                        v-for="cat in noteCategories"
+                        :key="cat.id"
+                        class="flex items-center px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                        :class="{ 'bg-accent font-medium text-foreground': selectedNoteCategoryId === cat.id }"
+                        @click="setNoteCategory(cat.id); isCategoryPopoverVisible = false;"
+                      >
+                        <component :is="mapIcon(cat.icon || '')" class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
+                        <span class="truncate">{{ cat.name }}</span>
+                      </div>
+                    </div>
+                  </ScrollArea>
                 </div>
               </PopoverContent>
             </Popover>
@@ -1625,7 +1779,14 @@ watch(
         </div>
 
         <!-- 笔记卡片网格 -->
-        <div v-else class="grid grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div v-else class="space-y-3">
+          <!-- 搜索状态结果提示 -->
+          <div v-if="searchQuery.trim()" class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-semibold text-foreground/80">搜索结果</span>
+            <span class="text-[11px] font-mono text-muted-foreground">({{ filteredNotes.length }})</span>
+          </div>
+
+          <div class="grid grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           <ContextMenu v-for="(n, idx) in filteredNotes" :key="n.id">
             <ContextMenuTrigger as-child>
               <Card
@@ -1655,12 +1816,12 @@ watch(
                           variant="ghost"
                           size="icon-xs"
                           class="text-muted-foreground hover:text-foreground"
-                          @click="openShareModal(n, $event)"
+                          @click="selectNote(n); startEditing('list')"
                         >
-                          <Share2 class="h-3.5 w-3.5" />
+                          <Pencil class="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="top">分享笔记</TooltipContent>
+                      <TooltipContent side="top">编辑笔记</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -1669,12 +1830,12 @@ watch(
                           variant="ghost"
                           size="icon-xs"
                           class="text-muted-foreground hover:text-foreground"
-                          @click="copyNoteContent(n.content, $event)"
+                          @click="openShareModal(n, $event)"
                         >
-                          <Copy class="h-3.5 w-3.5" />
+                          <Share2 class="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent side="top">复制内容</TooltipContent>
+                      <TooltipContent side="top">分享笔记</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -1727,6 +1888,10 @@ watch(
 
             <ContextMenuContent class="w-44">
               <ContextMenuItem @click="selectNote(n)">
+                <Eye class="mr-2 h-3.5 w-3.5" />
+                <span>查看笔记</span>
+              </ContextMenuItem>
+              <ContextMenuItem @click="selectNote(n); startEditing('list')">
                 <Pencil class="mr-2 h-3.5 w-3.5" />
                 <span>编辑笔记</span>
               </ContextMenuItem>
@@ -1745,24 +1910,84 @@ watch(
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
+          </div>
         </div>
       </div>
 
-      <!-- 场景 2：Markdown 工作台 -->
-      <div v-else class="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-x-hidden bg-card">
-        <!-- 工具栏 -->
-        <div v-if="viewMode !== 'preview'" class="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 border-b border-border bg-muted/30 overflow-x-auto max-w-full min-w-0 shrink-0">
-          <!-- 1. AI 写作下拉 -->
+      <!-- 场景 2：沉浸式阅读预览视图 (默认态) -->
+      <div v-else-if="viewMode === 'preview'" class="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6 bg-[#f8f9fa] dark:bg-background">
+        <div class="max-w-3xl mx-auto w-full">
+          <!-- 笔记元信息栏 (标题已移入顶栏；左侧分类标签自适应，右侧更新时间单行不换行，且不再显示字符数) -->
+          <div class="flex items-center justify-between gap-3 pb-3 border-b border-border/60 mb-5 text-xs text-muted-foreground">
+            <!-- 分类与标签列表 (横向自适应，不换行挤压右侧) -->
+            <div class="flex items-center gap-1.5 overflow-x-auto scrollbar-none min-w-0 py-0.5">
+              <!-- 分类 -->
+              <Badge
+                v-if="currentNoteCategoryName"
+                variant="outline"
+                class="gap-1 text-xs py-0.5 px-2 font-normal border-border/80 text-foreground/80 bg-muted/30 shrink-0"
+              >
+                <Folder class="size-3 text-muted-foreground" />
+                <span>{{ currentNoteCategoryName }}</span>
+              </Badge>
+
+              <!-- 标签列表 -->
+              <template v-if="editTags.length">
+                <Badge
+                  v-for="t in editTags"
+                  :key="t"
+                  variant="secondary"
+                  class="text-xs py-0.5 px-2 font-normal shrink-0"
+                >
+                  #{{ t }}
+                </Badge>
+              </template>
+            </div>
+
+            <!-- 右侧更新时间 (固定不换行) -->
+            <span
+              v-if="selectedNote?.updated_at"
+              class="font-mono text-[11px] text-muted-foreground/70 shrink-0 whitespace-nowrap"
+            >
+              更新于 {{ formatDate(selectedNote.updated_at) }}
+            </span>
+          </div>
+
+          <!-- Markdown 正文渲染 -->
+          <div
+            v-if="editContent.trim()"
+            class="ai-markdown-body leading-relaxed"
+            v-html="renderMarkdown(editContent)"
+            @click="handlePreviewClick"
+          />
+          <div v-else class="py-16 text-center text-muted-foreground text-xs flex flex-col items-center justify-center">
+            <FileText class="size-8 text-muted-foreground/40 mb-2" />
+            <p class="mb-3">笔记暂无内容</p>
+            <Button size="sm" variant="outline" class="gap-1.5 text-xs cursor-pointer" @click="startEditing('preview')">
+              <Pencil class="size-3.5" />
+              <span>开始书写</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 场景 3：专注编辑与排版工作台 -->
+      <div v-else class="flex-1 flex flex-col min-h-0 h-full w-full min-w-0 max-w-full overflow-hidden bg-[#f8f9fa] dark:bg-background">
+        <!-- 工具栏 (移动端预览时隐藏，预留完整阅读空间) -->
+        <div
+          v-show="!isMobile || mobileEditTab === 'edit'"
+          class="flex items-center gap-1.5 sm:gap-1 px-2.5 sm:px-3 py-1.5 border-b border-border bg-muted/30 overflow-x-auto scrollbar-none max-w-full min-w-0 shrink-0"
+        >
+          <!-- 1. AI 写作下拉 (与其他工具统一为纯图标展示) -->
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button
-                variant="outline"
-                size="xs"
-                class="gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                variant="ghost"
+                class="size-7 sm:size-6 p-0 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer shrink-0"
+                title="AI 智能写作协同"
               >
-                <Loader2 v-if="isAiWorking" class="h-3.5 w-3.5 animate-spin" />
-                <Sparkles v-else class="h-3.5 w-3.5 text-primary" />
-                <span class="text-[11px]">AI 助手</span>
+                <Loader2 v-if="isAiWorking" class="size-3.5 animate-spin" />
+                <Sparkles v-else class="size-3.5 text-primary" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" class="w-44">
@@ -1802,19 +2027,14 @@ watch(
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Separator orientation="vertical" class="h-3.5 mx-1" />
+          <Separator orientation="vertical" class="h-3.5 mx-0.5 sm:mx-1 shrink-0" />
 
           <!-- 2. 标题下拉 -->
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button variant="ghost" size="icon-xs">
-                    <span class="font-bold text-xs">H</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">标题分级</TooltipContent>
-              </Tooltip>
+              <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="标题分级">
+                <span class="font-bold text-xs">H</span>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" class="w-36">
               <DropdownMenuItem @click="insertHeading('1')"><span class="font-bold mr-2">H1</span> 一级标题</DropdownMenuItem>
@@ -1827,174 +2047,127 @@ watch(
           </DropdownMenu>
 
           <!-- 3. 加粗/斜体/删除线 -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertWrap('**', '**', '加粗文本')">
-                <span class="font-bold text-xs">B</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">加粗 (Ctrl+B)</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="加粗 (Ctrl+B)" @click="insertWrap('**', '**', '加粗文本')">
+            <span class="font-bold text-xs">B</span>
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertWrap('*', '*', '斜体文本')">
-                <span class="italic font-serif text-xs">I</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">斜体 (Ctrl+I)</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="斜体 (Ctrl+I)" @click="insertWrap('*', '*', '斜体文本')">
+            <span class="italic font-serif text-xs">I</span>
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertWrap('~~', '~~', '删除文本')">
-                <span class="line-through text-xs">S</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">删除线</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="删除线" @click="insertWrap('~~', '~~', '删除文本')">
+            <span class="line-through text-xs">S</span>
+          </Button>
 
-          <Separator orientation="vertical" class="h-3.5 mx-1" />
+          <Separator orientation="vertical" class="h-3.5 mx-0.5 sm:mx-1 shrink-0" />
 
           <!-- 4. 块级工具 -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertBlockPrefix('> ')">
-                <Quote class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">引用块</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="引用块" @click="insertBlockPrefix('> ')">
+            <Quote class="h-3.5 w-3.5" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertBlockPrefix('- [ ] ')">
-                <CheckSquare class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">待办清单</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="待办清单" @click="insertBlockPrefix('- [ ] ')">
+            <CheckSquare class="h-3.5 w-3.5" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertBlockPrefix('- ')">
-                <List class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">无序列表</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="无序列表" @click="insertBlockPrefix('- ')">
+            <List class="h-3.5 w-3.5" />
+          </Button>
 
-          <Separator orientation="vertical" class="h-3.5 mx-1" />
+          <Separator orientation="vertical" class="h-3.5 mx-0.5 sm:mx-1 shrink-0" />
 
-          <!-- 5. 代码/表格/链接 -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertWrap('\n```\n', '\n```\n', '代码内容')">
-                <span class="text-[11px] font-mono">&lt;/&gt;</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">代码块</TooltipContent>
-          </Tooltip>
+          <!-- 5. 代码/表格/链接/分割线 -->
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="代码块" @click="insertWrap('\n```\n', '\n```\n', '代码内容')">
+            <span class="text-[11px] font-mono">&lt;/&gt;</span>
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertTable">
-                <Table class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">插入表格</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="插入表格" @click="insertTable">
+            <Table class="h-3.5 w-3.5" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertLink">
-                <Link class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">插入超链接</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="插入超链接" @click="insertLink">
+            <Link class="h-3.5 w-3.5" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="insertWrap('\n---\n', '', '')">
-                <Minus class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">分割线</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="分割线" @click="insertWrap('\n---\n', '', '')">
+            <Minus class="h-3.5 w-3.5" />
+          </Button>
 
-          <Separator orientation="vertical" class="h-3.5 mx-1" />
+          <Separator orientation="vertical" class="h-3.5 mx-0.5 sm:mx-1 shrink-0" />
 
           <!-- 6. 撤销/重做/清除格式 -->
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="undoText">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C20.91 11.23 17.11 8 12.5 8z"/></svg>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">撤销 (Ctrl+Z)</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="撤销 (Ctrl+Z)" @click="undoText">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C20.91 11.23 17.11 8 12.5 8z"/></svg>
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="redoText">
-                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.61 0-8.41 3.23-9.57 7.22l2.37.78c1.05-3.19 4.06-5.5 7.6-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">重做 (Ctrl+Y)</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="重做 (Ctrl+Y)" @click="redoText">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.61 0-8.41 3.23-9.57 7.22l2.37.78c1.05-3.19 4.06-5.5 7.6-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button variant="ghost" size="icon-xs" @click="clearFormatting">
-                <X class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">清除格式</TooltipContent>
-          </Tooltip>
+          <Button variant="ghost" class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer" title="清除格式" @click="clearFormatting">
+            <X class="h-3.5 w-3.5" />
+          </Button>
 
           <!-- 7. 上传图片附件 -->
-          <Separator orientation="vertical" class="h-3.5 mx-1" />
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                :disabled="uploadingNoteFile"
-                @click="triggerNoteFileUpload"
-              >
-                <Loader2 v-if="uploadingNoteFile" class="h-3.5 w-3.5 animate-spin" />
-                <Paperclip v-else class="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">上传图片或附件</TooltipContent>
-          </Tooltip>
+          <Separator orientation="vertical" class="h-3.5 mx-0.5 sm:mx-1 shrink-0" />
+          <Button
+            variant="ghost"
+            class="size-7 sm:size-6 p-0 shrink-0 cursor-pointer"
+            :disabled="uploadingNoteFile"
+            title="上传图片或附件"
+            @click="triggerNoteFileUpload"
+          >
+            <Loader2 v-if="uploadingNoteFile" class="h-3.5 w-3.5 animate-spin" />
+            <Paperclip v-else class="h-3.5 w-3.5" />
+          </Button>
           <input ref="noteFileInputRef" type="file" hidden @change="onNoteFileChange" />
+
+          <!-- PC 端在工具条靠右显示字数与保存状态 (移动端空间有限保持底部) -->
+          <div class="hidden md:flex ml-auto items-center gap-3 text-[11px] text-muted-foreground font-mono shrink-0 pl-3">
+            <span>{{ noteStats.chars }} 字符</span>
+            <div class="flex items-center gap-1.5">
+              <template v-if="saveStatus === 'saving'">
+                <Loader2 class="h-3.5 w-3.5 animate-spin text-primary" />
+                <span>正在保存...</span>
+              </template>
+              <template v-else-if="saveStatus === 'unsaved'">
+                <span class="text-amber-500 font-bold">●</span>
+                <span>未保存</span>
+              </template>
+              <template v-else>
+                <CheckCircle2 class="h-3.5 w-3.5 text-emerald-500" />
+                <span>已保存 {{ lastSavedTime ? '于 ' + lastSavedTime : '' }}</span>
+              </template>
+            </div>
+          </div>
         </div>
 
         <!-- 内容分栏展示区域 -->
-        <div class="flex-1 flex min-h-0 overflow-hidden">
-          <!-- 1. 编辑框 -->
+        <div class="flex-1 flex min-h-0 h-full overflow-hidden">
+          <!-- 1. 编辑框 (PC端始终显示，移动端在 mobileEditTab === 'edit' 时显示) -->
           <div
-            v-show="viewMode === 'edit' || viewMode === 'split'"
-            class="flex-1 flex flex-col min-w-0 border-r border-border relative bg-card"
+            v-show="!isMobile || mobileEditTab === 'edit'"
+            class="flex-1 flex flex-col min-w-0 h-full min-h-0 relative bg-card overflow-hidden"
+            :class="{ 'border-r border-border': !isMobile }"
             @mouseenter="setScrollSource('editor')"
+            @touchstart="setScrollSource('editor')"
           >
             <textarea
               ref="textareaRef"
               v-model="editContent"
-              class="flex-1 w-full p-4 sm:p-5 text-xs font-mono bg-transparent text-foreground outline-none resize-none leading-relaxed placeholder:text-muted-foreground"
+              class="flex-1 w-full h-full min-h-0 p-4 sm:p-5 text-xs sm:text-[13px] font-mono bg-transparent text-foreground outline-none resize-none leading-relaxed placeholder:text-muted-foreground overflow-y-auto"
               placeholder="在此撰写 Markdown 笔记内容，支持快捷键 (Ctrl+B/I/S, Tab缩进, 回车智能列表)..."
-              @keydown="handleTextareaKeyDown"
+              @keydown="handleTextareaKeyDown; setScrollSource('editor')"
               @paste="handleNotesPaste"
+              @focus="setScrollSource('editor')"
               @scroll="onEditorScroll"
               @blur="saveNote"
               @mouseenter="setScrollSource('editor')"
             ></textarea>
 
-            <!-- 底部状态栏 -->
-            <div class="h-7 px-3 border-t border-border bg-muted/20 flex items-center justify-between text-[11px] text-muted-foreground font-mono shrink-0">
-              <span>{{ noteStats.chars }} 字符 · {{ noteStats.words }} 词</span>
+            <!-- 底部状态栏 (移动端保留，PC端已移至上方工具条右侧显示) -->
+            <div class="md:hidden h-7 px-3 border-t border-border bg-muted/20 flex items-center justify-between text-[11px] text-muted-foreground font-mono shrink-0">
+              <span>{{ noteStats.chars }} 字符</span>
               <div class="flex items-center gap-1.5">
                 <template v-if="saveStatus === 'saving'">
                   <Loader2 class="h-3.5 w-3.5 animate-spin text-primary" />
@@ -2012,14 +2185,15 @@ watch(
             </div>
           </div>
 
-          <!-- 2. 实时预览区 -->
+          <!-- 2. 实时分栏预览区 (PC端始终显示双栏对照，移动端在 mobileEditTab === 'preview' 时单屏预览) -->
           <div
-            v-show="viewMode === 'preview' || viewMode === 'split'"
+            v-show="!isMobile || mobileEditTab === 'preview'"
             ref="previewWrapperRef"
-            class="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/10"
+            class="flex-1 h-full min-h-0 p-4 sm:p-6 overflow-y-auto bg-muted/10"
             @scroll="onPreviewScroll"
-            @click="handlePreviewClick"
+            @click="handlePreviewClick; setScrollSource('preview')"
             @mouseenter="setScrollSource('preview')"
+            @touchstart="setScrollSource('preview')"
           >
             <div
               v-if="editContent.trim()"
@@ -2040,6 +2214,7 @@ watch(
       <DialogContent class="sm:max-w-[440px]">
         <DialogHeader>
           <DialogTitle>分享笔记「{{ targetNoteForShare?.title || '未命名' }}」</DialogTitle>
+          <DialogDescription>创建或查看当前笔记的分享链接与访问凭证</DialogDescription>
         </DialogHeader>
 
         <Tabs :model-value="activeShareTab" @update:model-value="(val) => activeShareTab = val as 'create' | 'history'" class="mb-3">
@@ -2160,7 +2335,7 @@ watch(
           </ScrollArea>
         </div>
 
-        <DialogFooter class="gap-2 sm:gap-0">
+        <DialogFooter class="gap-2">
           <template v-if="activeShareTab === 'create'">
             <template v-if="!createdShare">
               <Button variant="outline" @click="showShareModal = false">关闭</Button>
@@ -2191,6 +2366,7 @@ watch(
       <DialogContent class="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>AI 自定义写作指令</DialogTitle>
+          <DialogDescription>输入针对当前笔记正文的个性化 AI 写作或优化指令</DialogDescription>
         </DialogHeader>
 
         <div class="space-y-2.5 py-2">
@@ -2205,7 +2381,7 @@ watch(
           />
         </div>
 
-        <DialogFooter class="gap-2 sm:gap-0">
+        <DialogFooter class="gap-2">
           <Button variant="outline" @click="showAiPromptDialog = false">取消</Button>
           <Button
             :disabled="!customAiPrompt.trim()"
@@ -2225,6 +2401,7 @@ watch(
             <Folder class="h-5 w-5 text-primary" />
             笔记分类管理
           </DialogTitle>
+          <DialogDescription>管理与新建您的知识库分类体系</DialogDescription>
         </DialogHeader>
 
         <div class="space-y-4 py-2">

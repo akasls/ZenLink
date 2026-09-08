@@ -324,13 +324,22 @@ export default async function noteRoutes(fastify: FastifyInstance) {
     };
   });
 
-  // 获取笔记的分享列表
+  // 获取笔记的分享列表（脱敏 password 敏感字段，仅返回 has_password）
   fastify.get('/api/notes/:id/shares', { preHandler: [authenticate] }, async (request) => {
     const { id } = request.params as { id: string };
-    const shares = dbHelper.all(
+    const rawShares = dbHelper.all(
       'SELECT id, note_id, password, expires_at, burn_after_reading, views_count, created_at FROM note_shares WHERE note_id = ? ORDER BY created_at DESC',
       [Number(id)]
     );
+    const shares = rawShares.map((s: any) => ({
+      id: s.id,
+      note_id: s.note_id,
+      has_password: !!(s.password && s.password.trim()),
+      expires_at: s.expires_at,
+      burn_after_reading: !!s.burn_after_reading,
+      views_count: s.views_count,
+      created_at: s.created_at,
+    }));
     return { shares };
   });
 
@@ -367,10 +376,16 @@ export default async function noteRoutes(fastify: FastifyInstance) {
     };
   });
 
+  const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+
   // 获取文件原始内容 (用于图片预览/直接内嵌)
   fastify.get('/api/notes/raw/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
     const safeFile = basename(filename);
+
+    if (WINDOWS_RESERVED.test(safeFile) || safeFile.includes('..') || !safeFile.trim()) {
+      return reply.status(400).send({ error: '无效的文件名' });
+    }
 
     const config = getStorageSettings();
     if (config.storage_type === 'r2' && config.r2_bucket_name) {
@@ -425,6 +440,11 @@ export default async function noteRoutes(fastify: FastifyInstance) {
     const { filename } = request.params as { filename: string };
     const { name } = request.query as { name?: string };
     const safeFile = basename(filename);
+
+    if (WINDOWS_RESERVED.test(safeFile) || safeFile.includes('..') || !safeFile.trim()) {
+      return reply.status(400).send({ error: '无效的文件名' });
+    }
+
     const downloadName = name || safeFile;
 
     const config = getStorageSettings();

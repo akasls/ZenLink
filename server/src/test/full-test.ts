@@ -88,6 +88,19 @@ async function runTests() {
     assertEqual(res.statusCode, 401, '未登录应返回 401');
   });
 
+  await test('非法 Origin 跨域请求应被 CORS 策略阻断', async () => {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/api/settings',
+      headers: { origin: 'http://malicious-attacker.com' },
+    });
+    assert(
+      res.statusCode === 500 ||
+      res.headers['access-control-allow-origin'] !== 'http://malicious-attacker.com',
+      '恶意 Origin 不应获得跨域允许'
+    );
+  });
+
   // ==========================================
   // Suite 2: 用户认证与安全模块
   // ==========================================
@@ -148,6 +161,50 @@ async function runTests() {
       payload: { currentPassword: 'wrong', newPassword: 'admin123_new' },
     });
     assertEqual(res.statusCode, 400, '旧密码错误应返回 400');
+  });
+
+  await test('密码修改后旧 JWT 凭据应被立即注销吊销 (401)', async () => {
+    // 1. 修改为新密码
+    const changeRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { currentPassword: 'admin123', newPassword: 'newAdminPassword123!' },
+    });
+    assertEqual(changeRes.statusCode, 200, '密码修改应成功');
+
+    // 2. 旧 Token 必须被吊销 (401)
+    const oldMeRes = await fastify.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assertEqual(oldMeRes.statusCode, 401, '旧 Token 必须被注销拦截返回 401');
+
+    // 3. 使用新密码登录并获取新 Token
+    const loginRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'admin', password: 'newAdminPassword123!' },
+    });
+    assertEqual(loginRes.statusCode, 200, '新密码登录应成功');
+    const newAdminToken = JSON.parse(loginRes.body).token;
+
+    // 4. 将密码改回 admin123 恢复基准测试环境
+    const rollbackRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${newAdminToken}` },
+      payload: { currentPassword: 'newAdminPassword123!', newPassword: 'admin123' },
+    });
+    assertEqual(rollbackRes.statusCode, 200, '密码回滚应成功');
+
+    const finalLogin = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'admin', password: 'admin123' },
+    });
+    adminToken = JSON.parse(finalLogin.body).token;
   });
 
   await test('TOTP 2FA 密钥初始化 (setup) 应生成密钥与二维码', async () => {
@@ -576,6 +633,20 @@ async function runTests() {
     assertEqual(rightVerify.statusCode, 200, '正确密码应返回 200');
     const rightData = JSON.parse(rightVerify.body);
     assert(rightData.transfer?.content, '应返回正文内容');
+
+    // 3.1 分享列表脱敏检查：绝对不能在 API 中回传明文 password 字段
+    const listSharesRes = await fastify.inject({
+      method: 'GET',
+      url: `/api/notes/${testNoteId}/shares`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assertEqual(listSharesRes.statusCode, 200, '获取分享列表应返回 200');
+    const listSharesData = JSON.parse(listSharesRes.body);
+    assert(Array.isArray(listSharesData.shares), 'shares 应为数组');
+    const targetShare = listSharesData.shares.find((s: any) => s.id === pwdCode);
+    assert(targetShare, '应包含刚才创建的分享项');
+    assertEqual(targetShare.has_password, true, 'has_password 标识应为 true');
+    assert(!targetShare.password, '严禁在分享列表中明文暴露 password 字段');
 
     // 4. 清理分享
     await fastify.inject({

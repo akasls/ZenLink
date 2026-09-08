@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { dbHelper, saveDatabase } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
-import { isSafeUrl } from '../services/meta-scraper.js';
+import { isSafeUrl, safeFetch } from '../services/meta-scraper.js';
 import { randomUUID } from 'crypto';
 
 export default async function aiRoutes(fastify: FastifyInstance) {
@@ -131,7 +131,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 6000);
-      const res = await fetch(targetUrl, {
+      const res = await safeFetch(targetUrl, {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
         },
@@ -345,6 +345,14 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true });
   });
 
+  // 7.3 截断会话：删除某条消息及其之后的所有消息 (用于编辑历史提问重新生成)
+  fastify.delete('/api/ai/conversations/:id/messages-from/:messageId', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id, messageId } = request.params as { id: string; messageId: string };
+    dbHelper.run('DELETE FROM ai_messages WHERE conversation_id = ? AND id >= ?', [id, Number(messageId)]);
+    saveDatabase();
+    return reply.send({ success: true });
+  });
+
   // 8. 流式对话接口 (SSE / Streaming Completion，支持私密模式不留痕)
   fastify.post('/api/ai/chat', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
@@ -380,7 +388,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         const title = message.trim().slice(0, 20) + (message.length > 20 ? '...' : '');
         dbHelper.run(
           'INSERT INTO ai_conversations (id, title, model, role_id, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [conversation_id, title, requestModel || 'deepseek-chat', role_id || 'default', '', now, now]
+          [conversation_id, title, requestModel || 'deepseek-chat', role_id || 'default', '💬', now, now]
         );
       } else {
         // 无论是否是新会话，只要发送消息就刷新 updated_at 与 role_id

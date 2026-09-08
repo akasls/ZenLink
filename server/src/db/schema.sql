@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  token_version INTEGER NOT NULL DEFAULT 1,
   -- TOTP 2FA
   totp_secret TEXT,
   totp_enabled INTEGER NOT NULL DEFAULT 0,
@@ -63,6 +64,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_bookmarks_category ON bookmarks(category_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_private ON bookmarks(is_private);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_perf_query ON bookmarks(is_private, category_id, sort_order ASC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
 CREATE INDEX IF NOT EXISTS idx_webauthn_user ON webauthn_credentials(user_id);
 

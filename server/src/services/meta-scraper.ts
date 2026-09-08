@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import net from 'net';
 import dns from 'dns/promises';
+import { Agent } from 'undici';
 
 export interface SiteMeta {
   title: string;
@@ -117,21 +118,96 @@ export function isSafeUrl(targetUrl: string): boolean {
 }
 
 /**
- * 安全的 HTTP 抓取客户端：严格限制重定向次数并逐跳校验目标 IP，杜绝 302 重定向 SSRF
+ * 流式按字节截断读取响应文本（默认上限 512KB），杜绝超大 HTML 响应导致的 OOM 内存炸弹
+ */
+export async function getBoundedResponseText(response: Response, maxSize = 512 * 1024): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return await response.text();
+  }
+
+  const decoder = new TextDecoder('utf-8');
+  let result = '';
+  let bytesRead = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      if (bytesRead > maxSize) {
+        const remaining = Math.max(0, maxSize - (bytesRead - value.byteLength));
+        if (remaining > 0) {
+          result += decoder.decode(value.slice(0, remaining), { stream: false });
+        }
+        await reader.cancel();
+        break;
+      }
+      result += decoder.decode(value, { stream: true });
+    }
+  } catch {
+    // 捕获可能产生的 stream 中断
+  }
+
+  return result;
+}
+
+/**
+ * 安全的 HTTP 抓取客户端：严格锁定解析后的 IP（防止 TOCTOU DNS Rebinding）并限制逐跳校验
  */
 export async function safeFetch(url: string, options: RequestInit = {}, maxRedirects = 3): Promise<Response> {
   let currentUrl = url;
   let redirectCount = 0;
 
   while (redirectCount <= maxRedirects) {
-    const isSafe = await isSafeUrlAsync(currentUrl);
-    if (!isSafe) {
-      throw new Error(`SSRF Blocked: ${currentUrl} is not a safe destination`);
+    const parsed = new URL(currentUrl);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error(`Invalid protocol: ${parsed.protocol}`);
     }
 
-    const res = await fetch(currentUrl, {
+    let hostname = parsed.hostname.toLowerCase();
+    if (hostname.startsWith('[') && hostname.endsWith(']')) {
+      hostname = hostname.slice(1, -1);
+    }
+
+    if (!hostname || hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+      throw new Error(`SSRF Blocked: forbidden hostname ${hostname}`);
+    }
+
+    if (net.isIP(hostname)) {
+      if (isPrivateIp(hostname)) {
+        throw new Error(`SSRF Blocked: forbidden private IP ${hostname}`);
+      }
+    }
+
+    // 严格解析 DNS 并逐一校验所有解析得到的 IP
+    const addresses = await dns.lookup(hostname, { all: true });
+    if (!addresses || addresses.length === 0) {
+      throw new Error(`SSRF Blocked: DNS resolution failed for ${hostname}`);
+    }
+
+    for (const addr of addresses) {
+      if (isPrivateIp(addr.address)) {
+        throw new Error(`SSRF Blocked: ${hostname} resolved to private IP ${addr.address}`);
+      }
+    }
+
+    // 锁定已验证通过的 IP，杜绝底层二次解析遭受 TOCTOU DNS Rebinding 逃逸
+    const resolvedIp = addresses[0].address;
+    const isIPv6 = net.isIP(resolvedIp) === 6;
+
+    const dispatcher = new Agent({
+      connect: {
+        lookup: (_h, _opt, cb) => {
+          cb(null, resolvedIp, isIPv6 ? 6 : 4);
+        },
+      },
+    });
+
+    const res = await (globalThis.fetch as any)(currentUrl, {
       ...options,
       redirect: 'manual',
+      dispatcher,
     });
 
     if ([301, 302, 303, 307, 308].includes(res.status)) {
@@ -188,7 +264,7 @@ export async function fetchSiteMeta(url: string): Promise<SiteMeta> {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const html = await response.text();
+    const html = await getBoundedResponseText(response);
     const $ = cheerio.load(html);
 
     // 1. 提取标题（优先级：og:title > twitter:title > <title>）

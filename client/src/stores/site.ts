@@ -95,17 +95,18 @@ export const useSiteStore = defineStore('site', () => {
     site_name: string;
     site_desc: string;
     site_logo?: string;
-    default_engine: string;
+    default_engine?: string;
     search_bg_mode?: string;
     search_bg_image?: string;
   }) {
-    await settingsApi.save(data);
+    const engine = data.default_engine || defaultEngine.value || 'google';
+    await settingsApi.save({ ...data, default_engine: engine });
     siteName.value = data.site_name;
     siteDesc.value = data.site_desc;
-    defaultEngine.value = data.default_engine;
+    defaultEngine.value = engine;
     localStorage.setItem('zl_site_name', data.site_name);
     localStorage.setItem('zl_site_desc', data.site_desc);
-    localStorage.setItem('zl_default_engine', data.default_engine);
+    localStorage.setItem('zl_default_engine', engine);
 
     if (data.site_logo !== undefined) {
       setSiteLogo(data.site_logo);

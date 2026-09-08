@@ -20,7 +20,21 @@ const { isMobile, state, setOpen } = useSidebar();
 </script>
 
 <template>
+  <!-- Non-collapsible regular sidebar branch (e.g. inner nested sidebars in sidebar-09) -->
   <div
+    v-if="collapsible === 'none'"
+    :class="
+      cn(
+        'flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground',
+        props.class
+      )
+    "
+  >
+    <slot />
+  </div>
+
+  <div
+    v-else
     class="group peer text-sidebar-foreground"
     :data-state="state"
     :data-collapsible="state === 'collapsed' ? collapsible : ''"
@@ -30,7 +44,7 @@ const { isMobile, state, setOpen } = useSidebar();
     <!-- Mobile Backdrop when expanded -->
     <div
       v-if="isMobile && state === 'expanded'"
-      class="fixed inset-0 z-20 bg-black/40 backdrop-blur-xs transition-opacity md:hidden"
+      class="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity md:hidden"
       @click="setOpen(false)"
     />
 
@@ -54,7 +68,7 @@ const { isMobile, state, setOpen } = useSidebar();
     <div
       :class="
         cn(
-          'duration-200 fixed inset-y-0 z-30 h-svh transition-[left,right,width] ease-linear flex flex-col',
+          'duration-200 fixed inset-y-0 z-40 md:z-30 h-svh transition-[left,right,width] ease-linear flex flex-col',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',

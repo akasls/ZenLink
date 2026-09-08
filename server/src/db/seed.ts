@@ -1,5 +1,6 @@
 import dbHelper, { saveDatabase } from './index.js';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 /**
  * 初始化种子数据：创建默认管理员账户、分类和示例书签
@@ -10,9 +11,18 @@ export function seedDatabase(): void {
 
   console.log('🌱 正在创建种子数据...');
 
-  // 创建默认管理员
-  const passwordHash = bcrypt.hashSync('admin123', 12);
-  dbHelper.run('INSERT INTO users (username, password_hash) VALUES (?, ?)', ['admin', passwordHash]);
+  // 创建默认管理员 (生产环境优先从环境变量读取，若未设置则生成高强度随机密码)
+  const isDevOrTest = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
+  const initialPassword = process.env.INITIAL_ADMIN_PASSWORD || (isDevOrTest ? 'admin123' : crypto.randomBytes(8).toString('hex'));
+  const passwordHash = bcrypt.hashSync(initialPassword, 12);
+  dbHelper.run('INSERT INTO users (username, password_hash, token_version) VALUES (?, ?, 1)', ['admin', passwordHash]);
+
+  if (!isDevOrTest && !process.env.INITIAL_ADMIN_PASSWORD) {
+    console.warn(`\n⚠️  ====================================================`);
+    console.warn(`🔐 系统首次运行已生成管理员安全随机口令: ${initialPassword}`);
+    console.warn(`⚠️  请妥善保存并登录后立即在控制台修改密码！`);
+    console.warn(`====================================================\n`);
+  }
 
   // ===== 一级分类 =====
   const topCategories = [

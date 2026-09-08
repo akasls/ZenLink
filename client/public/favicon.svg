@@ -1,68 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <!-- 背景流光渐变 -->
-    <linearGradient id="zl-bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="50%" stop-color="#1e1b4b"/>
-      <stop offset="100%" stop-color="#090d16"/>
+    <!-- 背景渐变：现代黑曜石深色微过渡 -->
+    <linearGradient id="zen-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f131a"/>
+      <stop offset="100%" stop-color="#07090c"/>
     </linearGradient>
 
-    <!-- 主体 Z-Link 霓虹流动渐变 -->
-    <linearGradient id="zl-main-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f43f5e"/>
-      <stop offset="35%" stop-color="#ec4899"/>
-      <stop offset="70%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#38bdf8"/>
+    <!-- 品牌主色渐变：克制纯粹的珊瑚绯红至玫瑰深红 -->
+    <linearGradient id="zen-brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff3b5c"/>
+      <stop offset="50%" stop-color="#f1404b"/>
+      <stop offset="100%" stop-color="#d91b40"/>
     </linearGradient>
 
-    <!-- 次级光晕渐变 -->
-    <linearGradient id="zl-accent-grad" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="50%" stop-color="#818cf8"/>
-      <stop offset="100%" stop-color="#f43f5e"/>
+    <linearGradient id="zen-brand-alt" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff5e7b"/>
+      <stop offset="50%" stop-color="#f1404b"/>
+      <stop offset="100%" stop-color="#cc183a"/>
     </linearGradient>
 
-    <!-- 柔和外发光滤镜 -->
-    <filter id="zl-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="16" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    <!-- 柔和微投影增强立体层次 -->
+    <filter id="zen-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="22" flood-color="#f1404b" flood-opacity="0.32"/>
     </filter>
-
-    <!-- 顶部高光微反光 -->
-    <linearGradient id="zl-glass-reflect" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
-      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.03"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
   </defs>
 
-  <!-- 1. 圆角 Squircle 容器背景 -->
-  <rect width="512" height="512" rx="118" fill="url(#zl-bg-grad)"/>
+  <!-- 1. 外部圆角超椭圆容器 (Squircle) -->
+  <rect width="512" height="512" rx="124" fill="url(#zen-bg)"/>
+  <rect x="2" y="2" width="508" height="508" rx="122" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
 
-  <!-- 2. 外部微发光细边框 -->
-  <rect x="6" y="6" width="500" height="500" rx="112" fill="none" stroke="url(#zl-main-grad)" stroke-width="3.5" stroke-opacity="0.45"/>
+  <!-- 2. 核心图腾：极简双环互锁构成的 Zen-Link 几何字母 Z -->
+  <g filter="url(#zen-shadow)">
+    <!-- 上半部环形链扣 (Top Link Node) -->
+    <path d="M 152 164 H 328 C 362 164 384 186 384 216 C 384 240 370 258 350 268 L 226 352" 
+          fill="none" 
+          stroke="url(#zen-brand)" 
+          stroke-width="48" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
 
-  <!-- 3. 背景微光晕粒子 -->
-  <circle cx="160" cy="160" r="140" fill="#f43f5e" opacity="0.16"/>
-  <circle cx="350" cy="350" r="140" fill="#6366f1" opacity="0.22"/>
-  <circle cx="360" cy="150" r="110" fill="#38bdf8" opacity="0.18"/>
+    <!-- 下半部环形链扣 (Bottom Link Node) 形成完美互锁与对角穿插 -->
+    <path d="M 360 348 H 184 C 150 348 128 326 128 296 C 128 272 142 254 162 244 L 286 160" 
+          fill="none" 
+          stroke="url(#zen-brand-alt)" 
+          stroke-width="48" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"/>
 
-  <!-- 4. 核心 Z-Link 图标几何体 (互锁环形超椭圆，代表 Zen + Link 极简连接) -->
-  <g filter="url(#zl-glow)">
-    <!-- 上部左侧环 (环形链扣 1) -->
-    <path d="M168 144 H304 C352 144 384 176 384 216 C384 250 358 276 324 286 L210 324" 
-          fill="none" stroke="url(#zl-main-grad)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- 下部右侧环 (环形链扣 2 与 Z 形对角线强力穿插) -->
-    <path d="M344 368 H208 C160 368 128 336 128 296 C128 262 154 236 188 226 L302 188" 
-          fill="none" stroke="url(#zl-accent-grad)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
-
-    <!-- 中枢 Z 轴光感连接核 -->
-    <circle cx="256" cy="256" r="22" fill="#ffffff" opacity="0.95" />
-    <circle cx="256" cy="256" r="32" fill="url(#zl-main-grad)" opacity="0.5" />
+    <!-- 中枢互锁连接核心点 (Zen Link Core) -->
+    <circle cx="256" cy="256" r="22" fill="#ffffff" />
+    <circle cx="256" cy="256" r="12" fill="#f1404b" />
   </g>
-
-  <!-- 5. 顶部有机玻璃质感弧光 -->
-  <path d="M0 118 C0 52 52 0 118 0 H394 C460 0 512 52 512 118 V220 C410 250 280 240 180 210 C80 180 0 200 0 200 Z" 
-        fill="url(#zl-glass-reflect)" />
 </svg>

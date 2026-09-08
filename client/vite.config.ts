@@ -13,6 +13,7 @@ export default defineConfig({
         name: 'ZenLink 网址导航',
         short_name: 'ZenLink',
         description: '现代化自建网址导航、在线云笔记与 AI 智能工作台',
+        lang: 'zh-CN',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',

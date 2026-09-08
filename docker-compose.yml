@@ -13,7 +13,8 @@ services:
     environment:
       - PORT=3000
       - HOST=0.0.0.0
-      - JWT_SECRET=zenlink_secure_secret_key_change_me
+      # JWT_SECRET 可选：系统会自动生成并安全持久化在数据卷的 .jwt_secret 中，无需手动配置
+      # - JWT_SECRET=your_custom_secret_key
     volumes:
       # 持久化数据库与上传文件
       - ./zenlink_data:/app/server/data
