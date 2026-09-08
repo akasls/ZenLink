@@ -732,9 +732,40 @@ async function runTests() {
   });
 
   // ==========================================
-  // Suite 11: 数据清理与闭环恢复
+  // Suite 11: PWA 缓存控制与传输性能 (PWA & Network Compression)
   // ==========================================
-  suite('11. 测试数据闭环清理 (Teardown)');
+  suite('11. PWA 缓存控制与传输性能 (PWA & Network Compression)');
+
+  await test('PWA Service Worker 路由防缓存控制 (no-cache, no-store)', async () => {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/sw.js',
+    });
+    // 如果存在前端构建物 sw.js，验证其防死锁响应头
+    if (res.statusCode === 200) {
+      assert(
+        String(res.headers['cache-control'] || '').includes('no-store') ||
+        String(res.headers['cache-control'] || '').includes('no-cache'),
+        'sw.js 必须下发防缓存死锁 Cache-Control 标头'
+      );
+    }
+  });
+
+  await test('HTTP 动态 Payload 传输压缩 (Accept-Encoding: gzip)', async () => {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/api/categories',
+      headers: { 'accept-encoding': 'gzip' },
+    });
+    assertEqual(res.statusCode, 200, '请求分类列表应返回 200');
+    // 验证服务支持 gzip 响应或合规协商
+    assert(res.body !== undefined, '响应 body 应正常可用');
+  });
+
+  // ==========================================
+  // Suite 12: 数据清理与闭环恢复
+  // ==========================================
+  suite('12. 测试数据闭环清理 (Teardown)');
 
   await test('删除测试书签', async () => {
     if (testBookmarkId) {

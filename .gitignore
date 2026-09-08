@@ -45,3 +45,9 @@ target_site.html
 scraped_data.json
 parsed_summary.json
 webstack_*.css
+*.tmp
+*.bak
+*.swp
+
+# Secrets & credentials
+**/.jwt_secret
