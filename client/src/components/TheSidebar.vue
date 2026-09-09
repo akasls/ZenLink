@@ -451,8 +451,8 @@ function handleSelectAdminTab(tab: string) {
     <!-- 第一轨: 固定 52px 图标轨 (Icon Rail) -->
     <Sidebar
       collapsible="none"
-      class="!w-[52px] border-r border-sidebar-border shrink-0 flex flex-col items-center justify-between group-data-[collapsible=icon]:border-r-0 select-none bg-sidebar"
-      style="padding-top: max(0.75rem, env(safe-area-inset-top, 0px)); padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));"
+      class="!w-[52px] h-full min-h-full border-r border-sidebar-border shrink-0 flex flex-col items-center justify-between group-data-[collapsible=icon]:border-r-0 select-none bg-sidebar"
+      style="padding-top: max(0.75rem, env(safe-area-inset-top, 0px)); padding-bottom: max(1rem, calc(0.5rem + env(safe-area-inset-bottom, 0px)));"
     >
       <!-- 上半部: 展开收起副侧边栏按钮 & 核心导航图标列 -->
       <div class="flex flex-col items-center gap-3.5 w-full">

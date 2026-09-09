@@ -380,11 +380,11 @@ onUnmounted(() => {
         :class="{ 'h-screen max-h-screen overflow-hidden': currentView === 'ai' || (currentView === 'notes' && notesData.selectedNoteId) }"
       >
         <!-- 1. 网址导航功能主视图 -->
-        <div v-show="currentView === 'home'" class="flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-[#f8f9fa] dark:bg-background">
+        <div v-show="currentView === 'home'" class="flex flex-col min-h-screen min-h-dvh w-full min-w-0 max-w-full overflow-x-hidden bg-background">
             <!-- Bookmarks & Categories Container -->
             <div
               class="flex-1 p-3 sm:p-5 md:p-6 max-w-[1600px] w-full min-w-0 max-w-full overflow-x-hidden mx-auto box-border"
-              style="padding-top: max(0.75rem, calc(0.75rem + env(safe-area-inset-top, 0px)));"
+              style="padding-top: max(1.5rem, calc(0.75rem + env(safe-area-inset-top, 0px)));"
             >
               <div v-if="!loading">
                 <!-- 搜索状态结果 -->

@@ -52,7 +52,7 @@ const { isMobile, state, setOpen } = useSidebar();
     <div
       :class="
         cn(
-          'duration-200 relative h-svh bg-transparent transition-[width] ease-linear shrink-0',
+          'duration-200 relative min-h-screen min-h-dvh h-full bg-transparent transition-[width] ease-linear shrink-0',
           'w-[--sidebar-width-icon] md:w-[--sidebar-width]',
           'group-data-[collapsible=icon]:w-[--sidebar-width-icon]',
           'group-data-[collapsible=offcanvas]:w-0',
@@ -68,7 +68,7 @@ const { isMobile, state, setOpen } = useSidebar();
     <div
       :class="
         cn(
-          'duration-200 fixed inset-y-0 z-40 md:z-30 transition-[left,right,width] ease-linear flex flex-col',
+          'duration-200 fixed inset-y-0 top-0 bottom-0 z-40 md:z-30 h-full min-h-screen min-h-dvh h-dvh transition-[left,right,width] ease-linear flex flex-col',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
@@ -82,7 +82,7 @@ const { isMobile, state, setOpen } = useSidebar();
         data-sidebar="sidebar"
         :class="
           cn(
-            'flex h-full w-full flex-col bg-sidebar overflow-hidden',
+            'flex h-full min-h-full w-full flex-col bg-sidebar overflow-hidden',
             variant === 'floating' ? 'rounded-lg border border-sidebar-border shadow' : ''
           )
         "

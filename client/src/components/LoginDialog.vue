@@ -53,13 +53,21 @@ watch(
 );
 
 // 账号密码登录
-async function handleLogin() {
+async function handleLogin(e?: Event) {
+  if (e) e.preventDefault();
   if (loading.value) return;
   Object.keys(errors).forEach((key) => delete errors[key]);
 
-  if (!form.username.trim()) errors.username = '请输入用户名';
-  if (!form.password) errors.password = '请输入密码';
-  if (Object.keys(errors).length > 0) return;
+  if (!form.username.trim()) {
+    errors.username = '请输入用户名';
+    toast.error('请输入用户名');
+    return;
+  }
+  if (!form.password) {
+    errors.password = '请输入密码';
+    toast.error('请输入密码');
+    return;
+  }
 
   const cleanTotp = form.totpCode ? form.totpCode.replace(/\D/g, '').slice(0, 6) : undefined;
 
@@ -81,11 +89,12 @@ async function handleLogin() {
       });
     } else {
       toast.success('登录成功，欢迎回来');
+      await authStore.fetchUser();
       emit('update:visible', false);
       emit('success', props.targetView);
     }
   } catch (err: any) {
-    const message = err.response?.data?.error || '用户名或密码错误';
+    const message = err.response?.data?.error || err.message || '登录失败，请检查网络或账号密码';
     toast.error(message);
   } finally {
     loading.value = false;
@@ -183,8 +192,9 @@ async function handlePasskeyLogin() {
           <div class="pt-1">
             <Button
               type="submit"
-              class="w-full gap-2 cursor-pointer"
+              class="w-full gap-2 cursor-pointer touch-manipulation"
               :disabled="loading"
+              @click.prevent="handleLogin"
             >
               <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
               <span>{{ loading ? '登录中...' : '立即登录' }}</span>

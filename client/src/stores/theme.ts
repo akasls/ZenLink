@@ -25,6 +25,11 @@ export const useThemeStore = defineStore('theme', () => {
     } else {
       html.classList.remove('dark');
     }
+
+    try {
+      const metas = document.querySelectorAll('meta[name="theme-color"]');
+      metas.forEach((el) => el.setAttribute('content', dark ? '#090d16' : '#f8f9fa'));
+    } catch {}
   }
 
   function setMode(m: ThemeMode) {

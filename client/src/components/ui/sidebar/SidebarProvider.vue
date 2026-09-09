@@ -107,7 +107,7 @@ onUnmounted(() => {
       ]"
       :class="
         cn(
-          'group/sidebar-wrapper flex min-h-screen w-full min-w-0 max-w-full overflow-x-hidden has-[[data-variant=inset]]:bg-sidebar',
+          'group/sidebar-wrapper flex min-h-screen min-h-dvh w-full min-w-0 max-w-full overflow-x-hidden bg-sidebar',
           props.class
         )
       "

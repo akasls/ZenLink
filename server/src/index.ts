@@ -78,31 +78,39 @@ if (process.env.APP_URL) {
   } catch {}
 }
 
+// CORS 配置：放行自建部署同源/自定义反代域名访问并阻断恶意跨域
 await fastify.register(cors, {
-  origin: (origin, cb) => {
-    // 1. 无 Origin 标头的同源直接访问、移动端或内部服务请求直接放行
-    if (!origin) return cb(null, true);
+  delegator: (req, cb) => {
+    const origin = req.headers.origin;
+    if (!origin) {
+      return cb(null, { origin: true, credentials: true });
+    }
 
-    // 2. 显式配置的白名单匹配放行
     if (allowedOrigins.has(origin)) {
-      return cb(null, true);
+      return cb(null, { origin: true, credentials: true });
     }
 
     try {
       const parsed = new URL(origin);
       const hostname = parsed.hostname;
 
-      // 3. 本地环回地址放行 (localhost, 0.0.0.0, ::1 等)
+      // 同 Host 访问放行（自建反代与用户自定义域名即开即用，无须繁琐配置环境变量）
+      const reqHost = req.headers.host;
+      if (reqHost && (parsed.host === reqHost || hostname === reqHost.split(':')[0])) {
+        return cb(null, { origin: true, credentials: true });
+      }
+
+      // 本地环回地址放行
       if (hostname === 'localhost' || hostname === '0.0.0.0' || hostname === '::1') {
-        return cb(null, true);
+        return cb(null, { origin: true, credentials: true });
       }
 
-      // 4. 自建服务器直接 IP 访问放行 (包含公网 VPS IP 与局域网私网 IP)
+      // 自建服务器 IP 访问放行 (包含 VPS IP 与局域网私网 IP)
       if (isIP(hostname) !== 0) {
-        return cb(null, true);
+        return cb(null, { origin: true, credentials: true });
       }
 
-      // 5. 本地私有服务域名放行 (*.local, *.internal, *.lan, *.home 等)
+      // 局域网私有服务域名放行
       if (
         hostname.endsWith('.local') ||
         hostname.endsWith('.internal') ||
@@ -110,15 +118,15 @@ await fastify.register(cors, {
         hostname.endsWith('.home') ||
         hostname.endsWith('.arpa')
       ) {
-        return cb(null, true);
+        return cb(null, { origin: true, credentials: true });
       }
     } catch {}
 
-    // 6. 未授权第三方公网域名跨域请求：合规静默阻断（不附带 Access-Control-Allow-Origin 标头，由浏览器阻断跨域读取），切勿抛出 500 导致静态资源 Vite 模块脚本加载崩溃
-    cb(null, false);
+    // 拦截未授权第三方外部跨域请求
+    cb(null, { origin: false });
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   maxAge: 86400,
 });
@@ -169,7 +177,7 @@ if (existsSync(clientDist)) {
     let html = readFileSync(indexPath, 'utf-8');
 
     try {
-      const rows = dbHelper.all('SELECT key, value FROM settings');
+      const rows = dbHelper.all('SELECT key, value FROM system_settings');
       const settings: Record<string, string> = {};
       for (const r of rows) settings[r.key] = r.value;
 
@@ -203,7 +211,7 @@ if (existsSync(clientDist)) {
       try { manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')); } catch {}
     }
     try {
-      const rows = dbHelper.all('SELECT key, value FROM settings');
+      const rows = dbHelper.all('SELECT key, value FROM system_settings');
       const settings: Record<string, string> = {};
       for (const r of rows) settings[r.key] = r.value;
       if (settings.site_name) {

@@ -9,8 +9,9 @@
     <!-- 视口与安全区域 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
-    <!-- 品牌与主题色 -->
-    <meta name="theme-color" content="#0f172a" />
+    <!-- 品牌与主题色 (兼顾 Safari 顶栏沉浸色与自适应暗黑模式) -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8f9fa" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d16" />
     <meta name="description" content="不凡导航 - 干净简洁的现代化网址导航、在线云笔记与 AI 智能工作台" />
     
     <!-- Android / Chrome PWA -->
@@ -19,7 +20,7 @@
     
     <!-- iOS Safari PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="不凡导航" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
