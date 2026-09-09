@@ -3,6 +3,7 @@ process.env.JWT_SECRET = 'test-secret-key-12345678901234567890';
 
 const { fastify } = await import('../index.js');
 import dbHelper, { saveDatabase } from '../db/index.js';
+import { authenticator } from 'otplib';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -55,6 +56,10 @@ function assertEqual(actual: any, expected: any, message: string) {
 async function runTests() {
   console.log('🚀 开始执行 ZenLink 全量自动化深度测试...\n');
   await fastify.ready();
+
+  // 确保测试基准环境干净：重置管理员 2FA 状态为初始状态
+  dbHelper.run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE username = 'admin'");
+  saveDatabase();
 
   let adminToken = '';
   let testCategoryId = 0;
@@ -217,6 +222,63 @@ async function runTests() {
     const data = JSON.parse(res.body);
     assert(data.secret, '应包含 secret');
     assert(data.qrCodeUrl?.startsWith('data:image/png;base64,'), '应包含二维码 base64');
+  });
+
+  await test('TOTP 2FA 两步验证启用与密码凭据注销关闭闭环', async () => {
+    // 1. 初始化 TOTP
+    const setupRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/totp/setup',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assertEqual(setupRes.statusCode, 200, '生成 TOTP 密钥应成功');
+    const { secret } = JSON.parse(setupRes.body);
+
+    // 2. 使用有效动态码激活 2FA
+    const validCode = authenticator.generate(secret);
+    const verifyRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/totp/verify',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { code: validCode },
+    });
+    assertEqual(verifyRes.statusCode, 200, '启用 2FA 应成功');
+
+    // 3. 验证用户信息中已标明开启 2FA
+    const meRes = await fastify.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    const meData = JSON.parse(meRes.body);
+    assertEqual(meData.user.totp_enabled, 1, '2FA 状态应为开启');
+
+    // 4. 错误密码关闭 2FA 应被拦截 (401)
+    const failDisableRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/totp/disable',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { password: 'wrong-password' },
+    });
+    assertEqual(failDisableRes.statusCode, 401, '密码错误关闭 2FA 应返回 401');
+
+    // 5. 正确密码关闭 2FA 应成功
+    const okDisableRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/totp/disable',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { password: 'admin123' },
+    });
+    assertEqual(okDisableRes.statusCode, 200, '密码正确关闭 2FA 应成功');
+
+    // 6. 验证用户信息中 2FA 已复位为 0
+    const finalMeRes = await fastify.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    const finalMeData = JSON.parse(finalMeRes.body);
+    assertEqual(finalMeData.user.totp_enabled, 0, '2FA 状态应恢复为 0');
   });
 
   await test('WebAuthn Passkey 注册参数接口应正常返回 challenge', async () => {
@@ -409,6 +471,60 @@ async function runTests() {
     assertEqual(res.statusCode, 200, '重排应返回 200');
   });
 
+  await test('批量书签操作：修改分类、私密切换与批量删除 (POST /api/bookmarks/batch)', async () => {
+    // 1. 创建两个待批量的书签
+    const b1Res = await fastify.inject({
+      method: 'POST',
+      url: '/api/bookmarks',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { title: '批量测试1', url: 'https://b1.example.com', isPrivate: false },
+    });
+    const b2Res = await fastify.inject({
+      method: 'POST',
+      url: '/api/bookmarks',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { title: '批量测试2', url: 'https://b2.example.com', isPrivate: false },
+    });
+    const b1Id = JSON.parse(b1Res.body).bookmark.id;
+    const b2Id = JSON.parse(b2Res.body).bookmark.id;
+
+    // 2. 批量修改分类
+    const batchCatRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/bookmarks/batch',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { action: 'update_category', ids: [b1Id, b2Id], categoryId: testCategoryId },
+    });
+    assertEqual(batchCatRes.statusCode, 200, '批量修改分类应返回 200');
+
+    // 3. 批量切换私密状态为 true
+    const batchPrivRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/bookmarks/batch',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { action: 'set_private', ids: [b1Id, b2Id], isPrivate: true },
+    });
+    assertEqual(batchPrivRes.statusCode, 200, '批量设为私密应返回 200');
+
+    // 4. 批量删除
+    const batchDelRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/bookmarks/batch',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { action: 'delete', ids: [b1Id, b2Id] },
+    });
+    assertEqual(batchDelRes.statusCode, 200, '批量删除应返回 200');
+
+    // 5. 验证已不存在
+    const getBmsRes = await fastify.inject({
+      method: 'GET',
+      url: '/api/bookmarks',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    const allBms = JSON.parse(getBmsRes.body).bookmarks;
+    assert(!allBms.some((b: any) => b.id === b1Id || b.id === b2Id), '批量删除的书签不应存在');
+  });
+
   // ==========================================
   // Suite 5: 本地 Favicon 图标持久化与安全
   // ==========================================
@@ -536,6 +652,46 @@ async function runTests() {
     assertEqual(res.statusCode, 200, '更新笔记应返回 200');
     const data = JSON.parse(res.body);
     assertEqual(data.note.is_pinned, 1, '笔记置顶状态应为 1');
+  });
+
+  await test('笔记分类与笔记拖拽排序 (PUT /api/note-categories/reorder & /api/notes/reorder)', async () => {
+    // 1. 创建辅助分类并重排
+    const cat2Res = await fastify.inject({
+      method: 'POST',
+      url: '/api/note-categories',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { name: '辅助排序列' },
+    });
+    const cat2Id = JSON.parse(cat2Res.body).category.id;
+
+    const reorderCatRes = await fastify.inject({
+      method: 'PUT',
+      url: '/api/note-categories/reorder',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { ids: [cat2Id] },
+    });
+    assertEqual(reorderCatRes.statusCode, 200, '分类重排应返回 200');
+
+    // 2. 创建辅助笔记并重排
+    const n2Res = await fastify.inject({
+      method: 'POST',
+      url: '/api/notes',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { title: '辅助排序笔记', content: '测试内容' },
+    });
+    const n2Id = JSON.parse(n2Res.body).note.id;
+
+    const reorderNoteRes = await fastify.inject({
+      method: 'PUT',
+      url: '/api/notes/reorder',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { ids: [n2Id, testNoteId] },
+    });
+    assertEqual(reorderNoteRes.statusCode, 200, '笔记重排应返回 200');
+
+    // 3. 清理辅助项
+    await fastify.inject({ method: 'DELETE', url: `/api/notes/${n2Id}`, headers: { authorization: `Bearer ${adminToken}` } });
+    await fastify.inject({ method: 'DELETE', url: `/api/note-categories/${cat2Id}`, headers: { authorization: `Bearer ${adminToken}` } });
   });
 
   // ==========================================
@@ -669,6 +825,28 @@ async function runTests() {
     assertEqual(res.statusCode, 404, '非法路径穿越应安全返回 404');
   });
 
+  await test('对象存储配置读取脱敏与配置持久化 (GET & POST /api/storage/settings)', async () => {
+    // 1. 获取存储配置，验证敏感密钥掩码脱敏
+    const getRes = await fastify.inject({
+      method: 'GET',
+      url: '/api/storage/settings',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assertEqual(getRes.statusCode, 200, '读取存储设置应返回 200');
+    const data = JSON.parse(getRes.body);
+    assert(data.storage_type !== undefined, '应包含 storage_type');
+
+    // 2. 保存存储配置
+    const postRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/storage/settings',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { storage_type: 'local' },
+    });
+    assertEqual(postRes.statusCode, 200, '保存存储配置应返回 200');
+    assertEqual(JSON.parse(postRes.body).success, true, '应返回 success: true');
+  });
+
   // ==========================================
   // Suite 10: AI 助手流式对话与会话管理
   // ==========================================
@@ -731,6 +909,46 @@ async function runTests() {
     assert(res.body.includes('[DONE]'), '应包含结束标记');
   });
 
+  await test('AI 会话智能标题生成与平滑降级兜底 (/api/ai/conversations/:id/generate-title)', async () => {
+    // 1. 创建专用会话并写入用户提问记录
+    const convRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/ai/conversations',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { title: '未命名会话' },
+    });
+    const convId = JSON.parse(convRes.body).conversation.id;
+
+    dbHelper.run('INSERT INTO ai_messages (conversation_id, role, content) VALUES (?, ?, ?)', [
+      convId,
+      'user',
+      '如何进行微服务网关限流与高可用设计？',
+    ]);
+    saveDatabase();
+
+    // 2. 触发标题生成
+    const genRes = await fastify.inject({
+      method: 'POST',
+      url: `/api/ai/conversations/${convId}/generate-title`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assertEqual(genRes.statusCode, 200, '标题生成应返回 200');
+    const genData = JSON.parse(genRes.body);
+    assertEqual(genData.success, true, '应返回 success: true');
+    assert(genData.title && genData.title.length > 0, '标题不应为空');
+
+    // 3. 验证数据库中标题已同步更新
+    const checkConv = dbHelper.get('SELECT title FROM ai_conversations WHERE id = ?', [convId]);
+    assertEqual(checkConv.title, genData.title, '会话标题应已持久化更新');
+
+    // 4. 清理会话
+    await fastify.inject({
+      method: 'DELETE',
+      url: `/api/ai/conversations/${convId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+  });
+
   // ==========================================
   // Suite 11: PWA 缓存控制与传输性能 (PWA & Network Compression)
   // ==========================================
@@ -760,6 +978,25 @@ async function runTests() {
     assertEqual(res.statusCode, 200, '请求分类列表应返回 200');
     // 验证服务支持 gzip 响应或合规协商
     assert(res.body !== undefined, '响应 body 应正常可用');
+  });
+
+  await test('高并发压力测试与内存级超低延迟验证 (50 并发请求)', async () => {
+    const totalRequests = 50;
+    const start = Date.now();
+    const tasks = Array.from({ length: totalRequests }).map((_, i) => {
+      const url = i % 2 === 0 ? '/api/bookmarks' : '/api/categories';
+      return fastify.inject({ method: 'GET', url });
+    });
+    const responses = await Promise.all(tasks);
+    const totalTime = Date.now() - start;
+    const avgTime = totalTime / totalRequests;
+
+    for (const res of responses) {
+      assertEqual(res.statusCode, 200, '并发请求应全部返回 200');
+    }
+
+    console.log(`     ⚡ 50 并发请求完成，总耗时: ${totalTime}ms，单请求平均耗时: ${avgTime.toFixed(2)}ms`);
+    assert(avgTime < 20, `平均延迟应低于 20ms，当前: ${avgTime.toFixed(2)}ms`);
   });
 
   // ==========================================

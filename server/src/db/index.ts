@@ -56,8 +56,12 @@ export async function initDatabase(): Promise<void> {
   try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_updated ON ai_conversations(updated_at DESC);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_status ON ai_conversations(is_archived, is_pinned DESC, updated_at DESC);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_conversations_proj ON ai_conversations(project_id);"); } catch {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_ai_messages_conv_created ON ai_messages(conversation_id, created_at ASC);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_note_shares_nid ON note_shares(note_id);"); } catch {}
   try { db.run("CREATE INDEX IF NOT EXISTS idx_notes_pinned_updated ON notes(is_pinned DESC, updated_at DESC);"); } catch {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_notes_perf_list ON notes(is_pinned DESC, sort_order ASC, updated_at DESC);"); } catch {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_notes_cat_perf ON notes(category_id, is_pinned DESC, sort_order ASC, updated_at DESC);"); } catch {}
+  try { db.run("CREATE INDEX IF NOT EXISTS idx_note_categories_sort ON note_categories(sort_order ASC, id ASC);"); } catch {}
 
   console.log('✅ 数据库初始化完成与高性能索引生效:', DB_PATH);
 }

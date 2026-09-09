@@ -136,6 +136,10 @@ CREATE TABLE IF NOT EXISTS ai_settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ai_messages_conv ON ai_messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_ai_messages_conv_created ON ai_messages(conversation_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_notes_perf_list ON notes(is_pinned DESC, sort_order ASC, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_cat_perf ON notes(category_id, is_pinned DESC, sort_order ASC, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_note_categories_sort ON note_categories(sort_order ASC, id ASC);
 
 -- 存储配置表 (本地存储 / Cloudflare R2 对象存储)
 CREATE TABLE IF NOT EXISTS storage_settings (

@@ -29,7 +29,7 @@ seedDatabase();
 // 创建 Fastify 实例（收敛可信内网反代 IP，防止伪造 X-Forwarded-For 穿透防爆破限流）
 const fastify = Fastify({
   logger: {
-    level: 'info',
+    level: process.env.NODE_ENV === 'test' ? 'error' : 'info',
   },
   trustProxy: ['127.0.0.1', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1', 'fc00::/7'],
 });
