@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { settingsApi } from '@/api';
 
 // 清理历史残留的动态内联主题颜色变量与缓存，确保全量回归 Shadcn 原生规范
@@ -31,27 +31,56 @@ export const useSiteStore = defineStore('site', () => {
   const enableAi = ref(true);
   const enableNotes = ref(true);
 
-  // 初始化 Favicon
-  updateFavicon();
-
   function updateDocumentTitle() {
-    if (typeof document !== 'undefined') {
-      document.title = siteName.value ? `${siteName.value} · ${siteDesc.value}` : '不凡导航 · 干净简洁的导航！';
-    }
+    if (typeof document === 'undefined') return;
+    const name = siteName.value || '不凡导航';
+    const desc = siteDesc.value || '干净简洁的导航！';
+    document.title = `${name} · ${desc}`;
+
+    // 同步更新 meta 标签
+    const descMeta = document.querySelector('meta[name="description"]');
+    if (descMeta) descMeta.setAttribute('content', `${name} - ${desc}`);
+
+    const appNameMeta = document.querySelector('meta[name="application-name"]');
+    if (appNameMeta) appNameMeta.setAttribute('content', name);
+
+    const appleTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitleMeta) appleTitleMeta.setAttribute('content', name);
   }
 
   function updateFavicon() {
     if (typeof document === 'undefined') return;
-    let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
-    if (!link) {
-      link = document.createElement('link');
+    const logo = siteLogo.value;
+    if (!logo) return;
+
+    // 针对所有可能的 icon 与 apple-touch-icon 统一更新
+    const iconLinks = document.querySelectorAll<HTMLLinkElement>(
+      "link[rel*='icon'], link[rel*='apple-touch-icon']"
+    );
+
+    if (iconLinks.length > 0) {
+      iconLinks.forEach((link) => {
+        link.href = logo;
+        // 若非 svg 图片，移除可能导致现代浏览器渲染失败的 type="image/svg+xml"
+        if (!logo.endsWith('.svg') && !logo.includes('image/svg')) {
+          link.removeAttribute('type');
+        }
+      });
+    } else {
+      const link = document.createElement('link');
       link.rel = 'shortcut icon';
-      document.getElementsByTagName('head')[0].appendChild(link);
-    }
-    if (siteLogo.value) {
-      link.href = siteLogo.value;
+      link.href = logo;
+      document.head.appendChild(link);
     }
   }
+
+  // 构造时立即同步更新 Title、Meta 与 Favicon
+  updateDocumentTitle();
+  updateFavicon();
+
+  // 响应式联动监听
+  watch([siteName, siteDesc], () => updateDocumentTitle());
+  watch(siteLogo, () => updateFavicon());
 
   function setSiteLogo(logoUrl: string) {
     siteLogo.value = logoUrl;

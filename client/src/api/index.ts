@@ -49,6 +49,9 @@ export const authApi = {
   verifyTotp(code: string) {
     return api.post('/auth/totp/verify', { code });
   },
+  disableTotp(password: string) {
+    return api.post('/auth/totp/disable', { password });
+  },
   getWebAuthnRegisterOptions() {
     return api.post('/auth/webauthn/register-options');
   },
@@ -238,6 +241,9 @@ export const aiApi = {
   },
   deleteConversation(id: string) {
     return api.delete(`/ai/conversations/${id}`);
+  },
+  generateConversationTitle(id: string) {
+    return api.post<{ title: string }>(`/ai/conversations/${id}/generate-title`);
   },
   clearConversations() {
     return api.post('/ai/conversations/clear');

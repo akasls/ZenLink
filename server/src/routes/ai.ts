@@ -300,6 +300,102 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, conversation: conv });
   });
 
+  // 4.5. AI 智能生成会话标题
+  fastify.post('/api/ai/conversations/:id/generate-title', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const msgs = dbHelper.all(
+      'SELECT role, content FROM ai_messages WHERE conversation_id = ? ORDER BY id ASC LIMIT 6',
+      [id]
+    );
+
+    const conv = dbHelper.get('SELECT * FROM ai_conversations WHERE id = ?', [id]);
+    if (!conv) {
+      return reply.status(404).send({ error: '会话不存在' });
+    }
+
+    if (!msgs || msgs.length === 0) {
+      return reply.send({ success: true, title: conv.title || '新对话' });
+    }
+
+    const settingsRows = dbHelper.all('SELECT key, value FROM ai_settings');
+    const settings: Record<string, any> = {};
+    for (const row of settingsRows) {
+      settings[row.key] = row.value;
+    }
+    const apiKey = settings.api_key;
+    const baseUrl = settings.base_url || 'https://api.deepseek.com/v1';
+    const model = settings.model || 'deepseek-chat';
+
+    if (apiKey) {
+      try {
+        const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
+        const targetUrl = cleanBaseUrl.endsWith('/chat/completions')
+          ? cleanBaseUrl
+          : `${cleanBaseUrl}/chat/completions`;
+
+        const promptMessages = [
+          {
+            role: 'system',
+            content:
+              '你是一个会话标题提炼专家。请根据提供的对话内容，生成一个精准概括主题的简短标题（严格控制在12字以内，直接输出标题纯文本本身，绝对不要包含书名号、引号或任何多余解释）。你可以自主决定在标题最开头加上一个与主题贴切的Emoji表情（例如：💡 创业构想，🐍 Python爬虫，🎨 界面设计等），也可以不加。',
+          },
+          {
+            role: 'user',
+            content: `对话记录如下：\n${msgs.map((m: any) => `${m.role === 'user' ? '用户' : '助手'}: ${m.content.slice(0, 300)}`).join('\n')}\n\n请输出标题：`,
+          },
+        ];
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: promptMessages,
+            temperature: 0.5,
+            max_tokens: 60,
+            stream: false,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (res.ok) {
+          const data: any = await res.json();
+          let title = data.choices?.[0]?.message?.content?.trim() || '';
+          title = title.replace(/^["'《「『【]+|["'》」』】]+$/g, '').trim();
+          if (title.length > 20) title = title.slice(0, 20);
+          if (title) {
+            dbHelper.run('UPDATE ai_conversations SET title = ?, updated_at = ? WHERE id = ?', [
+              title,
+              new Date().toISOString(),
+              id,
+            ]);
+            saveDatabase();
+            return reply.send({ success: true, title });
+          }
+        }
+      } catch (err) {
+        // AI 请求超时或异常，平滑降级
+      }
+    }
+
+    // 降级兜底：提取首条用户消息
+    const firstUserMsg = msgs.find((m: any) => m.role === 'user')?.content || '新对话';
+    const fallbackTitle = firstUserMsg.replace(/[\r\n]/g, ' ').trim().slice(0, 14) || '新对话';
+    dbHelper.run('UPDATE ai_conversations SET title = ?, updated_at = ? WHERE id = ?', [
+      fallbackTitle,
+      new Date().toISOString(),
+      id,
+    ]);
+    saveDatabase();
+    return reply.send({ success: true, title: fallbackTitle });
+  });
+
   // 5. 删除会话
   fastify.delete('/api/ai/conversations/:id', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };

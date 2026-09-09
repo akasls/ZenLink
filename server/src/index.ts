@@ -10,7 +10,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { isIP } from 'net';
 import crypto from 'crypto';
 
-import { initDatabase, saveDatabase } from './db/index.js';
+import dbHelper, { initDatabase, saveDatabase } from './db/index.js';
 import { seedDatabase } from './db/seed.js';
 import authRoutes from './routes/auth.js';
 import bookmarkRoutes from './routes/bookmarks.js';
@@ -160,19 +160,82 @@ await fastify.register(aiRoutes);
 await fastify.register(settingsRoutes);
 await fastify.register(shareRoutes);
 
-// 生产环境：提供前端静态文件与高性能缓存
+// 生产环境：提供前端静态文件与高性能缓存，并动态注入自定义网站标题、描述与 Favicon
 const clientDist = join(__dirname, '../../client/dist');
 if (existsSync(clientDist)) {
+  function getRenderedIndexHtml(): string {
+    const indexPath = join(clientDist, 'index.html');
+    if (!existsSync(indexPath)) return '';
+    let html = readFileSync(indexPath, 'utf-8');
+
+    try {
+      const rows = dbHelper.all('SELECT key, value FROM settings');
+      const settings: Record<string, string> = {};
+      for (const r of rows) settings[r.key] = r.value;
+
+      const siteName = settings.site_name || '不凡导航';
+      const siteDesc = settings.site_desc || '干净简洁的导航！';
+      const siteLogo = settings.site_logo || '';
+
+      // 动态注入标题与描述
+      html = html.replace(/<title>.*?<\/title>/i, `<title>${siteName} · ${siteDesc}</title>`);
+      html = html.replace(/(<meta\s+name=["']description["']\s+content=["']).*?(["'])/i, `$1${siteName} - ${siteDesc}$2`);
+      html = html.replace(/(<meta\s+name=["']application-name["']\s+content=["']).*?(["'])/i, `$1${siteName}$2`);
+      html = html.replace(/(<meta\s+name=["']apple-mobile-web-app-title["']\s+content=["']).*?(["'])/i, `$1${siteName}$2`);
+
+      if (siteLogo) {
+        html = html.replace(/(<link\s+[^>]*rel=["'][^"']*icon[^"']*["'][^>]*href=["']).*?(["'])/gi, `$1${siteLogo}$2`);
+        html = html.replace(/(<link\s+[^>]*rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*href=["']).*?(["'])/gi, `$1${siteLogo}$2`);
+        if (!siteLogo.endsWith('.svg') && !siteLogo.includes('image/svg')) {
+          html = html.replace(/type=["']image\/svg\+xml["']/gi, '');
+        }
+      }
+    } catch {}
+
+    return html;
+  }
+
+  // 动态返回 PWA manifest 保证名称与简介一致
+  fastify.get('/manifest.webmanifest', async (request, reply) => {
+    const manifestPath = join(clientDist, 'manifest.webmanifest');
+    let manifest: any = {};
+    if (existsSync(manifestPath)) {
+      try { manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')); } catch {}
+    }
+    try {
+      const rows = dbHelper.all('SELECT key, value FROM settings');
+      const settings: Record<string, string> = {};
+      for (const r of rows) settings[r.key] = r.value;
+      if (settings.site_name) {
+        manifest.name = settings.site_name;
+        manifest.short_name = settings.site_name;
+      }
+      if (settings.site_desc) {
+        manifest.description = settings.site_desc;
+      }
+    } catch {}
+    return reply.type('application/manifest+json; charset=utf-8').header('Cache-Control', 'public, max-age=60').send(manifest);
+  });
+
+  // 根路径动态注入返回
+  fastify.get('/', async (request, reply) => {
+    return reply
+      .type('text/html; charset=utf-8')
+      .header('Cache-Control', 'no-cache, no-store, must-revalidate')
+      .send(getRenderedIndexHtml());
+  });
+
   await fastify.register(fastifyStatic, {
     root: clientDist,
     prefix: '/',
+    wildcard: true,
     setHeaders: (res, path) => {
       if (path.includes('assets') || path.includes('/assets/')) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       } else if (path.endsWith('sw.js') || path.includes('workbox') || path.endsWith('index.html')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       } else if (path.endsWith('.webmanifest') || path.endsWith('manifest.json')) {
-        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.setHeader('Cache-Control', 'public, max-age=60');
         res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
       }
     },
@@ -181,7 +244,10 @@ if (existsSync(clientDist)) {
   // SPA fallback
   fastify.setNotFoundHandler((request, reply) => {
     if (!request.url.startsWith('/api/')) {
-      return reply.sendFile('index.html');
+      return reply
+        .type('text/html; charset=utf-8')
+        .header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        .send(getRenderedIndexHtml());
     }
     reply.status(404).send({ error: 'Not Found' });
   });

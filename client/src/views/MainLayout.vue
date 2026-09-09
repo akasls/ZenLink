@@ -382,7 +382,10 @@ onUnmounted(() => {
         <!-- 1. 网址导航功能主视图 -->
         <div v-show="currentView === 'home'" class="flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-[#f8f9fa] dark:bg-background">
             <!-- Bookmarks & Categories Container -->
-            <div class="flex-1 p-3 sm:p-5 md:p-6 max-w-[1600px] w-full min-w-0 max-w-full overflow-x-hidden mx-auto box-border">
+            <div
+              class="flex-1 p-3 sm:p-5 md:p-6 max-w-[1600px] w-full min-w-0 max-w-full overflow-x-hidden mx-auto box-border"
+              style="padding-top: max(0.75rem, calc(0.75rem + env(safe-area-inset-top, 0px)));"
+            >
               <div v-if="!loading">
                 <!-- 搜索状态结果 -->
                 <div v-if="searchQuery.trim()">
@@ -431,7 +434,10 @@ onUnmounted(() => {
             </div>
 
             <!-- Footer -->
-            <footer class="mt-auto border-t border-border py-6 px-4 text-center">
+            <footer
+              class="mt-auto border-t border-border py-6 px-4 text-center"
+              style="padding-bottom: max(1.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)));"
+            >
               <p class="text-xs text-muted-foreground leading-relaxed m-0 flex items-center justify-center gap-2 flex-wrap">
                 <span>Copyright &copy; 2026 <strong class="font-medium text-foreground">{{ siteStore.siteName || 'ZenLink' }}</strong></span>
                 <span class="hidden sm:inline opacity-40">·</span>

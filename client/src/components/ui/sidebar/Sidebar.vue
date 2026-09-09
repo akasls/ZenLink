@@ -68,7 +68,7 @@ const { isMobile, state, setOpen } = useSidebar();
     <div
       :class="
         cn(
-          'duration-200 fixed inset-y-0 z-40 md:z-30 h-svh transition-[left,right,width] ease-linear flex flex-col',
+          'duration-200 fixed inset-y-0 z-40 md:z-30 transition-[left,right,width] ease-linear flex flex-col',
           side === 'left'
             ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
             : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',

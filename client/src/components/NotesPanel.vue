@@ -1497,7 +1497,10 @@ watch(
     :class="selectedNote ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen overflow-x-hidden'"
   >
       <!-- ==================== 1. 顶部控制栏 (高度对齐侧边栏h-11，分割线高度与颜色一致) ==================== -->
-      <div class="h-11 pl-1 sm:pl-2.5 pr-2 sm:pr-4 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent border-b border-sidebar-border">
+      <div
+        class="pl-1 sm:pl-2.5 pr-2 sm:pr-4 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent border-b border-sidebar-border"
+        style="min-height: calc(2.75rem + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px);"
+      >
         <!-- 场景 A：列表视图顶部 (无标题，顶部横向自适应标签胶囊列表) -->
         <template v-if="!selectedNote">
           <div class="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-none py-1.5 w-full min-w-0 pl-1">

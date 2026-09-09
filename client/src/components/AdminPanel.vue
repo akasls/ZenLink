@@ -66,6 +66,7 @@ import {
   Network,
   Download,
   Sparkles,
+  Unlock,
 } from 'lucide-vue-next';
 import { startRegistration } from '@simplewebauthn/browser';
 import Sortable from 'sortablejs';
@@ -942,6 +943,35 @@ async function saveAccountSettings() {
   }
 }
 
+const showDisableTotpDialog = ref(false);
+const disableTotpPassword = ref('');
+const disablingTotp = ref(false);
+
+function openDisableTotpDialog() {
+  disableTotpPassword.value = '';
+  showDisableTotpDialog.value = true;
+}
+
+async function handleDisableTotp() {
+  if (!disableTotpPassword.value) {
+    toast.warning('请输入当前账户密码确认关闭');
+    return;
+  }
+  disablingTotp.value = true;
+  try {
+    await authApi.disableTotp(disableTotpPassword.value);
+    toast.success('TOTP 两步验证已关闭');
+    showDisableTotpDialog.value = false;
+    disableTotpPassword.value = '';
+    totpSetup.value = null;
+    await authStore.fetchUser();
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.response?.data?.message || '密码错误，关闭失败');
+  } finally {
+    disablingTotp.value = false;
+  }
+}
+
 async function startTotpSetup() {
   settingUpTotp.value = true;
   try {
@@ -952,14 +982,17 @@ async function startTotpSetup() {
 }
 
 async function confirmTotp() {
-  if (!totpCode.value || totpCode.value.length !== 6) { toast.warning('请输入 6 位验证码'); return; }
+  const code = totpCode.value ? totpCode.value.replace(/\D/g, '').slice(0, 6) : '';
+  if (code.length !== 6) { toast.warning('请输入 6 位纯数字验证码'); return; }
   try {
-    await authApi.verifyTotp(totpCode.value);
-    toast.success('TOTP 两步验证已启用');
+    await authApi.verifyTotp(code);
+    toast.success('TOTP 两步验证已成功启用');
     totpSetup.value = null;
     totpCode.value = '';
-    authStore.fetchUser();
-  } catch (e: any) { toast.error(e?.response?.data?.message || '验证码错误'); }
+    await authStore.fetchUser();
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.response?.data?.message || '验证码错误，请确保时间同步并重试');
+  }
 }
 
 async function registerPasskey() {
@@ -1132,7 +1165,10 @@ onMounted(() => {
 <template>
   <div class="flex-1 flex flex-col min-h-screen w-full min-w-0 max-w-full bg-[#f8f9fa] dark:bg-background text-foreground">
     <!-- 1. 顶部控制栏 (高度对齐侧边栏h-11，带底部分割线) -->
-    <div class="h-11 px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-[#f8f9fa] dark:bg-background border-b border-sidebar-border">
+    <div
+      class="px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-[#f8f9fa] dark:bg-background border-b border-sidebar-border"
+      style="min-height: calc(2.75rem + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px);"
+    >
       <!-- 左上角显示标题 -->
       <div class="flex items-center gap-2 select-none min-w-0">
         <h1 class="text-sm font-semibold tracking-tight text-foreground m-0 truncate">
@@ -1918,26 +1954,46 @@ onMounted(() => {
                     {{ authStore.user?.totp_enabled ? '已启用' : '未启用' }}
                   </Badge>
                 </div>
-                <Button
-                  v-if="!authStore.user?.totp_enabled"
-                  variant="outline"
-                  size="sm"
-                  class="h-7 px-2.5 gap-1 text-xs font-medium cursor-pointer shrink-0"
-                  :disabled="settingUpTotp"
-                  @click="startTotpSetup"
-                >
-                  <Lock class="h-3 w-3" />
-                  <span>配置 2FA</span>
-                </Button>
+                <div class="flex items-center gap-1.5">
+                  <Button
+                    v-if="authStore.user?.totp_enabled"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 px-2.5 gap-1 text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
+                    @click="openDisableTotpDialog"
+                  >
+                    <Unlock class="h-3 w-3" />
+                    <span>关闭 2FA</span>
+                  </Button>
+                  <Button
+                    v-else
+                    variant="outline"
+                    size="sm"
+                    class="h-7 px-2.5 gap-1 text-xs font-medium cursor-pointer shrink-0"
+                    :disabled="settingUpTotp"
+                    @click="startTotpSetup"
+                  >
+                    <Lock class="h-3 w-3" />
+                    <span>配置 2FA</span>
+                  </Button>
+                </div>
               </div>
 
               <!-- TOTP 配置中区域 -->
-              <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3">
-                <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md" /></div>
-                <p class="text-[11px] text-muted-foreground text-center break-all font-mono">{{ totpSetup.secret }}</p>
+              <div v-if="!authStore.user?.totp_enabled && totpSetup" class="space-y-3 py-3 border border-border/60 bg-muted/20 p-3 rounded-lg my-2">
+                <div class="flex justify-center"><img :src="totpSetup.qrCodeUrl" class="w-32 h-32 border rounded-md shadow-xs bg-white p-1" /></div>
+                <p class="text-[11px] text-muted-foreground text-center break-all font-mono select-all">密钥: {{ totpSetup.secret }}</p>
                 <div class="flex gap-2 max-w-sm mx-auto">
-                  <Input v-model="totpCode" placeholder="输入 6 位验证码" maxlength="6" class="flex-1 h-8 text-xs" />
+                  <Input
+                    v-model="totpCode"
+                    placeholder="输入 6 位验证码"
+                    inputmode="numeric"
+                    class="flex-1 h-8 text-xs font-mono tracking-wider"
+                    @input="totpCode = totpCode.replace(/\D/g, '').slice(0, 6)"
+                    @keyup.enter="confirmTotp"
+                  />
                   <Button size="sm" class="h-8 text-xs cursor-pointer" @click="confirmTotp">确认绑定</Button>
+                  <Button variant="ghost" size="sm" class="h-8 text-xs cursor-pointer" @click="totpSetup = null; totpCode = ''">取消</Button>
                 </div>
               </div>
 
@@ -2229,6 +2285,35 @@ onMounted(() => {
           <Button size="sm" :disabled="savingAccount" @click="saveAccountSettings">
             <Loader2 v-if="savingAccount" class="h-3.5 w-3.5 animate-spin mr-1" />
             <span>保存修改</span>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 对话框：关闭 2FA -->
+    <Dialog :open="showDisableTotpDialog" @update:open="showDisableTotpDialog = $event">
+      <DialogContent class="sm:max-w-[360px]">
+        <DialogHeader>
+          <DialogTitle>关闭 TOTP 两步验证</DialogTitle>
+          <DialogDescription class="text-xs text-muted-foreground">
+            关闭两步验证将降低账户安全级别。请输入当前管理员登录密码以确认操作：
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-3 py-2">
+          <Input
+            v-model="disableTotpPassword"
+            type="password"
+            placeholder="当前账户密码"
+            class="h-8 text-xs"
+            autofocus
+            @keyup.enter="handleDisableTotp"
+          />
+        </div>
+        <DialogFooter class="gap-2 sm:gap-0">
+          <Button variant="outline" size="sm" class="h-8 text-xs cursor-pointer" @click="showDisableTotpDialog = false">取消</Button>
+          <Button variant="destructive" size="sm" class="h-8 text-xs cursor-pointer" :disabled="disablingTotp" @click="handleDisableTotp">
+            <Loader2 v-if="disablingTotp" class="size-3.5 animate-spin mr-1" />
+            <span>确认关闭</span>
           </Button>
         </DialogFooter>
       </DialogContent>

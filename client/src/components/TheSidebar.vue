@@ -55,6 +55,8 @@ import {
   PanelLeft,
   Search,
   X,
+  Sparkles,
+  Loader2,
 } from 'lucide-vue-next';
 
 const siteStore = useSiteStore();
@@ -371,15 +373,8 @@ async function handleTogglePin(id: string, isPinned: boolean) {
 const showEditConversationModal = ref(false);
 const editingConversation = ref<ConversationItem | null>(null);
 const editConversationTitle = ref('');
-const editConversationIcon = ref('💬');
 const editConversationProjectId = ref<string | null>(null);
-
-const conversationEmojiPresets = [
-  '💬', '🤖', '💡', '⚡', '📝', '🎯', '🚀', '💻',
-  '🧠', '🎨', '🔍', '📊', '🛠️', '📚', '🌐', '🔒',
-  '🌟', '☕', '🎮', '🔮', '📁', '📌', '📈', '✨',
-  '🔥', '💎', '🎉', '🍀', '🧭', '⚙️', '📖', '🔑',
-];
+const generatingTitle = ref(false);
 
 function isEmoji(str?: string): boolean {
   if (!str) return false;
@@ -387,39 +382,43 @@ function isEmoji(str?: string): boolean {
   return /\p{Extended_Pictographic}/u.test(str);
 }
 
-function getConversationEmoji(icon?: string): string {
-  if (!icon || icon.startsWith('pi ') || icon.includes('fa-') || icon.includes('http') || icon === 'icon-custom') {
-    return '💬';
-  }
-  return icon;
-}
-
 function openEditConversation(conv: ConversationItem) {
   editingConversation.value = conv;
   editConversationTitle.value = conv.title || '';
-  editConversationIcon.value = getConversationEmoji(conv.icon);
   editConversationProjectId.value = conv.project_id || null;
   showEditConversationModal.value = true;
 }
 
+async function handleAiGenerateTitle() {
+  if (!editingConversation.value) return;
+  generatingTitle.value = true;
+  try {
+    const { data } = await aiApi.generateConversationTitle(editingConversation.value.id);
+    if (data?.title) {
+      editConversationTitle.value = data.title;
+      toast.success('AI 标题生成成功');
+    }
+  } catch (err: any) {
+    toast.error('AI 生成标题失败，请检查模型配置');
+  } finally {
+    generatingTitle.value = false;
+  }
+}
+
 async function handleSaveEditConversation() {
   if (!editingConversation.value) return;
-  const title = editConversationTitle.value.trim();
-  if (!title) return;
-  const icon = editConversationIcon.value.trim() || '💬';
+  const title = editConversationTitle.value.trim() || '新对话';
   const projectId = editConversationProjectId.value;
   try {
     await aiApi.updateConversation(editingConversation.value.id, {
       title,
-      icon,
       project_id: projectId || null,
     });
-    toast.success('已更新会话信息');
+    toast.success('已更新会话名称');
     editingConversation.value.title = title;
-    editingConversation.value.icon = icon;
     editingConversation.value.project_id = projectId || null;
     showEditConversationModal.value = false;
-    emit('renameAiChat', editingConversation.value.id, title, icon, projectId || null);
+    emit('renameAiChat', editingConversation.value.id, title, undefined, projectId || null);
   } catch (err: any) {
     toast.error(err.response?.data?.error || '更新会话失败');
   }
@@ -452,7 +451,8 @@ function handleSelectAdminTab(tab: string) {
     <!-- 第一轨: 固定 52px 图标轨 (Icon Rail) -->
     <Sidebar
       collapsible="none"
-      class="!w-[52px] border-r border-sidebar-border shrink-0 flex flex-col items-center justify-between py-3 group-data-[collapsible=icon]:border-r-0 select-none bg-sidebar"
+      class="!w-[52px] border-r border-sidebar-border shrink-0 flex flex-col items-center justify-between group-data-[collapsible=icon]:border-r-0 select-none bg-sidebar"
+      style="padding-top: max(0.75rem, env(safe-area-inset-top, 0px)); padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));"
     >
       <!-- 上半部: 展开收起副侧边栏按钮 & 核心导航图标列 -->
       <div class="flex flex-col items-center gap-3.5 w-full">
@@ -577,9 +577,15 @@ function handleSelectAdminTab(tab: string) {
       collapsible="none"
       class="flex flex-1 md:flex overflow-hidden transition-opacity duration-150 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:pointer-events-none bg-sidebar"
     >
-      <div class="w-[208px] min-w-[208px] h-full flex flex-col shrink-0 overflow-hidden select-none bg-sidebar">
+      <div
+        class="w-[208px] min-w-[208px] h-full flex flex-col shrink-0 overflow-hidden select-none bg-sidebar"
+        style="padding-bottom: env(safe-area-inset-bottom, 0px);"
+      >
         <!-- 抽屉头部: 标题与快捷操作 (书签无搜索；笔记和AI在右上角有搜索图标，点击同一行展开) -->
-        <SidebarHeader class="h-11 border-b border-sidebar-border bg-sidebar px-3 py-1.5 flex justify-center">
+        <SidebarHeader
+          class="border-b border-sidebar-border bg-sidebar px-3 flex flex-col justify-center shrink-0"
+          style="min-height: calc(2.75rem + env(safe-area-inset-top, 0px)); padding-top: max(0.375rem, env(safe-area-inset-top, 0px)); padding-bottom: 0.375rem;"
+        >
           <!-- 1. 网址导航模式：平时显示 导航书签 + 搜索与添加；点击搜索在同一行展开输入框 -->
           <div v-if="currentView === 'home'" class="w-full">
             <!-- 展开的搜索框行 -->
@@ -875,10 +881,7 @@ function handleSelectAdminTab(tab: string) {
             "
             @click="handleSelectAiChat(conv.id)"
           >
-            <div class="flex items-center gap-2 min-w-0 flex-1">
-              <span class="text-sm shrink-0 leading-none select-none flex items-center justify-center size-4">
-                {{ getConversationEmoji(conv.icon) }}
-              </span>
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
               <span class="truncate">{{ conv.title || '新对话' }}</span>
               <Pin v-if="conv.is_pinned" class="h-3 w-3 shrink-0 text-primary ml-auto mr-1" />
             </div>
@@ -959,38 +962,27 @@ function handleSelectAdminTab(tab: string) {
         </DialogHeader>
         <div class="space-y-4 py-2">
           <div class="space-y-2">
-            <label class="text-xs font-medium text-foreground">会话标题</label>
-            <Input v-model="editConversationTitle" placeholder="输入会话标题..." />
-          </div>
-          <div class="space-y-2">
-            <label class="text-xs font-medium text-foreground">会话 Emoji 图标</label>
-            <div class="flex items-center gap-2">
-              <div class="size-9 rounded-lg bg-muted border border-border flex items-center justify-center text-lg shrink-0 select-none">
-                {{ editConversationIcon || '💬' }}
-              </div>
-              <Input
-                v-model="editConversationIcon"
-                placeholder="输入或选择 Emoji..."
-                maxlength="8"
-                class="flex-1 text-xs"
-              />
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-medium text-foreground">会话标题</label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="h-6 px-2 text-xs text-primary gap-1 cursor-pointer hover:bg-primary/10 transition-colors"
+                :disabled="generatingTitle"
+                @click="handleAiGenerateTitle"
+              >
+                <Loader2 v-if="generatingTitle" class="size-3 animate-spin" />
+                <Sparkles v-else class="size-3" />
+                <span>{{ generatingTitle ? 'AI 正在提炼...' : 'AI 生成标题' }}</span>
+              </Button>
             </div>
-            <!-- 推荐常用 Emoji 网格 -->
-            <div class="space-y-1 pt-1">
-              <div class="text-[11px] text-muted-foreground">快捷选择 Emoji</div>
-              <div class="flex flex-wrap gap-1 p-2 rounded-lg bg-muted/40 border border-border/50 max-h-36 overflow-y-auto">
-                <button
-                  v-for="emoji in conversationEmojiPresets"
-                  :key="emoji"
-                  type="button"
-                  class="size-8 rounded-md flex items-center justify-center text-base hover:bg-background hover:scale-110 active:scale-95 transition-all cursor-pointer select-none"
-                  :class="editConversationIcon === emoji ? 'bg-background ring-2 ring-primary/50 shadow-xs' : ''"
-                  @click="editConversationIcon = emoji"
-                >
-                  {{ emoji }}
-                </button>
-              </div>
-            </div>
+            <Input
+              v-model="editConversationTitle"
+              placeholder="输入会话标题..."
+              class="text-xs"
+              @keyup.enter="handleSaveEditConversation"
+            />
           </div>
         </div>
         <DialogFooter>

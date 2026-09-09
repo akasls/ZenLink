@@ -712,6 +712,7 @@ async function sendMessage(customText?: string) {
   shouldAutoScroll = true;
   scrollToBottom(true);
 
+  const isNewConversation = !activeConversationId.value && !isPrivateMode.value;
   currentAbortController = new AbortController();
 
   try {
@@ -794,6 +795,11 @@ async function sendMessage(customText?: string) {
     if (!isPrivateMode.value) {
       loadConversations(false);
       if (activeConversationId.value) {
+        if (isNewConversation) {
+          aiApi.generateConversationTitle(activeConversationId.value)
+            .then(() => loadConversations(false))
+            .catch(() => {});
+        }
         try {
           const { data } = await aiApi.getMessages(activeConversationId.value);
           if (data?.messages) {
@@ -905,7 +911,10 @@ defineExpose({
 <template>
   <div class="flex-1 flex flex-col h-full max-h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-[#f8f9fa] dark:bg-background text-foreground selection:bg-primary/10 relative">
       <!-- 1. 顶部控制栏 (极简透视，Grok 风格) -->
-      <div class="h-12 px-3 sm:px-5 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent">
+      <div
+        class="px-3 sm:px-5 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full min-w-0 max-w-full bg-transparent"
+        style="min-height: calc(3rem + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px);"
+      >
         <!-- 左上角：精美聊天助手展示与切换 -->
         <div class="flex items-center min-w-0">
           <Popover v-model:open="rolePopoverVisible">
@@ -1224,7 +1233,10 @@ defineExpose({
         </div>
 
         <!-- 3. 底部输入卡片 (默认多层柔和深阴影，底色与主页完全统一) -->
-        <div class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pb-4 pt-1 bg-gradient-to-t from-[#f8f9fa] via-[#f8f9fa]/90 to-transparent dark:from-background dark:via-background/90 shrink-0">
+        <div
+          class="sticky bottom-0 w-full max-w-3xl mx-auto px-4 pt-1 bg-gradient-to-t from-[#f8f9fa] via-[#f8f9fa]/90 to-transparent dark:from-background dark:via-background/90 shrink-0"
+          style="padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom, 0px)));"
+        >
           <div class="relative rounded-[26px] border border-border/80 dark:border-border/60 bg-card/95 dark:bg-card/80 backdrop-blur-md shadow-xl shadow-black/8 dark:shadow-[0_12px_36px_rgba(0,0,0,0.4)] focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-primary/10 transition-all p-3 sm:p-3.5 flex flex-col gap-2">
             <!-- 附件预览 -->
             <div v-if="attachments.length > 0" class="flex flex-wrap gap-1.5 px-1 py-0.5">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, nextTick } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { authApi } from '@/api';
 import { toast } from '@/components/ui/sonner';
@@ -36,6 +36,7 @@ const form = reactive({
 const loading = ref(false);
 const passkeyLoading = ref(false);
 const errors = reactive<Record<string, string>>({});
+const totpInputRef = ref<any>(null);
 
 function resetForm() {
   form.username = '';
@@ -53,23 +54,31 @@ watch(
 
 // 账号密码登录
 async function handleLogin() {
+  if (loading.value) return;
   Object.keys(errors).forEach((key) => delete errors[key]);
 
   if (!form.username.trim()) errors.username = '请输入用户名';
   if (!form.password) errors.password = '请输入密码';
   if (Object.keys(errors).length > 0) return;
 
+  const cleanTotp = form.totpCode ? form.totpCode.replace(/\D/g, '').slice(0, 6) : undefined;
+
   loading.value = true;
   try {
     const result = await authStore.login(
       form.username.trim(),
       form.password,
-      form.totpCode.trim() || undefined
+      cleanTotp
     );
 
     if (result.requireTotp) {
       errors.totp = '该账户已开启两步验证，请输入 6 位 TOTP 动态码';
       toast.warning('该账户已开启两步验证，请输入 6 位动态验证码');
+      nextTick(() => {
+        const el = totpInputRef.value?.$el || totpInputRef.value;
+        if (el?.focus) el.focus();
+        else if (el?.querySelector) el.querySelector('input')?.focus();
+      });
     } else {
       toast.success('登录成功，欢迎回来');
       emit('update:visible', false);
@@ -154,16 +163,18 @@ async function handlePasskeyLogin() {
           <div class="space-y-1.5">
             <label class="text-xs font-medium text-foreground/80 flex justify-between">
               <span>两步验证码 (未启用可留空)</span>
-              <span v-if="errors.totp" class="text-destructive text-xs">{{ errors.totp }}</span>
+              <span v-if="errors.totp" class="text-destructive text-xs font-medium">{{ errors.totp }}</span>
             </label>
             <div class="relative">
               <Key class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
+                ref="totpInputRef"
                 v-model="form.totpCode"
                 placeholder="6 位动态验证码"
-                class="pl-9"
-                maxlength="6"
-                @keyup.enter="handleLogin"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                class="pl-9 font-mono tracking-wider"
+                @input="form.totpCode = form.totpCode.replace(/\D/g, '').slice(0, 6)"
               />
             </div>
           </div>
@@ -172,9 +183,8 @@ async function handlePasskeyLogin() {
           <div class="pt-1">
             <Button
               type="submit"
-              class="w-full gap-2"
+              class="w-full gap-2 cursor-pointer"
               :disabled="loading"
-              @click.prevent="handleLogin"
             >
               <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
               <span>{{ loading ? '登录中...' : '立即登录' }}</span>

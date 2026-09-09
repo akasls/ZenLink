@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
+// 配置 TOTP 验证时间窗口容错 (允许前后各 1 个步长，即 ±30s 漂移，解决手机与服务端时钟偏差导致验证失败)
+authenticator.options = { window: 1 };
 import QRCode from 'qrcode';
 import {
   generateRegistrationOptions,
@@ -104,12 +106,13 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
 
     // 检查是否启用了 2FA
     if (user.totp_enabled) {
-      if (!body.totpCode) {
+      const cleanTotp = body.totpCode ? String(body.totpCode).replace(/\D/g, '') : '';
+      if (!cleanTotp) {
         return reply.status(200).send({ requireTotp: true, message: '请输入动态验证码' });
       }
-      const isValid = authenticator.verify({ token: body.totpCode, secret: user.totp_secret });
+      const isValid = authenticator.verify({ token: cleanTotp, secret: user.totp_secret });
       if (!isValid) {
-        return reply.status(401).send({ error: '动态验证码错误' });
+        return reply.status(401).send({ error: '动态验证码错误或已过期，请重试' });
       }
     }
 
@@ -127,6 +130,9 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
 
   // ==================== TOTP 2FA ====================
 
+  // 临时存储未完成验证的 setup secret，防止未确认前覆盖生效密钥
+  const pendingTotpSecrets = new Map<number, string>();
+
   fastify.post('/api/auth/totp/setup', { preHandler: [requireAuth] }, async (request) => {
     const { userId } = request.user as any;
     const user = dbHelper.get('SELECT * FROM users WHERE id = ?', [userId]);
@@ -135,8 +141,7 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     const otpauth = authenticator.keyuri(user.username, RP_NAME, secret);
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
-    dbHelper.run('UPDATE users SET totp_secret = ? WHERE id = ?', [secret, userId]);
-    saveDatabase();
+    pendingTotpSecrets.set(userId, secret);
 
     return { secret, qrCodeUrl };
   });
@@ -146,18 +151,40 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
     const { code } = request.body as { code: string };
 
     const user = dbHelper.get('SELECT totp_secret FROM users WHERE id = ?', [userId]);
-    if (!user?.totp_secret) {
-      return reply.status(400).send({ error: '请先设置 TOTP' });
+    const secret = pendingTotpSecrets.get(userId) || user?.totp_secret;
+    if (!secret) {
+      return reply.status(400).send({ error: '请先生成 TOTP 配置' });
     }
 
-    const isValid = authenticator.verify({ token: code, secret: user.totp_secret });
+    const cleanCode = code ? String(code).replace(/\D/g, '') : '';
+    const isValid = authenticator.verify({ token: cleanCode, secret });
     if (!isValid) {
-      return reply.status(400).send({ error: '验证码错误，请重试' });
+      return reply.status(400).send({ error: '验证码错误，请确保手机时间同步并重试' });
     }
 
-    dbHelper.run('UPDATE users SET totp_enabled = 1 WHERE id = ?', [userId]);
+    dbHelper.run('UPDATE users SET totp_secret = ?, totp_enabled = 1 WHERE id = ?', [secret, userId]);
+    pendingTotpSecrets.delete(userId);
     saveDatabase();
-    return { success: true, message: '2FA 已启用' };
+    return { success: true, message: '2FA 两步验证已启用' };
+  });
+
+  fastify.post('/api/auth/totp/disable', { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as any;
+    const { password } = (request.body || {}) as { password?: string };
+
+    if (!password) {
+      return reply.status(400).send({ error: '请输入当前账户密码以关闭 2FA' });
+    }
+
+    const user = dbHelper.get('SELECT password_hash FROM users WHERE id = ?', [userId]);
+    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      return reply.status(401).send({ error: '密码错误，无法关闭 2FA' });
+    }
+
+    dbHelper.run('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?', [userId]);
+    pendingTotpSecrets.delete(userId);
+    saveDatabase();
+    return { success: true, message: 'TOTP 两步验证已成功关闭' };
   });
 
 // WebAuthn 动态配置助手
