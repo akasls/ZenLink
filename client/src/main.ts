@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import { registerSW } from 'virtual:pwa-register';
 
+import 'vue-sonner/style.css';
 import './style.css';
 
 import App from './App.vue';

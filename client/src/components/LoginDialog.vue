@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { User, Lock, Key, Fingerprint, Loader2 } from 'lucide-vue-next';
+import { User, Lock, Key, Fingerprint, Loader2, AlertCircle } from 'lucide-vue-next';
 
 const props = defineProps<{
   visible: boolean;
@@ -35,13 +35,17 @@ const form = reactive({
 
 const loading = ref(false);
 const passkeyLoading = ref(false);
+const generalError = ref('');
 const errors = reactive<Record<string, string>>({});
+const usernameInputRef = ref<any>(null);
+const passwordInputRef = ref<any>(null);
 const totpInputRef = ref<any>(null);
 
 function resetForm() {
   form.username = '';
   form.password = '';
   form.totpCode = '';
+  generalError.value = '';
   Object.keys(errors).forEach((key) => delete errors[key]);
 }
 
@@ -56,15 +60,26 @@ watch(
 async function handleLogin(e?: Event) {
   if (e) e.preventDefault();
   if (loading.value) return;
+  generalError.value = '';
   Object.keys(errors).forEach((key) => delete errors[key]);
 
-  if (!form.username.trim()) {
+  // 兜底读取原生 DOM input 值（防止部分移动端如 iOS Safari 自动填充钥匙串时未触发 Vue v-model 事件）
+  const domUser = usernameInputRef.value?.$el?.querySelector('input')?.value ?? usernameInputRef.value?.value ?? '';
+  const domPass = passwordInputRef.value?.$el?.querySelector('input')?.value ?? passwordInputRef.value?.value ?? '';
+  const u = (form.username || domUser).trim();
+  const p = form.password || domPass;
+  form.username = u;
+  form.password = p;
+
+  if (!u) {
     errors.username = '请输入用户名';
+    generalError.value = '请输入用户名';
     toast.error('请输入用户名');
     return;
   }
-  if (!form.password) {
+  if (!p) {
     errors.password = '请输入密码';
+    generalError.value = '请输入密码';
     toast.error('请输入密码');
     return;
   }
@@ -74,13 +89,14 @@ async function handleLogin(e?: Event) {
   loading.value = true;
   try {
     const result = await authStore.login(
-      form.username.trim(),
-      form.password,
+      u,
+      p,
       cleanTotp
     );
 
     if (result.requireTotp) {
       errors.totp = '该账户已开启两步验证，请输入 6 位 TOTP 动态码';
+      generalError.value = '该账户已开启两步验证，请输入 6 位动态验证码';
       toast.warning('该账户已开启两步验证，请输入 6 位动态验证码');
       nextTick(() => {
         const el = totpInputRef.value?.$el || totpInputRef.value;
@@ -95,6 +111,7 @@ async function handleLogin(e?: Event) {
     }
   } catch (err: any) {
     const message = err.response?.data?.error || err.message || '登录失败，请检查网络或账号密码';
+    generalError.value = message;
     toast.error(message);
   } finally {
     loading.value = false;
@@ -103,6 +120,7 @@ async function handleLogin(e?: Event) {
 
 // Passkey 免密登录
 async function handlePasskeyLogin() {
+  generalError.value = '';
   passkeyLoading.value = true;
   try {
     const { data: options } = await authApi.getWebAuthnLoginOptions();
@@ -113,6 +131,7 @@ async function handlePasskeyLogin() {
     emit('success', props.targetView);
   } catch (err: any) {
     const message = err.response?.data?.error || err.message || 'Passkey 验证未完成';
+    generalError.value = message;
     toast.error(message);
   } finally {
     passkeyLoading.value = false;
@@ -122,7 +141,7 @@ async function handlePasskeyLogin() {
 
 <template>
   <Dialog :open="visible" @update:open="emit('update:visible', $event)">
-    <DialogContent class="sm:max-w-[380px]">
+    <DialogContent class="w-[calc(100%-2.5rem)] max-w-[380px] sm:w-full sm:max-w-[380px]">
       <DialogHeader>
         <DialogTitle>登录后台</DialogTitle>
         <DialogDescription class="text-xs text-muted-foreground leading-relaxed">
@@ -130,7 +149,16 @@ async function handlePasskeyLogin() {
         </DialogDescription>
       </DialogHeader>
 
-      <div class="flex flex-col">
+      <div class="flex flex-col pt-1">
+        <!-- 错误提示横幅 (确保移动端或无 Toast 情况下清晰可见) -->
+        <div
+          v-if="generalError"
+          class="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2 mb-3.5 animate-in fade-in duration-200"
+        >
+          <AlertCircle class="h-4 w-4 shrink-0" />
+          <span class="leading-tight">{{ generalError }}</span>
+        </div>
+
         <form class="space-y-3.5" @submit.prevent="handleLogin">
           <!-- 用户名 -->
           <div class="space-y-1.5">
@@ -141,10 +169,13 @@ async function handlePasskeyLogin() {
             <div class="relative">
               <User class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
+                ref="usernameInputRef"
                 v-model="form.username"
                 placeholder="请输入管理员用户名"
                 class="pl-9"
                 autofocus
+                autocomplete="username"
+                @input="generalError = ''"
                 @keyup.enter="handleLogin"
               />
             </div>
@@ -159,10 +190,13 @@ async function handlePasskeyLogin() {
             <div class="relative">
               <Lock class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
+                ref="passwordInputRef"
                 v-model="form.password"
                 type="password"
                 placeholder="请输入密码"
                 class="pl-9"
+                autocomplete="current-password"
+                @input="generalError = ''"
                 @keyup.enter="handleLogin"
               />
             </div>
@@ -183,7 +217,7 @@ async function handlePasskeyLogin() {
                 inputmode="numeric"
                 autocomplete="one-time-code"
                 class="pl-9 font-mono tracking-wider"
-                @input="form.totpCode = form.totpCode.replace(/\D/g, '').slice(0, 6)"
+                @input="form.totpCode = form.totpCode.replace(/\D/g, '').slice(0, 6); generalError = ''"
               />
             </div>
           </div>
@@ -194,7 +228,7 @@ async function handlePasskeyLogin() {
               type="submit"
               class="w-full gap-2 cursor-pointer touch-manipulation"
               :disabled="loading"
-              @click.prevent="handleLogin"
+              @click="handleLogin"
             >
               <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
               <span>{{ loading ? '登录中...' : '立即登录' }}</span>
@@ -203,7 +237,7 @@ async function handlePasskeyLogin() {
 
           <!-- 分割线 -->
           <div class="relative my-3 text-center after:content-[''] after:absolute after:top-1/2 after:left-0 after:right-0 after:h-px after:bg-border">
-            <span class="relative z-10 bg-card px-2 text-[11px] text-muted-foreground">
+            <span class="relative z-10 bg-background px-2 text-[11px] text-muted-foreground">
               或使用生物识别
             </span>
           </div>

@@ -18,7 +18,7 @@ onMounted(async () => {
 <template>
   <TooltipProvider :delay-duration="200">
     <router-view />
-    <Toaster richColors position="top-right" />
+    <Toaster richColors position="top-center" />
     <ConfirmDialog />
   </TooltipProvider>
 </template>

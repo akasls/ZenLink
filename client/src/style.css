@@ -335,3 +335,8 @@ aside *::-webkit-scrollbar {
   }
 }
 
+/* 全局 Sonner Toast 层级与移动端避让安全区 */
+[data-sonner-toaster] {
+  z-index: 99999 !important;
+  padding-top: env(safe-area-inset-top, 0px) !important;
+}

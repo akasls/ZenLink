@@ -8,7 +8,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, Lock, Key, Fingerprint, Loader2 } from 'lucide-vue-next';
+import { User, Lock, Key, Fingerprint, Loader2, AlertCircle } from 'lucide-vue-next';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -21,22 +21,36 @@ const form = reactive({
 
 const loading = ref(false);
 const passkeyLoading = ref(false);
+const generalError = ref('');
 const errors = reactive<Record<string, string>>({});
+const usernameInputRef = ref<any>(null);
+const passwordInputRef = ref<any>(null);
 const totpInputRef = ref<any>(null);
 
 // 密码登录
 async function handleLogin(e?: Event) {
   if (e) e.preventDefault();
   if (loading.value) return;
+  generalError.value = '';
   Object.keys(errors).forEach((key) => delete errors[key]);
 
-  if (!form.username.trim()) {
+  // 兜底读取原生 DOM input 值（防止部分移动端如 iOS Safari 自动填充钥匙串未触发 Vue v-model 事件）
+  const domUser = usernameInputRef.value?.$el?.querySelector('input')?.value ?? usernameInputRef.value?.value ?? '';
+  const domPass = passwordInputRef.value?.$el?.querySelector('input')?.value ?? passwordInputRef.value?.value ?? '';
+  const u = (form.username || domUser).trim();
+  const p = form.password || domPass;
+  form.username = u;
+  form.password = p;
+
+  if (!u) {
     errors.username = '请输入用户名';
+    generalError.value = '请输入用户名';
     toast.error('请输入用户名');
     return;
   }
-  if (!form.password) {
+  if (!p) {
     errors.password = '请输入密码';
+    generalError.value = '请输入密码';
     toast.error('请输入密码');
     return;
   }
@@ -46,13 +60,14 @@ async function handleLogin(e?: Event) {
   loading.value = true;
   try {
     const result = await authStore.login(
-      form.username.trim(),
-      form.password,
+      u,
+      p,
       cleanTotp
     );
 
     if (result.requireTotp) {
       errors.totp = '该账户已开启两步验证，请输入 6 位 TOTP 动态码';
+      generalError.value = '该账户已开启两步验证，请输入 6 位动态验证码';
       toast.warning('该账户已开启两步验证，请输入 6 位动态验证码');
       nextTick(() => {
         const el = totpInputRef.value?.$el || totpInputRef.value;
@@ -66,6 +81,7 @@ async function handleLogin(e?: Event) {
     }
   } catch (err: any) {
     const message = err.response?.data?.error || err.message || '登录失败，请检查网络或账号密码';
+    generalError.value = message;
     toast.error(message);
   } finally {
     loading.value = false;
@@ -107,16 +123,29 @@ async function handlePasskeyLogin() {
       <!-- 登录表单卡片 -->
       <Card class="shadow-sm border-border">
         <CardContent class="p-6">
+          <!-- 错误提示横幅 (确保移动端或无 Toast 情况下清晰可见) -->
+          <div
+            v-if="generalError"
+            class="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2 mb-4 animate-in fade-in duration-200"
+          >
+            <AlertCircle class="h-4 w-4 shrink-0" />
+            <span class="leading-tight">{{ generalError }}</span>
+          </div>
+
           <form @submit.prevent="handleLogin" class="space-y-4">
             <div class="space-y-1.5">
               <label class="block text-xs font-medium text-foreground/80">用户名</label>
               <div class="relative">
                 <User class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
+                  ref="usernameInputRef"
                   v-model="form.username"
                   placeholder="请输入用户名"
                   class="pl-9"
                   autofocus
+                  autocomplete="username"
+                  @input="generalError = ''"
+                  @keyup.enter="handleLogin"
                 />
               </div>
               <p v-if="errors.username" class="text-xs text-destructive">{{ errors.username }}</p>
@@ -127,10 +156,14 @@ async function handlePasskeyLogin() {
               <div class="relative">
                 <Lock class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
+                  ref="passwordInputRef"
                   v-model="form.password"
                   type="password"
                   placeholder="请输入密码"
                   class="pl-9"
+                  autocomplete="current-password"
+                  @input="generalError = ''"
+                  @keyup.enter="handleLogin"
                 />
               </div>
               <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
@@ -148,7 +181,7 @@ async function handlePasskeyLogin() {
                   inputmode="numeric"
                   autocomplete="one-time-code"
                   class="pl-9 font-mono tracking-wider"
-                  @input="form.totpCode = form.totpCode.replace(/\D/g, '').slice(0, 6)"
+                  @input="form.totpCode = form.totpCode.replace(/\D/g, '').slice(0, 6); generalError = ''"
                 />
               </div>
               <p v-if="errors.totp" class="text-xs text-destructive font-medium">{{ errors.totp }}</p>
@@ -158,7 +191,7 @@ async function handlePasskeyLogin() {
               type="submit"
               class="w-full gap-2 cursor-pointer touch-manipulation"
               :disabled="loading"
-              @click.prevent="handleLogin"
+              @click="handleLogin"
             >
               <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
               <span>{{ loading ? '登录中...' : '立即登录' }}</span>
