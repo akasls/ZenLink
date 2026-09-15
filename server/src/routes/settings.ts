@@ -16,8 +16,8 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   fastify.get('/api/settings', async (_request: FastifyRequest, reply: FastifyReply) => {
     const rows = dbHelper.all('SELECT key, value FROM system_settings');
     const settings: Record<string, string> = {
-      site_name: '不凡导航',
-      site_desc: '干净简洁的导航！',
+      site_name: 'ZenLink',
+      site_desc: '简洁高效的个人网址导航与知识工作台',
       site_logo: '',
       default_engine: 'google',
       search_bg_mode: 'custom_image',

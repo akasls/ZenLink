@@ -12,16 +12,16 @@
     <!-- 品牌与主题色 (兼顾 Safari 顶栏沉浸色与自适应暗黑模式) -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8f9fa" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090d16" />
-    <meta name="description" content="不凡导航 - 干净简洁的现代化网址导航、在线云笔记与 AI 智能工作台" />
+    <meta name="description" content="ZenLink - 简洁高效的个人网址导航与知识工作台" />
     
     <!-- Android / Chrome PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="application-name" content="不凡导航" />
+    <meta name="application-name" content="ZenLink" />
     
     <!-- iOS Safari PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="不凡导航" />
+    <meta name="apple-mobile-web-app-title" content="ZenLink" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="mask-icon" href="/favicon.svg" color="#f43f5e" />
@@ -30,7 +30,15 @@
     <meta name="msapplication-TileColor" content="#0f172a" />
     <meta name="msapplication-TileImage" content="/pwa-192x192.png" />
 
-    <title>不凡导航 · 干净简洁的导航！</title>
+    <title>ZenLink · 简洁高效的个人网址导航与知识工作台</title>
+    <script>
+      (function() {
+        var m = localStorage.getItem('zenlink_theme') || 'system';
+        var dark = m === 'dark' || (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

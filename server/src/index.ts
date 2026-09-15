@@ -181,8 +181,8 @@ if (existsSync(clientDist)) {
       const settings: Record<string, string> = {};
       for (const r of rows) settings[r.key] = r.value;
 
-      const siteName = settings.site_name || '不凡导航';
-      const siteDesc = settings.site_desc || '干净简洁的导航！';
+      const siteName = settings.site_name || 'ZenLink';
+      const siteDesc = settings.site_desc || '简洁高效的个人网址导航与知识工作台';
       const siteLogo = settings.site_logo || '';
 
       // 动态注入标题与描述

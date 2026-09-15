@@ -110,7 +110,7 @@ CREATE INDEX IF NOT EXISTS idx_note_shares_nid ON note_shares(note_id);
 CREATE TABLE IF NOT EXISTS ai_conversations (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL DEFAULT '新对话',
-  model TEXT DEFAULT 'deepseek-chat',
+  model TEXT DEFAULT '',
   role_id TEXT DEFAULT 'default',
   icon TEXT DEFAULT '',
   is_pinned INTEGER DEFAULT 0,

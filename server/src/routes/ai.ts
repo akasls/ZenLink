@@ -11,11 +11,11 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const settings: Record<string, any> = {
       api_key: '',
       base_url: 'https://api.deepseek.com/v1',
-      model: 'deepseek-chat',
-      writing_model: 'deepseek-chat',
-      bookmark_model: 'gpt-5.5',
+      model: '',
+      writing_model: '',
+      bookmark_model: '',
       system_prompt: '你是一个知识渊博、高效简洁的智能全能助理。你精通各种编程语言、工具推荐、效率技巧以及文章写作。',
-      available_models: ['deepseek-chat', 'deepseek-reasoner'],
+      available_models: [],
       temperature: 0.7,
       top_p: 0.95,
       max_tokens: 4096,
@@ -36,7 +36,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         try {
           settings.available_models = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
         } catch {
-          settings.available_models = [settings.model || 'deepseek-chat'];
+          settings.available_models = [];
         }
       } else if (row.key === 'temperature' || row.key === 'top_p' || row.key === 'max_tokens') {
         settings[row.key] = Number(row.value);
@@ -47,13 +47,13 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       }
     }
     if (!settings.model || !String(settings.model).trim()) {
-      settings.model = (settings.available_models && settings.available_models[0]) || 'gpt-5.5';
+      settings.model = (settings.available_models && settings.available_models[0]) || '';
     }
-    if (!settings.writing_model || !String(settings.writing_model).trim()) {
-      settings.writing_model = settings.model || 'deepseek-chat';
+    if (settings.writing_model === undefined || settings.writing_model === null) {
+      settings.writing_model = '';
     }
-    if (!settings.bookmark_model || !String(settings.bookmark_model).trim()) {
-      settings.bookmark_model = settings.model || 'gpt-5.5';
+    if (settings.bookmark_model === undefined || settings.bookmark_model === null) {
+      settings.bookmark_model = '';
     }
     return reply.send({ settings });
   });
@@ -249,7 +249,8 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const body = (request.body as any) || {};
     const id = body.id || randomUUID();
     const title = body.title || '新对话';
-    const model = body.model || 'deepseek-chat';
+    const defaultModelRow = dbHelper.get('SELECT value FROM ai_settings WHERE key = ?', ['model']);
+    const model = body.model || defaultModelRow?.value || '';
     const role_id = body.role_id || 'default';
     const icon = body.icon || '';
     const project_id = body.project_id || null;
@@ -324,9 +325,9 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
     const apiKey = settings.api_key;
     const baseUrl = settings.base_url || 'https://api.deepseek.com/v1';
-    const model = settings.model || 'deepseek-chat';
+    const model = settings.model || '';
 
-    if (apiKey) {
+    if (apiKey && model) {
       try {
         const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
         const targetUrl = cleanBaseUrl.endsWith('/chat/completions')
@@ -484,7 +485,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         const title = message.trim().slice(0, 20) + (message.length > 20 ? '...' : '');
         dbHelper.run(
           'INSERT INTO ai_conversations (id, title, model, role_id, icon, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [conversation_id, title, requestModel || 'deepseek-chat', role_id || 'default', '💬', now, now]
+          [conversation_id, title, requestModel || '', role_id || 'default', '💬', now, now]
         );
       } else {
         // 无论是否是新会话，只要发送消息就刷新 updated_at 与 role_id
@@ -519,7 +520,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     const apiKey = keyRow?.value || process.env.OPENAI_API_KEY || '';
     const baseUrl = urlRow?.value || process.env.OPENAI_BASE_URL || 'https://api.deepseek.com/v1';
-    const model = requestModel || modelRow?.value || 'deepseek-chat';
+    const model = requestModel || modelRow?.value || '';
     const systemPrompt = custom_prompt || promptRow?.value || '你是一个知识渊博、高效简洁的智能全能助理。';
 
     let messages: any[] = [];
@@ -692,7 +693,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     const apiKey = keyRow?.value || process.env.OPENAI_API_KEY || '';
     const baseUrl = urlRow?.value || process.env.OPENAI_BASE_URL || 'https://api.deepseek.com/v1';
-    const model = requestModel || writingModelRow?.value || modelRow?.value || 'deepseek-chat';
+    const model = requestModel || writingModelRow?.value || modelRow?.value || '';
 
     const { system, userInstruction } = getWritingPrompt(action, instruction);
     const userMessageContent = context
@@ -705,7 +706,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     reply.raw.setHeader('X-Accel-Buffering', 'no');
     reply.raw.flushHeaders();
 
-    if (apiKey) {
+    if (apiKey && model) {
       try {
         const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
         const targetUrl = cleanBaseUrl.endsWith('/chat/completions')

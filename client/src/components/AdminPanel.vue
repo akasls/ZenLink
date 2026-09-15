@@ -654,13 +654,13 @@ function initNoteCategorySortable() {
 const aiSettings = ref({
   api_key: '',
   base_url: 'https://api.deepseek.com/v1',
-  model: 'deepseek-chat',
-  writing_model: 'deepseek-chat',
-  bookmark_model: 'gpt-5.5',
+  model: '',
+  writing_model: '',
+  bookmark_model: '',
   system_prompt: '你是一个知识渊博、高效简洁的智能全能助理。',
   has_api_key: 'false',
   api_key_masked: '',
-  available_models: ['deepseek-chat', 'deepseek-reasoner'] as string[],
+  available_models: [] as string[],
   temperature: 0.7,
   top_p: 0.95,
   max_tokens: 4096,
@@ -689,8 +689,8 @@ async function loadAiSettings() {
       } else if (data.settings.available_models !== undefined) {
         allFetchedModels.value = [...aiSettings.value.available_models];
       } else {
-        allFetchedModels.value = ['deepseek-chat', 'deepseek-reasoner'];
-        aiSettings.value.available_models = ['deepseek-chat', 'deepseek-reasoner'];
+        allFetchedModels.value = [];
+        aiSettings.value.available_models = [];
       }
     }
   } catch (e) {
@@ -2047,7 +2047,7 @@ onMounted(() => {
 
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-foreground">站点描述</label>
-                <Input v-model="siteForm.siteDesc" placeholder="干净简洁的导航！" class="text-xs h-8 bg-background" />
+                <Input v-model="siteForm.siteDesc" placeholder="简洁高效的个人网址导航与知识工作台" class="text-xs h-8 bg-background" />
               </div>
             </div>
 
@@ -2057,7 +2057,7 @@ onMounted(() => {
               <div class="flex items-center gap-3 p-3 rounded-lg border border-border/70 bg-muted/20 w-full">
                 <div class="w-10 h-10 rounded-md bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
                   <img v-if="siteForm.siteLogo" :src="siteForm.siteLogo" alt="Logo" class="w-full h-full object-cover" />
-                  <span v-else class="font-bold text-sm text-foreground">{{ (siteForm.siteName || 'Z').trim().charAt(0) }}</span>
+                  <img v-else src="/favicon.svg" alt="ZenLink Logo" class="w-6 h-6 object-contain" />
                   <Button
                     v-if="siteForm.siteLogo"
                     variant="ghost"

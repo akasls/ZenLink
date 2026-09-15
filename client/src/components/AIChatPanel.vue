@@ -395,7 +395,7 @@ const filteredModelOptions = computed(() => {
 // ==================== 3. 专属模型与推理参数设置弹窗 ====================
 
 const aiSettings = ref({
-  model: 'deepseek-chat',
+  model: '',
   system_prompt: '你是一个知识渊博、高效简洁的智能全能助理。',
   temperature: 0.7,
   top_p: 0.95,
@@ -452,14 +452,11 @@ async function loadAiSettings() {
           ? data.settings.available_models
           : JSON.parse(data.settings.available_models);
       }
-      if (!models || models.length === 0) {
-        if (data.settings.model) models = [data.settings.model];
-      }
-      modelOptions.value = models;
+      modelOptions.value = models || [];
       if (!selectedModel.value || !models.includes(selectedModel.value)) {
-        selectedModel.value = data.settings.model || models[0] || '';
+        selectedModel.value = data.settings.model || (models.length > 0 ? models[0] : '');
       }
-      aiSettings.value.model = data.settings.model || 'deepseek-chat';
+      aiSettings.value.model = data.settings.model || '';
       aiSettings.value.system_prompt = data.settings.system_prompt || '你是一个知识渊博、高效简洁的智能全能助理。';
       if (data.settings.temperature !== undefined) aiSettings.value.temperature = Number(data.settings.temperature);
       if (data.settings.top_p !== undefined) aiSettings.value.top_p = Number(data.settings.top_p);
@@ -657,6 +654,11 @@ async function deleteMessage(index: number) {
 async function sendMessage(customText?: string) {
   let userDisplayText = (customText || inputPrompt.value).trim();
   if ((!userDisplayText && attachments.value.length === 0) || isStreaming.value) return;
+
+  if (!selectedModel.value && modelOptions.value.length === 0) {
+    toast.warning('暂无可用模型，请前往系统设置添加并启用模型');
+    return;
+  }
 
   // 如果是在编辑历史提问，从此处截断后续回复并同步清理数据库历史
   if (editingMsgIndex.value !== null && customText === undefined) {
@@ -1312,7 +1314,11 @@ defineExpose({
                         class="h-7 text-xs w-full"
                       />
                       <ScrollArea class="h-40">
-                        <div class="space-y-0.5 pr-2">
+                        <div v-if="filteredModelOptions.length === 0" class="flex flex-col items-center justify-center h-32 text-center text-xs text-muted-foreground px-2">
+                          <p class="m-0 font-medium text-foreground/80">暂无模型</p>
+                          <p class="m-0 text-[11px] text-muted-foreground/70 mt-1">请前往系统设置添加并启用模型</p>
+                        </div>
+                        <div v-else class="space-y-0.5 pr-2">
                           <div
                             v-for="m in filteredModelOptions"
                             :key="m"

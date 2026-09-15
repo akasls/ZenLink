@@ -637,10 +637,8 @@ export default async function bookmarkRoutes(fastify: FastifyInstance): Promise<
 
       const apiKey = apiKeyRow.value;
       const baseUrl = (baseUrlRow?.value || 'https://api.deepseek.com/v1').replace(/\/+$/, '');
-      let model = bookmarkModelRow?.value?.trim() || modelRow?.value?.trim() || '';
-      if (!model) {
-        model = availableList.includes('gpt-5.5') ? 'gpt-5.5' : (availableList[0] || 'gpt-5.5');
-      }
+      let model = bookmarkModelRow?.value?.trim() || modelRow?.value?.trim() || availableList[0] || '';
+      if (!model) return fallback;
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 7000);

@@ -22,8 +22,8 @@ if (typeof document !== 'undefined') {
 }
 
 export const useSiteStore = defineStore('site', () => {
-  const siteName = ref(localStorage.getItem('zl_site_name') || '不凡导航');
-  const siteDesc = ref(localStorage.getItem('zl_site_desc') || '干净简洁的导航！');
+  const siteName = ref(localStorage.getItem('zl_site_name') || 'ZenLink');
+  const siteDesc = ref(localStorage.getItem('zl_site_desc') || '简洁高效的个人网址导航与知识工作台');
   const siteLogo = ref(localStorage.getItem('zl_site_logo') || '');
   const defaultEngine = ref(localStorage.getItem('zl_default_engine') || 'google');
   const searchBgMode = ref<'dynamic' | 'custom_image'>((localStorage.getItem('zl_search_bg_mode') as any) || 'dynamic');
@@ -33,8 +33,8 @@ export const useSiteStore = defineStore('site', () => {
 
   function updateDocumentTitle() {
     if (typeof document === 'undefined') return;
-    const name = siteName.value || '不凡导航';
-    const desc = siteDesc.value || '干净简洁的导航！';
+    const name = siteName.value || 'ZenLink';
+    const desc = siteDesc.value || '简洁高效的个人网址导航与知识工作台';
     document.title = `${name} · ${desc}`;
 
     // 同步更新 meta 标签
