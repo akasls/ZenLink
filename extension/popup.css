@@ -87,10 +87,14 @@ html {
 }
 
 body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
   background-color: var(--bg-app);
   color: var(--text-main);
   overflow: hidden;
@@ -98,19 +102,22 @@ body {
   box-sizing: border-box;
 }
 
-/* 处于普通扩展浮层 Popup 时，设定尺寸以撑开 Chrome 弹窗气泡 */
-html:not(.in-sidepanel):not(.in-window) body {
-  width: 420px;
-  height: 600px;
-  min-width: 420px;
-  min-height: 600px;
+/* 仅在纯弹窗 Action Popup 模式时，强制固定 420x600 撑开 Chrome 气泡窗口 */
+html.in-popup body,
+body.in-popup {
+  width: 420px !important;
+  height: 600px !important;
+  min-width: 420px !important;
+  min-height: 600px !important;
+  max-width: 420px !important;
+  max-height: 600px !important;
 }
 
-/* 处于 Chrome 侧边栏或独立伴随窗口时，100% 弹性充满容器，彻底消除 100vw 带来的水平滚动条 */
-html.in-window body,
+/* 侧边栏与独立窗口模式：100% 弹性充满容器，隐藏多余的“新窗口打开”按钮 */
 html.in-sidepanel body,
-body.in-window,
-body.in-sidepanel {
+html.in-window body,
+body.in-sidepanel,
+body.in-window {
   width: 100% !important;
   height: 100% !important;
   min-width: 0 !important;
@@ -119,14 +126,14 @@ body.in-sidepanel {
   max-height: 100% !important;
 }
 
-html.in-window #btn-open-window,
-html.in-window #btn-open-sidepanel,
 html.in-sidepanel #btn-open-window,
 html.in-sidepanel #btn-open-sidepanel,
-body.in-window #btn-open-window,
-body.in-window #btn-open-sidepanel,
+html.in-window #btn-open-window,
+html.in-window #btn-open-sidepanel,
 body.in-sidepanel #btn-open-window,
-body.in-sidepanel #btn-open-sidepanel {
+body.in-sidepanel #btn-open-sidepanel,
+body.in-window #btn-open-window,
+body.in-window #btn-open-sidepanel {
   display: none !important;
 }
 
@@ -1069,7 +1076,8 @@ input:checked + .slider:before {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-main);
-  max-width: 260px;
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

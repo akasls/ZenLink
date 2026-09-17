@@ -1,28 +1,12 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="in-sidepanel">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ZenLink 快捷助手</title>
-  <script>
-    (function() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const isSidePanel = urlParams.get('mode') === 'sidepanel' || 
-                          urlParams.get('mode') === 'window' || 
-                          window.location.pathname.includes('sidepanel');
-      if (isSidePanel) {
-        document.documentElement.classList.add('in-sidepanel');
-        if (urlParams.get('mode') === 'window') {
-          document.documentElement.classList.add('in-window');
-        }
-      } else {
-        document.documentElement.classList.add('in-popup');
-      }
-    })();
-  </script>
+  <title>ZenLink 侧边栏</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
-<body>
+<body class="in-sidepanel">
   <div id="app" class="app-container">
     <!-- 全局 Toast 提示容器 -->
     <div id="toast" class="toast hidden"></div>

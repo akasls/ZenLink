@@ -83,7 +83,7 @@ if (typeof chrome !== 'undefined' && chrome.action && chrome.action.onClicked) {
     // 兜底方案：在屏幕右侧开启全高贴边工作台 (与网页高度一致)
     try {
       chrome.windows.create({
-        url: chrome.runtime.getURL('popup.html?mode=sidepanel'),
+        url: chrome.runtime.getURL('sidepanel.html?mode=sidepanel'),
         type: 'popup',
         width: 440,
         height: 1000,
@@ -92,7 +92,7 @@ if (typeof chrome !== 'undefined' && chrome.action && chrome.action.onClicked) {
         focused: true,
       });
     } catch (err) {
-      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=sidepanel') });
+      chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel.html?mode=sidepanel') });
     }
   });
 }

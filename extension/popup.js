@@ -316,10 +316,14 @@ async function request(path, options = {}) {
 async function init() {
   // 检查是否在全高独立伴随工作台窗口或 Chrome 侧边栏中运行
   const isSidePanel = document.documentElement.classList.contains('in-sidepanel') ||
+                      document.body.classList.contains('in-sidepanel') ||
+                      window.location.pathname.includes('sidepanel') ||
                       window.location.search.includes('window') || 
                       window.location.search.includes('sidepanel') || 
                       window.innerHeight > 610;
   if (isSidePanel) {
+    document.documentElement.classList.remove('in-popup');
+    document.body.classList.remove('in-popup');
     document.documentElement.classList.add('in-sidepanel');
     document.body.classList.add('in-sidepanel');
     if (window.location.search.includes('window')) {
@@ -1995,6 +1999,17 @@ function bindEvents() {
   if (btnWindowTrigger) {
     btnWindowTrigger.addEventListener('click', async () => {
       try {
+        if (chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
+          try {
+            const currentWindow = await chrome.windows.getCurrent().catch(() => null);
+            if (currentWindow && currentWindow.id) {
+              await chrome.sidePanel.open({ windowId: currentWindow.id });
+              window.close();
+              return;
+            }
+          } catch (spErr) {}
+        }
+
         const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null);
         const screenW = window.screen.availWidth || 1920;
         const screenH = window.screen.availHeight || 1080;
@@ -2011,7 +2026,7 @@ function bindEvents() {
         }
 
         await chrome.windows.create({
-          url: chrome.runtime.getURL('popup.html?mode=window'),
+          url: chrome.runtime.getURL('sidepanel.html?mode=window'),
           type: 'popup',
           width: sideWidth,
           height: height,
@@ -2022,7 +2037,7 @@ function bindEvents() {
 
         window.close();
       } catch (err) {
-        chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=window') });
+        chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel.html?mode=window') });
       }
     });
   }
