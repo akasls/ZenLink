@@ -158,6 +158,7 @@ const elements = {
   stTranslateProvider: document.getElementById('st-translate-provider'),
   btnOpenWeb: document.getElementById('btn-open-web'),
   btnSyncAll: document.getElementById('btn-sync-all'),
+  btnReloadExt: document.getElementById('btn-reload-ext'),
   btnLogout: document.getElementById('btn-logout'),
 };
 
@@ -1936,6 +1937,16 @@ async function openSettingsView() {
   if (elements.stServerUrl) elements.stServerUrl.textContent = state.serverUrl || '--';
   if (elements.stUsername) elements.stUsername.textContent = (state.user && state.user.username) || '已连接';
 
+  const versionEl = document.getElementById('settings-version');
+  if (versionEl && chrome.runtime && chrome.runtime.getManifest) {
+    try {
+      const manifest = chrome.runtime.getManifest();
+      if (manifest && manifest.version) {
+        versionEl.textContent = `ZenLink Chrome Extension v${manifest.version}`;
+      }
+    } catch (e) {}
+  }
+
   try {
     const stored = await chrome.storage.local.get(['translationEnabled', 'translationProviders', 'translationProvider']);
     if (elements.stTranslateEnabled) {
@@ -2217,6 +2228,19 @@ function bindEvents() {
   if (elements.btnSyncAll) {
     elements.btnSyncAll.addEventListener('click', async () => {
       await loadData(true);
+    });
+  }
+  if (elements.btnReloadExt) {
+    elements.btnReloadExt.addEventListener('click', () => {
+      showToast('正在重新载入扩展代码...');
+      setTimeout(() => {
+        try {
+          chrome.runtime.reload();
+        } catch (e) {
+          console.error(e);
+        }
+        window.close();
+      }, 300);
     });
   }
   if (elements.btnLogout) {
