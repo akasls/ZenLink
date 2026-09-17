@@ -113,7 +113,7 @@
     return (clone.innerText || clone.textContent || '').trim();
   }
 
-  // 监听来自扩展 Popup / SidePanel 的剪藏请求消息
+  // 监听来自扩展 Popup / SidePanel / Background 的交互消息
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request && request.action === 'CLIP_PAGE_CONTENT') {
       try {
@@ -122,8 +122,23 @@
       } catch (err) {
         sendResponse({ success: false, error: err.message });
       }
+      return true;
     }
-    return true;
+
+    if (request && request.action === 'SHOW_INPAGE_ADD_BOOKMARK') {
+      if (typeof window.__zenlinkShowBookmarkModal === 'function') {
+        window.__zenlinkShowBookmarkModal(request.data);
+        sendResponse({ success: true });
+      } else {
+        setTimeout(() => {
+          if (typeof window.__zenlinkShowBookmarkModal === 'function') {
+            window.__zenlinkShowBookmarkModal(request.data);
+          }
+        }, 60);
+        sendResponse({ success: true });
+      }
+      return true;
+    }
   });
 
   // ==================== 网页划词翻译浮层交互 ====================
@@ -202,13 +217,14 @@
         z-index: 2147483647 !important;
         width: 360px;
         max-width: calc(100vw - 24px);
-        max-height: min(520px, calc(100vh - 40px));
+        max-height: min(520px, calc(100vh - 24px)) !important;
         background: #ffffff;
         border-radius: 12px;
         border: 1px solid rgba(0, 0, 0, 0.1);
         box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.22), 0 6px 14px rgba(0, 0, 0, 0.1);
         overflow: hidden;
         animation: zenlinkFadeIn 0.16s ease-out;
+        box-sizing: border-box !important;
       }
       @media (prefers-color-scheme: dark) {
         #zenlink-card {
@@ -280,7 +296,8 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
-        max-height: 380px;
+        max-height: calc(min(520px, 100vh - 24px) - 95px) !important;
+        box-sizing: border-box !important;
       }
       .zenlink-source-box {
         padding: 6px 8px;
@@ -464,6 +481,234 @@
           color: #cbd5e1;
         }
       }
+
+      /* 页面内悬浮添加书签模态框 */
+      #zenlink-modal-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background: rgba(15, 23, 42, 0.48) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        z-index: 2147483647 !important;
+        display: none;
+        align-items: center !important;
+        justify-content: center !important;
+        animation: zenlinkFadeIn 0.16s ease-out;
+        box-sizing: border-box !important;
+      }
+
+      #zenlink-modal-card {
+        width: 440px !important;
+        max-width: calc(100vw - 32px) !important;
+        background: #ffffff !important;
+        border-radius: 14px !important;
+        box-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        animation: zenlinkScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        color: #1e293b !important;
+        box-sizing: border-box !important;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        #zenlink-modal-card {
+          background: #181c24 !important;
+          border-color: rgba(255, 255, 255, 0.12) !important;
+          color: #f1f5f9 !important;
+          box-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.7), 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+        }
+      }
+
+      @keyframes zenlinkScaleUp {
+        from { opacity: 0; transform: scale(0.96) translateY(6px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
+
+      .zenlink-modal-header {
+        padding: 13px 18px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background: #f8fafc !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-modal-header {
+          background: #202632 !important;
+          border-color: #2d3748 !important;
+        }
+      }
+      .zenlink-modal-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.01em !important;
+      }
+      .zenlink-modal-title svg {
+        width: 17px !important;
+        height: 17px !important;
+        fill: #f1404b !important;
+      }
+      .zenlink-modal-body {
+        padding: 16px 18px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        max-height: calc(100vh - 180px) !important;
+        overflow-y: auto !important;
+      }
+      .zenlink-form-item {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 5px !important;
+      }
+      .zenlink-form-label {
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.4px !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-form-label {
+          color: #94a3b8 !important;
+        }
+      }
+      .zenlink-modal-input,
+      .zenlink-modal-select,
+      .zenlink-modal-textarea {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 8px 11px !important;
+        border-radius: 8px !important;
+        border: 1px solid #e2e8f0 !important;
+        background: #f8fafc !important;
+        color: inherit !important;
+        font-size: 12.5px !important;
+        outline: none !important;
+        font-family: inherit !important;
+        transition: border-color 0.15s, box-shadow 0.15s !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-modal-input,
+        .zenlink-modal-select,
+        .zenlink-modal-textarea {
+          border-color: #334155 !important;
+          background: #0f172a !important;
+        }
+      }
+      .zenlink-modal-input:focus,
+      .zenlink-modal-select:focus,
+      .zenlink-modal-textarea:focus {
+        border-color: #f1404b !important;
+        box-shadow: 0 0 0 2px rgba(241, 64, 75, 0.15) !important;
+        background: transparent !important;
+      }
+      .zenlink-modal-textarea {
+        resize: vertical !important;
+        min-height: 54px !important;
+      }
+      .zenlink-checkbox-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 7px !important;
+        font-size: 12px !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        color: #64748b !important;
+        margin-top: 2px !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-checkbox-row {
+          color: #94a3b8 !important;
+        }
+      }
+      .zenlink-checkbox-row input {
+        accent-color: #f1404b !important;
+        width: 14px !important;
+        height: 14px !important;
+        cursor: pointer !important;
+      }
+      .zenlink-modal-footer {
+        padding: 12px 18px !important;
+        border-top: 1px solid #e2e8f0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background: #f8fafc !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-modal-footer {
+          border-color: #2d3748 !important;
+          background: #111726 !important;
+        }
+      }
+      .zenlink-modal-status {
+        font-size: 11.5px !important;
+        color: #64748b !important;
+        flex: 1 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        padding-right: 8px !important;
+      }
+      .zenlink-modal-status.success {
+        color: #10b981 !important;
+        font-weight: 600 !important;
+      }
+      .zenlink-modal-status.error {
+        color: #ef4444 !important;
+        font-weight: 600 !important;
+      }
+      .zenlink-modal-btns {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+      .zenlink-btn-cancel {
+        padding: 6px 14px !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        border: 1px solid #cbd5e1 !important;
+        background: transparent !important;
+        color: inherit !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        transition: background 0.15s !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-btn-cancel {
+          border-color: #334155 !important;
+        }
+      }
+      .zenlink-btn-cancel:hover {
+        background: rgba(0, 0, 0, 0.05) !important;
+      }
+      .zenlink-btn-submit {
+        padding: 6px 16px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        border: none !important;
+        background: #f1404b !important;
+        color: #ffffff !important;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        transition: background 0.15s, transform 0.1s !important;
+      }
+      .zenlink-btn-submit:hover {
+        background: #dc2626 !important;
+      }
+      .zenlink-btn-submit:disabled {
+        opacity: 0.65 !important;
+        cursor: not-allowed !important;
+      }
     `;
 
     // 悬浮按钮
@@ -501,18 +746,79 @@
       </div>
     `;
 
+    // 页面内悬浮添加书签模态框
+    const modalOverlay = document.createElement('div');
+    modalOverlay.id = 'zenlink-modal-overlay';
+    modalOverlay.className = 'zenlink-font';
+    modalOverlay.innerHTML = `
+      <div id="zenlink-modal-card">
+        <div class="zenlink-modal-header">
+          <div class="zenlink-modal-title">
+            <svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+            <span>添加网页到书签</span>
+          </div>
+          <button id="zenlink-modal-close-btn" class="zenlink-close-btn" title="关闭 (Esc)">&times;</button>
+        </div>
+        <div class="zenlink-modal-body">
+          <div class="zenlink-form-item">
+            <label class="zenlink-form-label">网页标题</label>
+            <input type="text" id="zenlink-bm-title" class="zenlink-modal-input" placeholder="输入书签标题..." />
+          </div>
+          <div class="zenlink-form-item">
+            <label class="zenlink-form-label">网页网址</label>
+            <input type="text" id="zenlink-bm-url" class="zenlink-modal-input" placeholder="https://..." />
+          </div>
+          <div class="zenlink-form-item">
+            <label class="zenlink-form-label">所属分类</label>
+            <select id="zenlink-bm-category" class="zenlink-modal-select">
+              <option value="">默认分类 (未归类)</option>
+            </select>
+          </div>
+          <div class="zenlink-form-item">
+            <label class="zenlink-form-label">简介备注 (选填)</label>
+            <textarea id="zenlink-bm-desc" class="zenlink-modal-textarea" placeholder="填写网站简介或收藏备注..."></textarea>
+          </div>
+          <div class="zenlink-form-item">
+            <label class="zenlink-checkbox-row">
+              <input type="checkbox" id="zenlink-bm-private" />
+              <span>设为私密书签 (仅自己登录可见)</span>
+            </label>
+          </div>
+        </div>
+        <div class="zenlink-modal-footer">
+          <div id="zenlink-modal-status" class="zenlink-modal-status"></div>
+          <div class="zenlink-modal-btns">
+            <button id="zenlink-modal-cancel-btn" class="zenlink-btn-cancel">取消</button>
+            <button id="zenlink-modal-submit-btn" class="zenlink-btn-submit">保存书签</button>
+          </div>
+        </div>
+      </div>
+    `;
+
     shadow.appendChild(style);
     shadow.appendChild(floatBtn);
     shadow.appendChild(card);
+    shadow.appendChild(modalOverlay);
     (document.body || document.documentElement).appendChild(host);
 
-    // 内部 DOM 引用
+    // 内部 DOM 引用 (划词翻译)
     const closeBtn = shadow.getElementById('zenlink-close-btn');
     const sourcePreview = shadow.getElementById('zenlink-source-preview');
     const resultsList = shadow.getElementById('zenlink-results-list');
     const langBadge = shadow.getElementById('zenlink-lang-badge');
     const copyAllBtn = shadow.getElementById('zenlink-copy-all-btn');
     const copyAllText = shadow.getElementById('zenlink-copy-all-text');
+
+    // 内部 DOM 引用 (添加书签悬浮卡片)
+    const modalCloseBtn = shadow.getElementById('zenlink-modal-close-btn');
+    const modalCancelBtn = shadow.getElementById('zenlink-modal-cancel-btn');
+    const modalSubmitBtn = shadow.getElementById('zenlink-modal-submit-btn');
+    const modalTitleInput = shadow.getElementById('zenlink-bm-title');
+    const modalUrlInput = shadow.getElementById('zenlink-bm-url');
+    const modalCatSelect = shadow.getElementById('zenlink-bm-category');
+    const modalDescInput = shadow.getElementById('zenlink-bm-desc');
+    const modalPrivateChk = shadow.getElementById('zenlink-bm-private');
+    const modalStatus = shadow.getElementById('zenlink-modal-status');
 
     let currentSelectedText = '';
     let lastSelectionRect = null;
@@ -664,25 +970,37 @@
       if (!currentSelectedText || !lastSelectionRect) return;
 
       const cardWidth = 360;
-      let cardX = lastSelectionRect.left;
-      let cardY = lastSelectionRect.bottom + 8;
-
       const winW = window.innerWidth;
       const winH = window.innerHeight;
 
+      let cardX = lastSelectionRect.left;
       if (cardX + cardWidth > winW - 12) cardX = winW - cardWidth - 12;
       if (cardX < 12) cardX = 12;
 
-      // 若接近视口底部且上方空间充裕，翻转至选区上方
-      if (lastSelectionRect.bottom + 280 > winH && lastSelectionRect.top > 240) {
-        cardY = Math.max(12, lastSelectionRect.top - 260);
-      } else if (cardY + 280 > winH) {
-        cardY = Math.max(12, winH - 290);
+      // 预先显示以测量卡片真实渲染高度
+      card.style.display = 'flex';
+      card.style.visibility = 'hidden';
+
+      const cardHeight = Math.min(card.offsetHeight || 360, winH - 24);
+      const spaceBelow = winH - lastSelectionRect.bottom - 12;
+      const spaceAbove = lastSelectionRect.top - 12;
+
+      let cardY = lastSelectionRect.bottom + 8;
+
+      // 智能判断翻转至选区上方或贴紧屏幕下边缘
+      if (spaceBelow < cardHeight && spaceAbove > spaceBelow) {
+        // 上方空间更充足，翻转到选区上方
+        cardY = Math.max(12, lastSelectionRect.top - cardHeight - 8);
+      } else {
+        // 处于下方，若卡片超出视口下界，自动上移留出 12px 安全底距
+        if (cardY + cardHeight > winH - 12) {
+          cardY = Math.max(12, winH - cardHeight - 12);
+        }
       }
 
       card.style.left = `${Math.round(cardX)}px`;
       card.style.top = `${Math.round(cardY)}px`;
-      card.style.display = 'flex';
+      card.style.visibility = 'visible';
 
       // 填充原文预览
       sourcePreview.textContent = currentSelectedText;
@@ -782,6 +1100,15 @@
               }
             });
           });
+
+          // 动态防遮挡：当多引擎结果渲染导致卡片变高时，若触及底部则平滑上移
+          setTimeout(() => {
+            const currentRect = card.getBoundingClientRect();
+            if (currentRect.bottom > window.innerHeight - 12) {
+              const newTop = Math.max(12, window.innerHeight - currentRect.height - 12);
+              card.style.top = `${Math.round(newTop)}px`;
+            }
+          }, 30);
         }
       );
     }
@@ -833,11 +1160,107 @@
       floatBtn.style.display = 'none';
     });
 
-    // ESC 按键快捷关闭
+    // ==================== 页面内悬浮添加书签交互逻辑 ====================
+    let currentBookmarkFavicon = '';
+
+    window.__zenlinkShowBookmarkModal = async function (data) {
+      if (!data) return;
+      currentBookmarkFavicon = data.favicon || '';
+      modalTitleInput.value = data.title || '';
+      modalUrlInput.value = data.url || '';
+      modalDescInput.value = data.description || '';
+      modalPrivateChk.checked = false;
+      modalStatus.textContent = '';
+      modalStatus.className = 'zenlink-modal-status';
+      modalSubmitBtn.disabled = false;
+      modalSubmitBtn.textContent = '保存书签';
+
+      // 动态填充分类下拉列表
+      try {
+        const stored = await chrome.storage.local.get(['cachedCategories']);
+        const cats = Array.isArray(stored.cachedCategories) ? stored.cachedCategories : [];
+        let opts = '<option value="">默认分类 (未归类)</option>';
+        const tops = cats.filter((c) => !c.parent_id || c.parent_id === 0 || c.parent_id === '0');
+        tops.forEach((top) => {
+          opts += `<option value="${top.id}">📁 ${escapeText(top.name)}</option>`;
+          const subs = cats.filter((c) => String(c.parent_id) === String(top.id));
+          subs.forEach((sub) => {
+            opts += `<option value="${sub.id}">&nbsp;&nbsp;&nbsp;&nbsp;└ 📄 ${escapeText(sub.name)}</option>`;
+          });
+        });
+        modalCatSelect.innerHTML = opts;
+      } catch (e) {
+        modalCatSelect.innerHTML = '<option value="">默认分类 (未归类)</option>';
+      }
+
+      modalOverlay.style.display = 'flex';
+      setTimeout(() => {
+        modalTitleInput.focus();
+        modalTitleInput.select();
+      }, 50);
+    };
+
+    function closeBookmarkModal() {
+      modalOverlay.style.display = 'none';
+    }
+
+    modalCloseBtn.addEventListener('click', closeBookmarkModal);
+    modalCancelBtn.addEventListener('click', closeBookmarkModal);
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) closeBookmarkModal();
+    });
+
+    modalSubmitBtn.addEventListener('click', async () => {
+      const title = modalTitleInput.value.trim();
+      const url = modalUrlInput.value.trim();
+      const categoryId = modalCatSelect.value ? Number(modalCatSelect.value) : null;
+      const description = modalDescInput.value.trim();
+      const isPrivate = modalPrivateChk.checked;
+
+      if (!title || !url) {
+        modalStatus.className = 'zenlink-modal-status error';
+        modalStatus.textContent = '请填写标题与网址';
+        return;
+      }
+
+      modalSubmitBtn.disabled = true;
+      modalSubmitBtn.textContent = '保存中...';
+      modalStatus.className = 'zenlink-modal-status';
+      modalStatus.textContent = '正在提交至服务端...';
+
+      chrome.runtime.sendMessage({
+        action: 'API_ADD_BOOKMARK',
+        payload: {
+          title,
+          url,
+          categoryId,
+          description,
+          favicon: currentBookmarkFavicon,
+          isPrivate,
+        },
+      }, (res) => {
+        if (res && res.success) {
+          modalStatus.className = 'zenlink-modal-status success';
+          modalStatus.textContent = '✅ 书签已成功保存！';
+          modalSubmitBtn.textContent = '已保存 ✓';
+          setTimeout(() => {
+            closeBookmarkModal();
+          }, 800);
+        } else {
+          modalSubmitBtn.disabled = false;
+          modalSubmitBtn.textContent = '保存书签';
+          modalStatus.className = 'zenlink-modal-status error';
+          modalStatus.textContent = (res && res.error) || '保存失败，请检查登录状态';
+        }
+      });
+    });
+
+    // ESC 按键快捷关闭浮层与模态框
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         floatBtn.style.display = 'none';
         card.style.display = 'none';
+        closeBookmarkModal();
       }
     });
   }

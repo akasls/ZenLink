@@ -315,12 +315,17 @@ async function request(path, options = {}) {
 
 async function init() {
   // 检查是否在全高独立伴随工作台窗口或 Chrome 侧边栏中运行
-  const isWindowOrSidePanel = window.location.search.includes('window') || 
-                              window.location.search.includes('sidepanel') || 
-                              window.innerHeight > 610;
-  if (isWindowOrSidePanel) {
-    document.body.classList.add('in-window');
+  const isSidePanel = document.documentElement.classList.contains('in-sidepanel') ||
+                      window.location.search.includes('window') || 
+                      window.location.search.includes('sidepanel') || 
+                      window.innerHeight > 610;
+  if (isSidePanel) {
+    document.documentElement.classList.add('in-sidepanel');
     document.body.classList.add('in-sidepanel');
+    if (window.location.search.includes('window')) {
+      document.documentElement.classList.add('in-window');
+      document.body.classList.add('in-window');
+    }
   }
 
   // 1. 读取本地缓存，做到 0 延迟秒开

@@ -2,8 +2,32 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ZenLink 快捷助手</title>
+  <script>
+    // 页面解析前同步判定运行环境，防闪烁防溢出
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isExplicitSidePanel = urlParams.get('mode') === 'sidepanel' || urlParams.get('mode') === 'window';
+      let isSidePanel = isExplicitSidePanel;
+      if (!isSidePanel && typeof chrome !== 'undefined' && chrome.extension && chrome.extension.getViews) {
+        try {
+          const popupViews = chrome.extension.getViews({ type: 'popup' });
+          if (!popupViews.includes(window)) {
+            isSidePanel = true;
+          }
+        } catch (e) {}
+      }
+      if (!isSidePanel && (window.innerHeight > 610 || window.innerWidth > 440 || window.innerWidth < 400)) {
+        isSidePanel = true;
+      }
+      if (isSidePanel) {
+        document.documentElement.classList.add('in-sidepanel');
+      } else {
+        document.documentElement.classList.add('in-popup');
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -115,18 +139,6 @@
 
         <!-- ===== Tab Pane 1: 网址导航书签 ===== -->
         <div id="pane-nav" class="tab-pane">
-          <!-- 快捷添加横幅卡片 -->
-          <div id="quick-add-banner" class="quick-banner">
-            <div class="quick-banner-content">
-              <img id="tab-favicon" src="icons/icon16.png" class="banner-fav" alt="" />
-              <div class="banner-text">
-                <span class="banner-hint">当前页面</span>
-                <span id="tab-title" class="banner-title">正在读取当前标签页...</span>
-              </div>
-            </div>
-            <button id="btn-quick-collect" class="btn btn-xs btn-primary">一键保存</button>
-          </div>
-
           <!-- 搜索与分类导航 -->
           <div class="search-bar">
             <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
@@ -162,18 +174,6 @@
 
         <!-- ===== Tab Pane 2: 在线笔记 ===== -->
         <div id="pane-notes" class="tab-pane hidden">
-          <!-- 快捷剪藏横幅 -->
-          <div class="quick-banner">
-            <div class="quick-banner-content">
-              <span class="note-clip-icon">✂️</span>
-              <div class="banner-text">
-                <span class="banner-hint">网页智能剪藏</span>
-                <span id="note-clip-title" class="banner-title">将当前网页正文与摘要保存为笔记</span>
-              </div>
-            </div>
-            <button id="btn-quick-clip-note" class="btn btn-xs btn-primary">剪藏正文至笔记</button>
-          </div>
-
           <!-- 笔记搜索栏 -->
           <div class="search-bar">
             <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
@@ -536,7 +536,7 @@
           </button>
         </div>
 
-        <p class="settings-version" id="settings-version">ZenLink Chrome Extension v1.2.1</p>
+        <p class="settings-version" id="settings-version">ZenLink Chrome Extension v1.2.2</p>
       </div>
     </section>
   </div>

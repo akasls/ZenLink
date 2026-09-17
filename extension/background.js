@@ -128,7 +128,33 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // 持久化待添加书签数据，供弹窗读取并自动填充到添加表单
   await chrome.storage.local.set({ pendingAddBookmark: pendingData });
 
-  // 1. 优先尝试唤起 Chrome 116+ 侧边栏
+  // 1. 优先直接向当前网页注入并唤起页面内悬浮添加书签卡片 (无需新开标签或窗口)
+  if (tab && tab.id) {
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        action: 'SHOW_INPAGE_ADD_BOOKMARK',
+        data: pendingData,
+      });
+      return;
+    } catch (err) {
+      // 若当前标签页尚未加载 content.js，先动态注入脚本再发送消息
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js'],
+        });
+        await chrome.tabs.sendMessage(tab.id, {
+          action: 'SHOW_INPAGE_ADD_BOOKMARK',
+          data: pendingData,
+        });
+        return;
+      } catch (injectErr) {
+        console.warn('当前页面不支持注入悬浮组件 (如 Chrome 内部特权页面)，降级尝试侧边栏:', injectErr);
+      }
+    }
+  }
+
+  // 2. 兜底方案：如果是 chrome:// 等特权系统页面无法注入 content.js，尝试唤起侧边栏
   if (chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
     try {
       if (tab && tab.id) {
@@ -141,23 +167,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         return;
       }
     } catch (e) {}
-  }
-
-  // 2. 兜底方案：在当前浏览器右侧开启全高伴随工作台编辑窗口
-  try {
-    const screenW = 1920;
-    await chrome.windows.create({
-      url: chrome.runtime.getURL('popup.html?mode=add_bookmark'),
-      type: 'popup',
-      width: 440,
-      height: 960,
-      top: 0,
-      left: Math.max(0, screenW - 450),
-      focused: true,
-    });
-    chrome.runtime.sendMessage({ action: 'OPEN_ADD_BOOKMARK', data: pendingData }).catch(() => {});
-  } catch (err) {
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=add_bookmark') });
   }
 });
 
@@ -176,9 +185,7 @@ function notify(title, message) {
   }
 }
 
-// ==================== 网页划词翻译后台代理 ====================
-// 在 Service Worker 中统一发起请求，规避目标网页严格的 CSP 与跨域限制
-
+// 统一后台代理消息监听 (规避网页跨域与 CSP 限制)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request && request.action === 'TRANSLATE_TEXT') {
     handleTranslate(request)
@@ -188,7 +195,66 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     return true; // 保持异步响应管道开放
   }
+
+  if (request && request.action === 'API_ADD_BOOKMARK') {
+    handleApiAddBookmark(request.payload)
+      .then((res) => sendResponse(res))
+      .catch((err) => {
+        sendResponse({ success: false, error: err.message || '保存书签失败' });
+      });
+    return true; // 保持异步响应管道开放
+  }
 });
+
+// 在 Background 后台代理向服务端添加书签 (免疫任意网页 CSP 与 CORS 限制)
+async function handleApiAddBookmark(payload) {
+  if (!payload || !payload.url || !payload.title) {
+    return { success: false, error: '网址和标题为必填项' };
+  }
+
+  const stored = await chrome.storage.local.get(['serverUrl', 'authToken', 'cachedBookmarks']);
+  const serverUrl = stored.serverUrl;
+  const token = stored.authToken;
+  if (!serverUrl || !token) {
+    return { success: false, error: '请先打开 ZenLink 插件登录并连接您的自建服务' };
+  }
+
+  const cleanUrl = serverUrl.replace(/\/+$/, '');
+  const endpoint = `${cleanUrl}/api/bookmarks`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        title: payload.title,
+        url: payload.url,
+        description: payload.description || '',
+        favicon: payload.favicon || '',
+        categoryId: payload.categoryId ? Number(payload.categoryId) : null,
+        isPrivate: !!payload.isPrivate,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: data.message || data.error || `请求失败 (HTTP ${res.status})` };
+    }
+
+    if (data && data.bookmark) {
+      const bookmarks = Array.isArray(stored.cachedBookmarks) ? stored.cachedBookmarks : [];
+      bookmarks.unshift(data.bookmark);
+      await chrome.storage.local.set({ cachedBookmarks: bookmarks });
+    }
+
+    return { success: true, bookmark: data.bookmark };
+  } catch (err) {
+    return { success: false, error: err.message || '网络连接异常，无法连接到服务端' };
+  }
+}
 
 async function handleTranslate(request) {
   const { text, targetLang } = request;
