@@ -3,7 +3,9 @@
  * 1. 0 延迟秒开：本地离线缓存 + 后台静默增量同步
  * 2. 多合一工作台：底栏左下角无缝切换 [网址导航] / [在线笔记] / [AI 智能助手]
  * 3. 完美横向平移：分类胶囊按钮支持鼠标直接抓取拖动与滚轮横向滚动，智能防误触
- * 4. 实时流式对话：AI 助手 SSE 流式输出，支持一键总结当前网页
+ * 4. 实时流式对话：AI 助手 SSE 流式输出，支持一键总结当前网页、模型选择、历史会话切换
+ * 5. 网页智能剪藏：智能提取网页真实正文至笔记，支持 Markdown 工具条与 AI 生成标题/标签
+ * 6. 原生侧边栏：支持一键切换至 Chrome Side Panel 独立展开驻留
  */
 
 // 全局响应式状态
@@ -23,12 +25,16 @@ const state = {
 
   // 笔记模块
   notes: [],
+  noteCategories: [],
   notesSearchQuery: '',
   editingNoteId: null,
 
   // AI 模块
   aiSettings: null,
+  selectedAiModel: '',
+  currentAiTitle: '新对话',
   aiConversationId: null,
+  aiConversations: [],
   aiHistory: [],
   isAiStreaming: false,
 
@@ -66,7 +72,9 @@ const elements = {
   // 顶栏通用
   siteTitle: document.getElementById('display-site-name'),
   btnMainAction: document.getElementById('btn-main-action'),
+  iconMainAction: document.getElementById('icon-main-action'),
   txtMainAction: document.getElementById('txt-main-action'),
+  btnOpenSidepanel: document.getElementById('btn-open-sidepanel'),
   btnToSettings: document.getElementById('btn-to-settings'),
 
   // 底栏通用
@@ -99,7 +107,10 @@ const elements = {
   noteEditHeaderTitle: document.getElementById('note-edit-header-title'),
   noteEditForm: document.getElementById('note-edit-form'),
   noteTitleInput: document.getElementById('note-title-input'),
+  btnAiGenerateNoteMeta: document.getElementById('btn-ai-generate-note-meta'),
+  noteCategoryInput: document.getElementById('note-category-input'),
   noteTagsInput: document.getElementById('note-tags-input'),
+  editorQuickTools: document.getElementById('editor-quick-tools'),
   noteContentInput: document.getElementById('note-content-input'),
   notePinnedInput: document.getElementById('note-pinned-input'),
   noteEditAlert: document.getElementById('note-edit-alert'),
@@ -112,7 +123,15 @@ const elements = {
   aiQuickPrompts: document.getElementById('ai-quick-prompts'),
   aiChatMessages: document.getElementById('ai-chat-messages'),
   aiPromptInput: document.getElementById('ai-prompt-input'),
+  aiModelSelect: document.getElementById('ai-model-select'),
   btnAiSend: document.getElementById('btn-ai-send'),
+
+  // AI 历史抽屉
+  aiHistoryDrawer: document.getElementById('ai-history-drawer'),
+  btnCloseHistory: document.getElementById('btn-close-history'),
+  btnHistoryNew: document.getElementById('btn-history-new'),
+  btnHistoryClear: document.getElementById('btn-history-clear'),
+  aiHistoryList: document.getElementById('ai-history-list'),
 
   // 添加书签视图
   btnBackFromAdd: document.getElementById('btn-back-from-add'),
@@ -184,7 +203,7 @@ function escapeHtml(str) {
 function setButtonLoading(btn, loading, text) {
   if (!btn) return;
   btn.disabled = loading;
-  const textEl = btn.querySelector('.btn-text');
+  const textEl = btn.querySelector('.btn-text') || btn.querySelector('span:last-child');
   const spinnerEl = btn.querySelector('.btn-spinner');
   if (textEl && text) textEl.textContent = text;
   if (spinnerEl) {
@@ -195,14 +214,9 @@ function setButtonLoading(btn, loading, text) {
 
 // ==================== 终极丝滑横向滑动与拖拽 ====================
 
-/**
- * 为容器赋予横向鼠标滚轮与抓取拖动能力。
- * 解决在分类按钮上点击按住无法拖拽的问题，同时通过移动距离阈值（>5px）区分拖拽与点击。
- */
 function enableSmoothDragAndWheel(container) {
   if (!container) return;
 
-  // 1. 鼠标滚轮竖向滚动映射为横向滚动
   container.addEventListener('wheel', (e) => {
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       e.preventDefault();
@@ -210,14 +224,12 @@ function enableSmoothDragAndWheel(container) {
     }
   }, { passive: false });
 
-  // 2. 鼠标按住拖拽滚动（允许在子元素如 button 上抓取）
   let isDown = false;
   let startX = 0;
   let scrollLeft = 0;
   let hasDragged = false;
 
   container.addEventListener('mousedown', (e) => {
-    // 允许在分类胶囊按钮上直接按住拖拽
     isDown = true;
     hasDragged = false;
     startX = e.pageX - container.offsetLeft;
@@ -227,7 +239,6 @@ function enableSmoothDragAndWheel(container) {
   window.addEventListener('mouseup', () => {
     if (isDown) {
       isDown = false;
-      // 延迟清除 hasDragged，让后续触发的 click 事件能读取到
       setTimeout(() => {
         hasDragged = false;
       }, 50);
@@ -245,7 +256,6 @@ function enableSmoothDragAndWheel(container) {
     }
   });
 
-  // 3. 捕获阶段拦截点击事件：如果是拖拽行为，则阻止触发按钮的 click
   container.addEventListener('click', (e) => {
     if (hasDragged) {
       e.preventDefault();
@@ -299,7 +309,13 @@ async function request(path, options = {}) {
 // ==================== 初始化与秒开架构 ====================
 
 async function init() {
-  // 1. 读取本地缓存，瞬间呈现界面
+  // 检查是否在 Chrome 侧边栏中运行
+  const isSidePanel = window.location.search.includes('sidepanel') || window.location.hash.includes('sidepanel');
+  if (isSidePanel) {
+    document.body.classList.add('in-sidepanel');
+  }
+
+  // 1. 读取本地缓存，做到 0 延迟秒开
   const stored = await chrome.storage.local.get([
     'serverUrl',
     'authToken',
@@ -308,9 +324,11 @@ async function init() {
     'cachedCategories',
     'cachedBookmarks',
     'cachedNotes',
+    'cachedNoteCategories',
     'selectedTopCatId',
     'selectedSubCatId',
     'activeModule',
+    'selectedAiModel',
   ]);
 
   state.serverUrl = stored.serverUrl || '';
@@ -320,15 +338,13 @@ async function init() {
   state.categories = Array.isArray(stored.cachedCategories) ? stored.cachedCategories : [];
   state.bookmarks = Array.isArray(stored.cachedBookmarks) ? stored.cachedBookmarks : [];
   state.notes = Array.isArray(stored.cachedNotes) ? stored.cachedNotes : [];
+  state.noteCategories = Array.isArray(stored.cachedNoteCategories) ? stored.cachedNoteCategories : [];
   state.selectedTopCatId = stored.selectedTopCatId || 'all';
   state.selectedSubCatId = stored.selectedSubCatId || 'all';
   state.activeModule = stored.activeModule || 'nav';
+  state.selectedAiModel = stored.selectedAiModel || '';
 
-  if (elements.siteTitle) {
-    elements.siteTitle.textContent = state.siteName;
-  }
-
-  // 绑定横向拖拽与滚轮
+  // 绑定拖拽
   enableSmoothDragAndWheel(elements.categoryPills);
   enableSmoothDragAndWheel(elements.subcategoryPills);
   bindEvents();
@@ -352,7 +368,6 @@ async function init() {
 
     // 4. 后台静默增量拉取最新数据
     silentSyncData();
-    // 异步加载 AI 配置
     initAiSettings();
   } else {
     prepareLoginView(state.serverUrl || 'http://127.0.0.1:3000');
@@ -410,27 +425,46 @@ function switchModule(modName) {
     }
   });
 
-  // 更新顶栏右上角主操作按钮的文案与图标
-  updateMainActionButton();
+  // 关闭 AI 历史抽屉
+  closeAiHistoryDrawer();
 
+  // 更新顶栏主操作按钮
+  updateMainActionButton();
+  // 更新顶栏左上角标题
+  updateHeaderTitle();
   // 更新底栏状态文字
   updateFooterStat();
 }
 
+function updateHeaderTitle() {
+  if (!elements.siteTitle) return;
+  if (state.activeModule === 'ai') {
+    elements.siteTitle.textContent = state.currentAiTitle || '新对话';
+    elements.siteTitle.title = `AI 对话: ${state.currentAiTitle || '新对话'}`;
+  } else {
+    elements.siteTitle.textContent = state.siteName || 'ZenLink';
+    elements.siteTitle.title = state.siteName || 'ZenLink';
+  }
+}
+
 function updateMainActionButton() {
-  if (!elements.btnMainAction || !elements.txtMainAction) return;
+  if (!elements.btnMainAction || !elements.txtMainAction || !elements.iconMainAction) return;
 
   if (state.activeModule === 'nav') {
     elements.txtMainAction.textContent = '添加书签';
     elements.btnMainAction.title = '添加书签至导航';
+    elements.iconMainAction.innerHTML = '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>';
     elements.btnMainAction.classList.remove('hidden');
   } else if (state.activeModule === 'notes') {
     elements.txtMainAction.textContent = '新建笔记';
     elements.btnMainAction.title = '新建在线笔记';
+    elements.iconMainAction.innerHTML = '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>';
     elements.btnMainAction.classList.remove('hidden');
   } else if (state.activeModule === 'ai') {
-    elements.txtMainAction.textContent = '新对话';
-    elements.btnMainAction.title = '开启新 AI 会话';
+    // 根据用户需求：右上角的“+”在 AI 模式下改成“历史”按钮
+    elements.txtMainAction.textContent = '历史';
+    elements.btnMainAction.title = '查看历史对话记录';
+    elements.iconMainAction.innerHTML = '<path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 9-9 9 9 0 0 0-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>';
     elements.btnMainAction.classList.remove('hidden');
   }
 }
@@ -440,24 +474,25 @@ function updateFooterStat() {
   if (state.activeModule === 'nav') {
     elements.statCount.textContent = `共 ${state.bookmarks.length} 个书签`;
   } else if (state.activeModule === 'notes') {
-    elements.statCount.textContent = `共 ${state.notes.length} 条笔记`;
+    elements.statCount.textContent = `共 ${state.notes.length} 篇笔记`;
   } else if (state.activeModule === 'ai') {
-    const model = (state.aiSettings && state.aiSettings.model) || 'AI 已连接';
-    elements.statCount.textContent = model;
+    const activeModel = state.selectedAiModel || (state.aiSettings && state.aiSettings.model) || 'AI 助手';
+    elements.statCount.textContent = activeModel;
   }
 }
 
-// ==================== 后台同步数据 ====================
+// ==================== 后台静默同步 ====================
 
 async function silentSyncData() {
   if (state.isSyncing) return;
   state.isSyncing = true;
 
   try {
-    const [catRes, bmRes, notesRes, settingsRes] = await Promise.all([
+    const [catRes, bmRes, notesRes, noteCatRes, settingsRes] = await Promise.all([
       request('/api/categories').catch(() => null),
       request('/api/bookmarks').catch(() => null),
       request('/api/notes').catch(() => null),
+      request('/api/note-categories').catch(() => null),
       request('/api/settings').catch(() => null),
     ]);
 
@@ -475,9 +510,13 @@ async function silentSyncData() {
       state.notes = notesRes.notes;
       hasChanges = true;
     }
+    if (noteCatRes && noteCatRes.categories) {
+      state.noteCategories = noteCatRes.categories;
+      hasChanges = true;
+    }
     if (settingsRes && settingsRes.settings && settingsRes.settings.site_name) {
       state.siteName = settingsRes.settings.site_name;
-      if (elements.siteTitle) elements.siteTitle.textContent = state.siteName;
+      updateHeaderTitle();
     }
 
     if (hasChanges) {
@@ -485,6 +524,7 @@ async function silentSyncData() {
         cachedCategories: state.categories,
         cachedBookmarks: state.bookmarks,
         cachedNotes: state.notes,
+        cachedNoteCategories: state.noteCategories,
         siteName: state.siteName,
       });
       renderCategoryPills();
@@ -504,20 +544,23 @@ async function loadData(showSuccessToast = false) {
   if (elements.statCount) elements.statCount.textContent = '正在同步最新数据...';
 
   try {
-    const [catRes, bmRes, notesRes] = await Promise.all([
+    const [catRes, bmRes, notesRes, noteCatRes] = await Promise.all([
       request('/api/categories'),
       request('/api/bookmarks'),
       request('/api/notes'),
+      request('/api/note-categories').catch(() => ({ categories: [] })),
     ]);
 
     state.categories = (catRes && catRes.categories) || [];
     state.bookmarks = (bmRes && bmRes.bookmarks) || [];
     state.notes = (notesRes && notesRes.notes) || [];
+    state.noteCategories = (noteCatRes && noteCatRes.categories) || [];
 
     await chrome.storage.local.set({
       cachedCategories: state.categories,
       cachedBookmarks: state.bookmarks,
       cachedNotes: state.notes,
+      cachedNoteCategories: state.noteCategories,
     });
 
     renderCategoryPills();
@@ -529,7 +572,7 @@ async function loadData(showSuccessToast = false) {
     if (showSuccessToast) showToast('已成功同步全站最新数据');
   } catch (err) {
     showToast(err.message || '加载数据失败');
-    if (elements.statCount) elements.statCount.textContent = '同步遇到问题，显示离线缓存';
+    if (elements.statCount) elements.statCount.textContent = '同步遇到问题，展示离线缓存';
   }
 }
 
@@ -613,7 +656,15 @@ async function handleLogout() {
   state.bookmarks = [];
   state.categories = [];
   state.notes = [];
-  await chrome.storage.local.remove(['authToken', 'authUser', 'cachedCategories', 'cachedBookmarks', 'cachedNotes']);
+  state.noteCategories = [];
+  await chrome.storage.local.remove([
+    'authToken',
+    'authUser',
+    'cachedCategories',
+    'cachedBookmarks',
+    'cachedNotes',
+    'cachedNoteCategories',
+  ]);
   prepareLoginView(state.serverUrl);
   showToast('已退出登录');
 }
@@ -822,7 +873,6 @@ function renderBookmarks() {
 
   elements.bookmarkList.innerHTML = html;
 
-  // 绑定交互
   elements.bookmarkList.querySelectorAll('.bookmark-card').forEach((card) => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.action-btn')) return;
@@ -914,7 +964,6 @@ function renderNotes() {
 
   elements.notesList.innerHTML = html;
 
-  // 绑定笔记交互
   elements.notesList.querySelectorAll('.note-card').forEach((card) => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.action-btn')) return;
@@ -950,6 +999,9 @@ function openNoteEditView(noteId = null) {
   switchView('noteEdit');
   if (elements.noteEditAlert) elements.noteEditAlert.classList.add('hidden');
 
+  // 渲染分类下拉框
+  renderNoteCategoryOptions(noteId);
+
   if (noteId) {
     if (elements.noteEditHeaderTitle) elements.noteEditHeaderTitle.textContent = '编辑笔记';
     const note = state.notes.find(n => n.id === noteId);
@@ -958,6 +1010,9 @@ function openNoteEditView(noteId = null) {
       if (elements.noteTagsInput) elements.noteTagsInput.value = Array.isArray(note.tags) ? note.tags.join(', ') : '';
       if (elements.noteContentInput) elements.noteContentInput.value = note.content || '';
       if (elements.notePinnedInput) elements.notePinnedInput.checked = !!note.is_pinned;
+      if (elements.noteCategoryInput && note.category_id) {
+        elements.noteCategoryInput.value = String(note.category_id);
+      }
     }
   } else {
     if (elements.noteEditHeaderTitle) elements.noteEditHeaderTitle.textContent = '新建笔记';
@@ -965,6 +1020,7 @@ function openNoteEditView(noteId = null) {
     if (elements.noteTagsInput) elements.noteTagsInput.value = '';
     if (elements.noteContentInput) elements.noteContentInput.value = '';
     if (elements.notePinnedInput) elements.notePinnedInput.checked = false;
+    if (elements.noteCategoryInput) elements.noteCategoryInput.value = '';
   }
 
   setTimeout(() => {
@@ -972,7 +1028,151 @@ function openNoteEditView(noteId = null) {
   }, 80);
 }
 
-// 快速剪藏当前网页为笔记
+function renderNoteCategoryOptions(noteId) {
+  if (!elements.noteCategoryInput) return;
+  let options = '<option value="">默认分类 (未归类)</option>';
+  if (Array.isArray(state.noteCategories)) {
+    state.noteCategories.forEach((cat) => {
+      options += `<option value="${cat.id}">📁 ${escapeHtml(cat.name)}</option>`;
+    });
+  }
+  elements.noteCategoryInput.innerHTML = options;
+}
+
+// Markdown 快捷排版工具插入
+function insertMarkdownToEditor(type) {
+  const textarea = elements.noteContentInput;
+  if (!textarea) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const val = textarea.value;
+  const selected = val.substring(start, end);
+
+  let replacement = '';
+  let cursorOffset = 0;
+
+  switch (type) {
+    case 'bold':
+      replacement = `**${selected || '粗体文字'}**`;
+      cursorOffset = selected ? replacement.length : 2;
+      break;
+    case 'italic':
+      replacement = `*${selected || '斜体文字'}*`;
+      cursorOffset = selected ? replacement.length : 1;
+      break;
+    case 'heading':
+      replacement = `\n### ${selected || '标题'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'code':
+      replacement = `\n\`\`\`\n${selected || '代码内容'}\n\`\`\`\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'quote':
+      replacement = `\n> ${selected || '引用内容'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'list':
+      replacement = `\n- ${selected || '列表项'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'task':
+      replacement = `\n- [ ] ${selected || '待办清单'}\n`;
+      cursorOffset = replacement.length;
+      break;
+    case 'link':
+      replacement = `[${selected || '链接说明'}](https://)`;
+      cursorOffset = replacement.length;
+      break;
+  }
+
+  textarea.value = val.substring(0, start) + replacement + val.substring(end);
+  textarea.focus();
+  textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
+}
+
+// AI 自动分析正文生成标题与标签
+async function handleAiGenerateNoteMeta() {
+  const content = elements.noteContentInput ? elements.noteContentInput.value.trim() : '';
+  if (!content) {
+    showToast('请先输入或剪藏笔记正文，再使用 AI 生成标题与标签');
+    return;
+  }
+
+  const btn = elements.btnAiGenerateNoteMeta;
+  setButtonLoading(btn, true, 'AI 分析中...');
+
+  try {
+    const prompt = `你是一个知识管理助手。请根据以下笔记正文内容，提炼生成一个精准简洁的笔记标题（15字以内）和2至4个最相关的分类标签。
+请严格仅以纯 JSON 格式输出，不要包含任何 Markdown 语法标记或前缀后缀：
+{"title": "精炼标题", "tags": ["标签1", "标签2"]}
+
+笔记正文：
+${content.slice(0, 2500)}`;
+
+    const response = await fetch(`${state.serverUrl}/api/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`,
+      },
+      body: JSON.stringify({
+        message: prompt,
+        stream: true,
+        is_private: true,
+        model: state.selectedAiModel || (state.aiSettings && (state.aiSettings.writing_model || state.aiSettings.model)) || undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`请求失败 (${response.status})`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let fullOutput = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+        const dataStr = trimmed.replace(/^data:\s*/, '');
+        if (dataStr === '[DONE]') break;
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (parsed.text) fullOutput += parsed.text;
+        } catch {}
+      }
+    }
+
+    const match = fullOutput.match(/\{[\s\S]*\}/);
+    if (match) {
+      const result = JSON.parse(match[0]);
+      if (result.title && elements.noteTitleInput) {
+        elements.noteTitleInput.value = result.title;
+      }
+      if (Array.isArray(result.tags) && elements.noteTagsInput) {
+        elements.noteTagsInput.value = result.tags.join(', ');
+      }
+      showToast('✨ AI 已成功提炼标题与标签');
+    } else {
+      throw new Error('未能提取结构化数据');
+    }
+  } catch (err) {
+    showToast(`AI 生成提示: ${err.message || '请手动输入标题'}`);
+  } finally {
+    setButtonLoading(btn, false, 'AI 生成标题/标签');
+  }
+}
+
+// 网页智能剪藏（深入提取真实正文）
 async function handleQuickClipNote() {
   const tab = state.activeTab;
   if (!tab) {
@@ -980,27 +1180,104 @@ async function handleQuickClipNote() {
     return;
   }
 
-  openNoteEditView();
-  if (elements.noteTitleInput) elements.noteTitleInput.value = tab.title || '网页剪藏';
-  if (elements.noteTagsInput) elements.noteTagsInput.value = '网页剪藏, 待读';
+  showToast('正在智能抓取网页正文内容...');
 
-  let clipContent = `> 来源网页: [${tab.title || tab.url}](${tab.url})\n> 剪藏时间: ${new Date().toLocaleString()}\n\n`;
-
-  // 尝试抓取当前页面用户选中的高亮文本
+  let extractedContent = '';
   try {
-    const [selectionResult] = await chrome.scripting.executeScript({
+    const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: () => window.getSelection().toString(),
+      func: () => {
+        // 1. 若用户选中文字，优先剪藏选中内容
+        const sel = window.getSelection ? window.getSelection().toString().trim() : '';
+        if (sel && sel.length > 20) {
+          return { type: 'selection', content: sel };
+        }
+
+        // 2. 尝试寻找核心正文容器
+        const selectors = [
+          'article',
+          '[role="main"]',
+          'main',
+          '.post-content',
+          '.article-content',
+          '.entry-content',
+          '#article-content',
+          '.markdown-body',
+          '#content'
+        ];
+        let mainEl = null;
+        for (const sel of selectors) {
+          const el = document.querySelector(sel);
+          if (el && el.innerText && el.innerText.trim().length > 100) {
+            mainEl = el;
+            break;
+          }
+        }
+        if (!mainEl) {
+          mainEl = document.body;
+        }
+
+        // 3. 克隆容器并剥除杂质节点
+        const clone = mainEl.cloneNode(true);
+        const junk = clone.querySelectorAll(
+          'script, style, noscript, nav, header, footer, iframe, svg, [role="navigation"], .ads, .comment, .sidebar, aside'
+        );
+        junk.forEach(n => n.remove());
+
+        // 4. 将段落与标题格式化为 Markdown
+        const nodes = clone.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, code, blockquote, li');
+        let text = '';
+        if (nodes.length > 3) {
+          const parts = [];
+          nodes.forEach(node => {
+            const tag = node.tagName.toLowerCase();
+            const t = node.innerText ? node.innerText.trim() : '';
+            if (!t) return;
+            if (tag === 'h1') parts.push(`\n# ${t}\n`);
+            else if (tag === 'h2') parts.push(`\n## ${t}\n`);
+            else if (tag === 'h3') parts.push(`\n### ${t}\n`);
+            else if (tag === 'pre' || tag === 'code') parts.push(`\n\`\`\`\n${t}\n\`\`\`\n`);
+            else if (tag === 'blockquote') parts.push(`\n> ${t}\n`);
+            else if (tag === 'li') parts.push(`- ${t}`);
+            else parts.push(`${t}\n`);
+          });
+          text = parts.join('\n');
+        } else {
+          text = clone.innerText || '';
+        }
+
+        return {
+          type: 'fullpage',
+          content: text.trim().slice(0, 8000)
+        };
+      },
     });
-    if (selectionResult && selectionResult.result && selectionResult.result.trim()) {
-      clipContent += `### 摘录内容\n\n${selectionResult.result.trim()}\n\n`;
+
+    if (result && result.result && result.result.content) {
+      extractedContent = result.result.content;
     }
-  } catch {
-    // 忽略特定页面权限限制错误
+  } catch (err) {
+    console.warn('提取网页正文失败:', err);
   }
 
-  if (elements.noteContentInput) elements.noteContentInput.value = clipContent;
-  showToast('已载入当前网页信息，可直接编辑并保存');
+  openNoteEditView();
+
+  const title = (tab.title || '网页剪藏').replace(/\s*[-_–|].*$/, '').trim() || tab.title;
+  if (elements.noteTitleInput) elements.noteTitleInput.value = title;
+  if (elements.noteTagsInput) elements.noteTagsInput.value = '网页剪藏, 阅读';
+
+  let clipMarkdown = `> 来源网页: [${tab.title || tab.url}](${tab.url})\n> 剪藏时间: ${new Date().toLocaleString()}\n\n`;
+  if (extractedContent) {
+    clipMarkdown += `### 正文内容\n\n${extractedContent}\n`;
+  } else {
+    clipMarkdown += `> (已记录网址，未在当前页面提取到额外正文，可在下方直接记录笔记)\n`;
+  }
+
+  if (elements.noteContentInput) {
+    elements.noteContentInput.value = clipMarkdown;
+  }
+
+  showToast('已提取网页正文，可修改或点击 AI 提炼标题');
 }
 
 // 提交保存笔记
@@ -1009,6 +1286,7 @@ async function handleNoteSubmit(e) {
   const title = elements.noteTitleInput ? elements.noteTitleInput.value.trim() : '';
   const content = elements.noteContentInput ? elements.noteContentInput.value : '';
   const tagsStr = elements.noteTagsInput ? elements.noteTagsInput.value.trim() : '';
+  const categoryId = elements.noteCategoryInput && elements.noteCategoryInput.value ? Number(elements.noteCategoryInput.value) : null;
   const isPinned = elements.notePinnedInput ? (elements.notePinnedInput.checked ? 1 : 0) : 0;
 
   if (!title) {
@@ -1024,21 +1302,19 @@ async function handleNoteSubmit(e) {
   try {
     let res;
     if (state.editingNoteId) {
-      // 更新现有笔记
       res = await request(`/api/notes/${state.editingNoteId}`, {
         method: 'PUT',
-        body: JSON.stringify({ title, content, isPinned, tags }),
+        body: JSON.stringify({ title, content, categoryId, isPinned, tags }),
       });
       if (res && res.note) {
-        showToast('✅ 笔记更新成功');
+        showToast('✅ 笔记已成功更新');
         const idx = state.notes.findIndex(n => n.id === state.editingNoteId);
         if (idx !== -1) state.notes[idx] = res.note;
       }
     } else {
-      // 创建新笔记
       res = await request('/api/notes', {
         method: 'POST',
-        body: JSON.stringify({ title, content, tags }),
+        body: JSON.stringify({ title, content, categoryId, tags }),
       });
       if (res && res.note) {
         showToast('🎉 笔记创建成功');
@@ -1075,17 +1351,49 @@ async function initAiSettings() {
     const res = await request('/api/ai/settings').catch(() => null);
     if (res && res.settings) {
       state.aiSettings = res.settings;
-      const model = res.settings.model || (res.settings.available_models && res.settings.available_models[0]) || 'AI 助手';
-      if (elements.aiModelName) elements.aiModelName.textContent = model;
+      renderAiModelSelectOptions();
     }
   } catch (err) {
     console.warn('获取 AI 设置失败:', err);
   }
 }
 
+function renderAiModelSelectOptions() {
+  if (!elements.aiModelSelect) return;
+  const models = (state.aiSettings && state.aiSettings.available_models) || [];
+  const defaultModel = (state.aiSettings && state.aiSettings.model) || '';
+
+  let html = '';
+  if (defaultModel) {
+    html += `<option value="${escapeHtml(defaultModel)}">默认: ${escapeHtml(defaultModel)}</option>`;
+  } else {
+    html += `<option value="">跟随系统配置</option>`;
+  }
+
+  models.forEach((m) => {
+    if (m !== defaultModel) {
+      html += `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`;
+    }
+  });
+
+  elements.aiModelSelect.innerHTML = html;
+
+  if (state.selectedAiModel) {
+    elements.aiModelSelect.value = state.selectedAiModel;
+  }
+
+  const activeModel = elements.aiModelSelect.value || defaultModel || 'AI 助手';
+  if (elements.aiModelName) {
+    elements.aiModelName.textContent = activeModel;
+  }
+}
+
 function startNewAiChat() {
   state.aiConversationId = null;
+  state.currentAiTitle = '新对话';
   state.aiHistory = [];
+  updateHeaderTitle();
+
   if (elements.aiChatMessages) {
     elements.aiChatMessages.innerHTML = `
       <div class="ai-msg ai-msg-assistant">
@@ -1099,6 +1407,7 @@ function startNewAiChat() {
     elements.aiPromptInput.value = '';
     elements.aiPromptInput.focus();
   }
+  closeAiHistoryDrawer();
   showToast('已开启新对话');
 }
 
@@ -1126,11 +1435,15 @@ async function sendAiMessage(userPrompt) {
 
   if (elements.aiPromptInput) elements.aiPromptInput.value = '';
 
-  // 渲染用户消息
+  // 更新左上角对话标题（若为首条消息）
+  if (state.currentAiTitle === '新对话') {
+    state.currentAiTitle = prompt.slice(0, 16);
+    updateHeaderTitle();
+  }
+
   appendAiMessage('user', prompt);
   state.aiHistory.push({ role: 'user', content: prompt });
 
-  // 渲染 AI 占位气泡
   const aiBubble = appendAiMessage('assistant', '思考中...');
   state.isAiStreaming = true;
   if (elements.btnAiSend) elements.btnAiSend.disabled = true;
@@ -1142,11 +1455,13 @@ async function sendAiMessage(userPrompt) {
       'Authorization': `Bearer ${state.token}`,
     };
 
+    const modelToUse = state.selectedAiModel || (elements.aiModelSelect ? elements.aiModelSelect.value : '') || undefined;
+
     const payload = {
       message: prompt,
       stream: true,
       conversation_id: state.aiConversationId || undefined,
-      model: (state.aiSettings && state.aiSettings.model) || undefined,
+      model: modelToUse,
     };
 
     const response = await fetch(url, {
@@ -1192,9 +1507,7 @@ async function sendAiMessage(userPrompt) {
             aiBubble.textContent = fullAnswer;
             elements.aiChatMessages.scrollTop = elements.aiChatMessages.scrollHeight;
           }
-        } catch {
-          // 非 JSON SSE 行忽略
-        }
+        } catch {}
       }
     }
 
@@ -1212,7 +1525,7 @@ async function sendAiMessage(userPrompt) {
   }
 }
 
-// 快速快捷指令处理
+// 快速快捷指令
 async function handleQuickPrompt(type) {
   const tab = state.activeTab;
   let pageContext = '';
@@ -1247,6 +1560,147 @@ async function handleQuickPrompt(type) {
 
   if (prompt) {
     sendAiMessage(prompt);
+  }
+}
+
+// ==================== AI 历史会话管理 ====================
+
+function toggleAiHistoryDrawer() {
+  if (!elements.aiHistoryDrawer) return;
+  if (elements.aiHistoryDrawer.classList.contains('hidden')) {
+    openAiHistoryDrawer();
+  } else {
+    closeAiHistoryDrawer();
+  }
+}
+
+async function openAiHistoryDrawer() {
+  if (!elements.aiHistoryDrawer) return;
+  elements.aiHistoryDrawer.classList.remove('hidden');
+  await loadAiConversations();
+}
+
+function closeAiHistoryDrawer() {
+  if (elements.aiHistoryDrawer) {
+    elements.aiHistoryDrawer.classList.add('hidden');
+  }
+}
+
+async function loadAiConversations() {
+  if (!elements.aiHistoryList) return;
+  elements.aiHistoryList.innerHTML = '<div class="text-center py-6 text-xs text-muted-foreground">正在加载历史会话...</div>';
+
+  try {
+    const res = await request('/api/ai/conversations');
+    state.aiConversations = (res && res.conversations) || [];
+
+    if (state.aiConversations.length === 0) {
+      elements.aiHistoryList.innerHTML = `
+        <div class="empty-state py-8 text-center">
+          <p class="empty-text text-xs text-muted-foreground">暂无历史对话记录</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    state.aiConversations.forEach((conv) => {
+      const isActive = state.aiConversationId === conv.id;
+      const dateStr = conv.updated_at ? new Date(conv.updated_at).toLocaleString() : '';
+      html += `
+        <div class="history-item ${isActive ? 'active' : ''}" data-id="${conv.id}">
+          <div class="history-info">
+            <span class="history-title" title="${escapeHtml(conv.title)}">${escapeHtml(conv.title || '无标题会话')}</span>
+            <span class="history-meta">${dateStr}</span>
+          </div>
+          <button class="btn-delete-history" data-delete-id="${conv.id}" title="删除此会话">
+            <svg class="icon-xs" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
+      `;
+    });
+
+    elements.aiHistoryList.innerHTML = html;
+
+    elements.aiHistoryList.querySelectorAll('.history-item').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-delete-history')) return;
+        const convId = item.dataset.id;
+        openConversation(convId);
+        closeAiHistoryDrawer();
+      });
+    });
+
+    elements.aiHistoryList.querySelectorAll('.btn-delete-history').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const convId = btn.dataset.deleteId;
+        await deleteConversation(convId);
+      });
+    });
+  } catch (err) {
+    elements.aiHistoryList.innerHTML = `<div class="text-center py-6 text-xs text-danger">加载失败: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function openConversation(conversationId) {
+  state.aiConversationId = conversationId;
+  const targetConv = state.aiConversations.find(c => c.id === conversationId);
+  if (targetConv) {
+    state.currentAiTitle = targetConv.title || '对话';
+    updateHeaderTitle();
+  }
+
+  if (elements.aiChatMessages) {
+    elements.aiChatMessages.innerHTML = '<div class="text-center py-6 text-xs text-muted-foreground">正在加载消息历史...</div>';
+  }
+
+  try {
+    const res = await request(`/api/ai/conversations/${conversationId}/messages`);
+    const messages = (res && res.messages) || [];
+
+    if (elements.aiChatMessages) {
+      elements.aiChatMessages.innerHTML = '';
+      if (messages.length === 0) {
+        elements.aiChatMessages.innerHTML = `
+          <div class="ai-msg ai-msg-assistant">
+            <div class="ai-msg-bubble">该对话暂无消息，你可以直接输入问题。</div>
+          </div>
+        `;
+      } else {
+        messages.forEach((m) => {
+          appendAiMessage(m.role === 'user' ? 'user' : 'assistant', m.content);
+        });
+      }
+    }
+  } catch (err) {
+    showToast(`加载消息失败: ${err.message}`);
+  }
+}
+
+async function deleteConversation(conversationId) {
+  if (!confirm('确定要删除此条历史会话吗？')) return;
+  try {
+    await request(`/api/ai/conversations/${conversationId}`, { method: 'DELETE' });
+    showToast('会话已删除');
+    if (state.aiConversationId === conversationId) {
+      startNewAiChat();
+    }
+    await loadAiConversations();
+  } catch (err) {
+    showToast(`删除失败: ${err.message}`);
+  }
+}
+
+async function clearAllConversations() {
+  if (!confirm('确定要清空全部 AI 历史对话记录吗？此操作不可撤销。')) return;
+  try {
+    await request('/api/ai/conversations/clear', { method: 'POST' });
+    showToast('已清空全部历史对话');
+    startNewAiChat();
+    await loadAiConversations();
+  } catch (err) {
+    showToast(`清空失败: ${err.message}`);
   }
 }
 
@@ -1423,10 +1877,29 @@ function bindEvents() {
       } else if (state.activeModule === 'notes') {
         openNoteEditView();
       } else if (state.activeModule === 'ai') {
-        startNewAiChat();
+        // AI 模式下点击顶栏“历史”按钮展开历史记录抽屉
+        toggleAiHistoryDrawer();
       }
     });
   }
+
+  // 侧边栏按钮绑定
+  if (elements.btnOpenSidepanel) {
+    elements.btnOpenSidepanel.addEventListener('click', async () => {
+      if (chrome.sidePanel && chrome.sidePanel.open) {
+        try {
+          const win = await chrome.windows.getCurrent();
+          await chrome.sidePanel.open({ windowId: win.id });
+          window.close();
+        } catch (err) {
+          showToast(`侧边栏启动提示: ${err.message || '请确保在网页页面使用'}`);
+        }
+      } else {
+        showToast('当前浏览器环境不支持侧边栏 API (需 Chrome 116+)');
+      }
+    });
+  }
+
   if (elements.btnToSettings) {
     elements.btnToSettings.addEventListener('click', openSettingsView);
   }
@@ -1512,6 +1985,17 @@ function bindEvents() {
   if (elements.noteEditForm) {
     elements.noteEditForm.addEventListener('submit', handleNoteSubmit);
   }
+  if (elements.btnAiGenerateNoteMeta) {
+    elements.btnAiGenerateNoteMeta.addEventListener('click', handleAiGenerateNoteMeta);
+  }
+  if (elements.editorQuickTools) {
+    elements.editorQuickTools.querySelectorAll('.editor-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tool = btn.dataset.tool;
+        if (tool) insertMarkdownToEditor(tool);
+      });
+    });
+  }
 
   // 6. AI 助手相关事件
   if (elements.btnAiNewChat) {
@@ -1520,6 +2004,16 @@ function bindEvents() {
   if (elements.btnAiSend) {
     elements.btnAiSend.addEventListener('click', () => sendAiMessage());
   }
+  if (elements.aiModelSelect) {
+    elements.aiModelSelect.addEventListener('change', (e) => {
+      state.selectedAiModel = e.target.value;
+      chrome.storage.local.set({ selectedAiModel: state.selectedAiModel });
+      const activeModel = state.selectedAiModel || (state.aiSettings && state.aiSettings.model) || 'AI 助手';
+      if (elements.aiModelName) elements.aiModelName.textContent = activeModel;
+      updateFooterStat();
+      showToast(`已切换模型: ${activeModel}`);
+    });
+  }
   if (elements.aiPromptInput) {
     elements.aiPromptInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -1527,7 +2021,6 @@ function bindEvents() {
         sendAiMessage();
       }
     });
-    // 自动高度调整
     elements.aiPromptInput.addEventListener('input', () => {
       elements.aiPromptInput.style.height = 'auto';
       elements.aiPromptInput.style.height = Math.min(elements.aiPromptInput.scrollHeight, 120) + 'px';
@@ -1542,7 +2035,20 @@ function bindEvents() {
     });
   }
 
-  // 7. 新增书签表单事件
+  // 7. AI 历史抽屉事件
+  if (elements.btnCloseHistory) {
+    elements.btnCloseHistory.addEventListener('click', closeAiHistoryDrawer);
+  }
+  if (elements.btnHistoryNew) {
+    elements.btnHistoryNew.addEventListener('click', () => {
+      startNewAiChat();
+    });
+  }
+  if (elements.btnHistoryClear) {
+    elements.btnHistoryClear.addEventListener('click', clearAllConversations);
+  }
+
+  // 8. 新增书签表单事件
   if (elements.btnBackFromAdd) {
     elements.btnBackFromAdd.addEventListener('click', () => {
       switchView('main');
@@ -1570,7 +2076,7 @@ function bindEvents() {
     });
   }
 
-  // 8. 设置视图事件
+  // 9. 设置视图事件
   if (elements.btnBackFromSettings) {
     elements.btnBackFromSettings.addEventListener('click', () => switchView('main'));
   }
@@ -1589,5 +2095,5 @@ function bindEvents() {
   }
 }
 
-// 启动入口
+// 页面 DOM 加载完毕后启动
 document.addEventListener('DOMContentLoaded', init);

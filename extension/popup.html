@@ -76,14 +76,39 @@
         <div class="header-right">
           <!-- 上下文主操作按钮 (根据当前激活的 Tab 动态改变文字与行为) -->
           <button id="btn-main-action" class="btn-icon-label" title="添加">
-            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            <svg id="icon-main-action" class="icon-sm" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             <span id="txt-main-action">添加</span>
+          </button>
+          <!-- 切换到 Chrome 侧边栏按钮 -->
+          <button id="btn-open-sidepanel" class="btn-icon" title="在浏览器侧边栏中打开">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 16H5V5h7v14zm7 0h-5V5h5v14z"/></svg>
           </button>
           <button id="btn-to-settings" class="btn-icon" title="设置 / 账号">
             <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.45.17-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
           </button>
         </div>
       </header>
+
+      <!-- AI 历史会话浮层抽屉 (点击顶栏历史呼出) -->
+      <div id="ai-history-drawer" class="ai-history-drawer hidden">
+        <div class="drawer-header">
+          <div class="drawer-title-wrap">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 9-9 9 9 0 0 0-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            <span class="drawer-title">历史对话记录</span>
+          </div>
+          <button id="btn-close-history" class="btn-icon" title="关闭历史记录">&times;</button>
+        </div>
+        <div class="drawer-toolbar">
+          <button id="btn-history-new" class="btn btn-xs btn-primary flex-1">
+            <svg class="icon-xs" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            <span>开启新对话</span>
+          </button>
+          <button id="btn-history-clear" class="btn btn-xs btn-ghost text-danger" title="清空所有会话">清空</button>
+        </div>
+        <div id="ai-history-list" class="ai-history-list scrollbar-none">
+          <!-- 动态渲染历史会话 -->
+        </div>
+      </div>
 
       <!-- Tab 面板容器 -->
       <div class="tab-panes-wrapper">
@@ -142,11 +167,11 @@
             <div class="quick-banner-content">
               <span class="note-clip-icon">✂️</span>
               <div class="banner-text">
-                <span class="banner-hint">网页快速剪藏</span>
-                <span id="note-clip-title" class="banner-title">将当前网页与摘要保存为笔记</span>
+                <span class="banner-hint">网页智能剪藏</span>
+                <span id="note-clip-title" class="banner-title">将当前网页正文与摘要保存为笔记</span>
               </div>
             </div>
-            <button id="btn-quick-clip-note" class="btn btn-xs btn-primary">剪藏至笔记</button>
+            <button id="btn-quick-clip-note" class="btn btn-xs btn-primary">剪藏正文至笔记</button>
           </div>
 
           <!-- 笔记搜索栏 -->
@@ -199,18 +224,28 @@
             </div>
           </div>
 
-          <!-- AI 输入框容器 -->
+          <!-- AI 输入框容器 (底部包含右下角模型切换器与发送按钮) -->
           <div class="ai-input-wrapper">
             <textarea
               id="ai-prompt-input"
               rows="1"
               placeholder="输入你的问题 (Enter 发送，Shift+Enter 换行)..."
             ></textarea>
-            <button id="btn-ai-send" class="btn-ai-send" title="发送消息">
-              <svg class="icon-sm" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
+            <div class="ai-input-bottom-bar">
+              <div class="ai-model-select-wrap" title="切换当前对话模型">
+                <svg class="icon-xs" viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/></svg>
+                <select id="ai-model-select" class="ai-model-select">
+                  <option value="">默认模型</option>
+                </select>
+              </div>
+              <button id="btn-ai-send" class="btn-ai-send" title="发送消息">
+                <svg class="icon-sm" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
+
+      </div>
 
       </div>
 
@@ -338,23 +373,56 @@
       </header>
 
       <form id="note-edit-form" class="form-container">
+        <!-- 笔记标题与 AI 自动提炼 -->
         <div class="form-group">
-          <label for="note-title-input">笔记标题</label>
+          <div class="label-row">
+            <label for="note-title-input">笔记标题 <span class="required">*</span></label>
+            <button type="button" id="btn-ai-generate-note-meta" class="btn-text-action" title="根据正文内容智能生成标题与标签">
+              <svg class="icon-xs" viewBox="0 0 24 24"><path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2l-1.4 2.5L10 7 7.5 5.6zm12 9.8L17 14l1.4 2.5L17 19l2.5-1.4L22 19l-1.4-2.5L22 14l-2.5 1.4zM22 2l-2.5 1.4L17 2l1.4 2.5L17 7l2.5-1.4L22 7l-1.4-2.5L22 2zm-7.63 5.29c-.39-.39-1.02-.39-1.41 0L1.29 18.96c-.39.39-.39 1.02 0 1.41l2.34 2.34c.39.39 1.02.39 1.41 0L16.7 11.05c.39-.39.39-1.02 0-1.41l-2.33-2.35zm-1.06 3.12l-1.77-1.77 1.41-1.41 1.77 1.77-1.41 1.41z"/></svg>
+              <span>AI 生成标题/标签</span>
+            </button>
+          </div>
           <div class="input-wrapper">
             <input type="text" id="note-title-input" placeholder="输入笔记标题..." required />
           </div>
         </div>
 
+        <!-- 笔记分类选择 -->
         <div class="form-group">
-          <label for="note-tags-input">标签 (逗号分隔)</label>
+          <label for="note-category-input">所属分类</label>
+          <div class="select-wrapper">
+            <select id="note-category-input">
+              <option value="">默认分类 (未归类)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 笔记标签 -->
+        <div class="form-group">
+          <label for="note-tags-input">标签 (逗号或空格分隔)</label>
           <div class="input-wrapper">
             <input type="text" id="note-tags-input" placeholder="如: 技术, 待办, 灵感" />
           </div>
         </div>
 
-        <div class="form-group flex-1">
-          <label for="note-content-input">笔记正文 (Markdown)</label>
-          <textarea id="note-content-input" class="note-editor-textarea" placeholder="开始记录你的想法、网页摘要或代码片段..."></textarea>
+        <!-- 笔记正文 Markdown 编辑器 (带快捷排版工具条) -->
+        <div class="form-group flex-1 editor-group">
+          <div class="label-row">
+            <label for="note-content-input">笔记正文 (Markdown)</label>
+            <div class="editor-quick-tools" id="editor-quick-tools">
+              <button type="button" class="editor-btn" data-tool="bold" title="粗体 (Ctrl+B)"><b>B</b></button>
+              <button type="button" class="editor-btn" data-tool="italic" title="斜体 (Ctrl+I)"><i>I</i></button>
+              <button type="button" class="editor-btn" data-tool="heading" title="标题">H</button>
+              <button type="button" class="editor-btn" data-tool="code" title="代码块">&lt;/&gt;</button>
+              <button type="button" class="editor-btn" data-tool="quote" title="引用">”</button>
+              <button type="button" class="editor-btn" data-tool="list" title="无序列表">•</button>
+              <button type="button" class="editor-btn" data-tool="task" title="待办清单">☑</button>
+              <button type="button" class="editor-btn" data-tool="link" title="超链接">🔗</button>
+            </div>
+          </div>
+          <div class="editor-container">
+            <textarea id="note-content-input" class="note-editor-textarea" placeholder="在此输入 Markdown 笔记，或在上方点击「网页智能剪藏」抓取当前网页正文..."></textarea>
+          </div>
         </div>
 
         <div class="form-group form-check-row">

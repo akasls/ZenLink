@@ -24,9 +24,13 @@
     "storage",
     "tabs",
     "scripting",
+    "sidePanel",
     "contextMenus",
     "notifications"
   ],
+  "side_panel": {
+    "default_path": "popup.html?mode=sidepanel"
+  },
   "host_permissions": [
     "<all_urls>"
   ],
