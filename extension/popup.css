@@ -1065,23 +1065,51 @@ input:checked + .slider:before {
   border-bottom-left-radius: 3px;
 }
 
-/* AI 输入区与底部操作栏 */
-.ai-input-wrapper {
-  padding: 8px 12px;
+/* AI 单行紧凑输入栏 (模型选择、编辑框和发送按钮同一行) */
+.ai-input-row {
+  padding: 8px 10px;
   border-top: 1px solid var(--border-color);
   background: var(--bg-app);
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
-.ai-input-wrapper textarea {
+.ai-model-select-pill {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0 4px;
+  height: 34px;
+  max-width: 105px;
+  transition: border-color 0.15s;
+}
+.ai-model-select-pill:focus-within {
+  border-color: var(--border-focus);
+}
+.ai-model-select {
   width: 100%;
-  min-height: 40px;
-  max-height: 90px;
-  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  text-overflow: ellipsis;
+  padding-right: 2px;
+}
+.ai-input-row textarea {
+  flex: 1;
+  min-height: 34px;
+  max-height: 80px;
+  height: 34px;
+  padding: 7px 10px;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.4;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-card);
@@ -1090,42 +1118,13 @@ input:checked + .slider:before {
   outline: none;
   transition: border-color 0.15s;
 }
-.ai-input-wrapper textarea:focus {
+.ai-input-row textarea:focus {
   border-color: var(--border-focus);
 }
-
-.ai-input-bottom-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.ai-model-select-wrap {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  max-width: 220px;
-  color: var(--text-muted);
-}
-.ai-model-select {
-  border: none;
-  background: transparent;
-  color: var(--text-main);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  outline: none;
-  max-width: 180px;
-  text-overflow: ellipsis;
-}
 .btn-ai-send {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
   background: var(--brand-primary);
   color: #ffffff;
   border: none;

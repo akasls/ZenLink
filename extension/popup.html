@@ -202,8 +202,9 @@
               <span id="ai-model-name">AI 助手</span>
             </div>
             <div class="ai-session-actions">
-              <button id="btn-ai-new-chat" class="btn-icon" title="新对话">
-                <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+              <!-- 顶栏下方右上角：历史对话图标按钮 -->
+              <button id="btn-ai-history-toggle" class="btn-icon" title="查看历史对话记录">
+                <svg class="icon-sm" viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 9-9 9 9 0 0 0-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
               </button>
             </div>
           </div>
@@ -224,28 +225,23 @@
             </div>
           </div>
 
-          <!-- AI 输入框容器 (底部包含右下角模型切换器与发送按钮) -->
-          <div class="ai-input-wrapper">
+          <!-- AI 输入框容器：模型选择、编辑框和发送按钮置于同一行 -->
+          <div class="ai-input-row">
+            <div class="ai-model-select-pill" title="切换 AI 模型">
+              <select id="ai-model-select" class="ai-model-select">
+                <option value="">默认模型</option>
+              </select>
+            </div>
             <textarea
               id="ai-prompt-input"
               rows="1"
-              placeholder="输入你的问题 (Enter 发送，Shift+Enter 换行)..."
+              placeholder="输入问题 (Enter 发送)..."
             ></textarea>
-            <div class="ai-input-bottom-bar">
-              <div class="ai-model-select-wrap" title="切换当前对话模型">
-                <svg class="icon-xs" viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/></svg>
-                <select id="ai-model-select" class="ai-model-select">
-                  <option value="">默认模型</option>
-                </select>
-              </div>
-              <button id="btn-ai-send" class="btn-ai-send" title="发送消息">
-                <svg class="icon-sm" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-              </button>
-            </div>
+            <button id="btn-ai-send" class="btn-ai-send" title="发送消息">
+              <svg class="icon-sm" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
           </div>
         </div>
-
-      </div>
 
       </div>
 

@@ -3,9 +3,9 @@
  * 1. 0 延迟秒开：本地离线缓存 + 后台静默增量同步
  * 2. 多合一工作台：底栏左下角无缝切换 [网址导航] / [在线笔记] / [AI 智能助手]
  * 3. 完美横向平移：分类胶囊按钮支持鼠标直接抓取拖动与滚轮横向滚动，智能防误触
- * 4. 实时流式对话：AI 助手 SSE 流式输出，支持一键总结当前网页、模型选择、历史会话切换
- * 5. 网页智能剪藏：智能提取网页真实正文至笔记，支持 Markdown 工具条与 AI 生成标题/标签
- * 6. 原生侧边栏：支持一键切换至 Chrome Side Panel 独立展开驻留
+ * 4. 实时流式对话：单行紧凑输入框 (模型选择+输入+发送同一行)，顶栏保留新对话，副顶栏历史图标展开会话抽屉
+ * 5. 网页真实正文智能剪藏：在真实可见 DOM 中提取文章段落排版转 Markdown，支持 Markdown 工具条与 AI 生成标题/标签
+ * 6. 原生/贴边侧边栏：支持原生 Chrome Side Panel 与全兼容右侧停靠工作台双重保障
  */
 
 // 全局响应式状态
@@ -119,7 +119,7 @@ const elements = {
 
   // AI 面板
   aiModelName: document.getElementById('ai-model-name'),
-  btnAiNewChat: document.getElementById('btn-ai-new-chat'),
+  btnAiHistoryToggle: document.getElementById('btn-ai-history-toggle'),
   aiQuickPrompts: document.getElementById('ai-quick-prompts'),
   aiChatMessages: document.getElementById('ai-chat-messages'),
   aiPromptInput: document.getElementById('ai-prompt-input'),
@@ -309,7 +309,7 @@ async function request(path, options = {}) {
 // ==================== 初始化与秒开架构 ====================
 
 async function init() {
-  // 检查是否在 Chrome 侧边栏中运行
+  // 检查是否在 Chrome 侧边栏/独立贴边窗口中运行
   const isSidePanel = window.location.search.includes('sidepanel') || window.location.hash.includes('sidepanel');
   if (isSidePanel) {
     document.body.classList.add('in-sidepanel');
@@ -358,7 +358,7 @@ async function init() {
     renderBookmarks();
     renderNotes();
 
-    // 3. 读取当前浏览器活动标签页
+    // 3. 读取当前活动标签页
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
       if (tab) {
         state.activeTab = tab;
@@ -440,7 +440,7 @@ function updateHeaderTitle() {
   if (!elements.siteTitle) return;
   if (state.activeModule === 'ai') {
     elements.siteTitle.textContent = state.currentAiTitle || '新对话';
-    elements.siteTitle.title = `AI 对话: ${state.currentAiTitle || '新对话'}`;
+    elements.siteTitle.title = `当前会话: ${state.currentAiTitle || '新对话'}`;
   } else {
     elements.siteTitle.textContent = state.siteName || 'ZenLink';
     elements.siteTitle.title = state.siteName || 'ZenLink';
@@ -461,10 +461,10 @@ function updateMainActionButton() {
     elements.iconMainAction.innerHTML = '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>';
     elements.btnMainAction.classList.remove('hidden');
   } else if (state.activeModule === 'ai') {
-    // 根据用户需求：右上角的“+”在 AI 模式下改成“历史”按钮
-    elements.txtMainAction.textContent = '历史';
-    elements.btnMainAction.title = '查看历史对话记录';
-    elements.iconMainAction.innerHTML = '<path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 9-9 9 9 0 0 0-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>';
+    // 满足需求：在 AI 对话右上角保留之前的“新对话”按钮
+    elements.txtMainAction.textContent = '新对话';
+    elements.btnMainAction.title = '开启新对话';
+    elements.iconMainAction.innerHTML = '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>';
     elements.btnMainAction.classList.remove('hidden');
   }
 }
@@ -476,8 +476,8 @@ function updateFooterStat() {
   } else if (state.activeModule === 'notes') {
     elements.statCount.textContent = `共 ${state.notes.length} 篇笔记`;
   } else if (state.activeModule === 'ai') {
-    const activeModel = state.selectedAiModel || (state.aiSettings && state.aiSettings.model) || 'AI 助手';
-    elements.statCount.textContent = activeModel;
+    // 满足需求：右下角底栏不用显示模型名称
+    elements.statCount.textContent = '已就绪';
   }
 }
 
@@ -999,7 +999,6 @@ function openNoteEditView(noteId = null) {
   switchView('noteEdit');
   if (elements.noteEditAlert) elements.noteEditAlert.classList.add('hidden');
 
-  // 渲染分类下拉框
   renderNoteCategoryOptions(noteId);
 
   if (noteId) {
@@ -1039,7 +1038,6 @@ function renderNoteCategoryOptions(noteId) {
   elements.noteCategoryInput.innerHTML = options;
 }
 
-// Markdown 快捷排版工具插入
 function insertMarkdownToEditor(type) {
   const textarea = elements.noteContentInput;
   if (!textarea) return;
@@ -1092,7 +1090,7 @@ function insertMarkdownToEditor(type) {
   textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
 }
 
-// AI 自动分析正文生成标题与标签
+// AI 智能分析笔记正文生成标题与标签
 async function handleAiGenerateNoteMeta() {
   const content = elements.noteContentInput ? elements.noteContentInput.value.trim() : '';
   if (!content) {
@@ -1172,11 +1170,27 @@ ${content.slice(0, 2500)}`;
   }
 }
 
-// 网页智能剪藏（深入提取真实正文）
+// 网页智能剪藏 (在真实可见 DOM 中深度提取文章正文与结构排版)
 async function handleQuickClipNote() {
-  const tab = state.activeTab;
-  if (!tab) {
+  let tab = state.activeTab;
+  try {
+    const [currentActive] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (currentActive) tab = currentActive;
+  } catch {}
+
+  if (!tab || !tab.id) {
     openNoteEditView();
+    return;
+  }
+
+  // 内部浏览器页面防护
+  if (/^(chrome|edge|about|devtools):/i.test(tab.url || '')) {
+    openNoteEditView();
+    if (elements.noteTitleInput) elements.noteTitleInput.value = tab.title || '网页笔记';
+    if (elements.noteContentInput) {
+      elements.noteContentInput.value = `> 来源网页: [${tab.title || tab.url}](${tab.url})\n\n> (浏览器系统内部页面受安全策略限制无法读取正文，可在下方直接记录笔记)`;
+    }
+    showToast('系统内部页面已载入网址，请直接记录');
     return;
   }
 
@@ -1187,74 +1201,74 @@ async function handleQuickClipNote() {
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
-        // 1. 若用户选中文字，优先剪藏选中内容
+        // 1. 若用户在网页上有鼠标划选内容，优先截取选中部分
         const sel = window.getSelection ? window.getSelection().toString().trim() : '';
-        if (sel && sel.length > 20) {
-          return { type: 'selection', content: sel };
+        if (sel && sel.length > 10) {
+          return sel;
         }
 
-        // 2. 尝试寻找核心正文容器
+        // 2. 在真实附着的活动 DOM 中寻找正文主流语义容器
         const selectors = [
           'article',
-          '[role="main"]',
           'main',
+          '[role="main"]',
           '.post-content',
           '.article-content',
           '.entry-content',
           '#article-content',
           '.markdown-body',
-          '#content'
+          '#content',
+          '.content',
+          '.article-body',
+          '.rich_media_content',
+          '.topic-content'
         ];
-        let mainEl = null;
-        for (const sel of selectors) {
-          const el = document.querySelector(sel);
-          if (el && el.innerText && el.innerText.trim().length > 100) {
-            mainEl = el;
+        let mainContainer = null;
+        for (const s of selectors) {
+          const el = document.querySelector(s);
+          if (el && (el.innerText || el.textContent || '').trim().length > 80) {
+            mainContainer = el;
             break;
           }
         }
-        if (!mainEl) {
-          mainEl = document.body;
+        if (!mainContainer) mainContainer = document.body;
+
+        // 3. 提取容器内部有意义的可见块级元素 (标题、段落、引用、代码块、列表)
+        const blocks = mainContainer.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, blockquote, li');
+        const lines = [];
+
+        blocks.forEach(el => {
+          // 剔除杂质元素 (广告、侧边栏、脚本、头部导航与评论区)
+          if (el.closest('script, style, noscript, nav, header, footer, iframe, aside, .sidebar, .comment, .comments, [role="navigation"], .ad, .advertisement')) {
+            return;
+          }
+          // 剔除隐藏不可见元素
+          if (el.offsetWidth === 0 && el.offsetHeight === 0) return;
+
+          const t = (el.innerText || el.textContent || '').trim();
+          if (!t) return;
+
+          const tag = el.tagName.toLowerCase();
+          if (tag === 'h1') lines.push(`\n# ${t}\n`);
+          else if (tag === 'h2') lines.push(`\n## ${t}\n`);
+          else if (tag === 'h3') lines.push(`\n### ${t}\n`);
+          else if (tag === 'pre') lines.push(`\n\`\`\`\n${t}\n\`\`\`\n`);
+          else if (tag === 'blockquote') lines.push(`\n> ${t}\n`);
+          else if (tag === 'li') lines.push(`- ${t}`);
+          else lines.push(`${t}\n`);
+        });
+
+        if (lines.length >= 2) {
+          return lines.join('\n');
         }
 
-        // 3. 克隆容器并剥除杂质节点
-        const clone = mainEl.cloneNode(true);
-        const junk = clone.querySelectorAll(
-          'script, style, noscript, nav, header, footer, iframe, svg, [role="navigation"], .ads, .comment, .sidebar, aside'
-        );
-        junk.forEach(n => n.remove());
-
-        // 4. 将段落与标题格式化为 Markdown
-        const nodes = clone.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, code, blockquote, li');
-        let text = '';
-        if (nodes.length > 3) {
-          const parts = [];
-          nodes.forEach(node => {
-            const tag = node.tagName.toLowerCase();
-            const t = node.innerText ? node.innerText.trim() : '';
-            if (!t) return;
-            if (tag === 'h1') parts.push(`\n# ${t}\n`);
-            else if (tag === 'h2') parts.push(`\n## ${t}\n`);
-            else if (tag === 'h3') parts.push(`\n### ${t}\n`);
-            else if (tag === 'pre' || tag === 'code') parts.push(`\n\`\`\`\n${t}\n\`\`\`\n`);
-            else if (tag === 'blockquote') parts.push(`\n> ${t}\n`);
-            else if (tag === 'li') parts.push(`- ${t}`);
-            else parts.push(`${t}\n`);
-          });
-          text = parts.join('\n');
-        } else {
-          text = clone.innerText || '';
-        }
-
-        return {
-          type: 'fullpage',
-          content: text.trim().slice(0, 8000)
-        };
+        // 4. 降级兜底直接提取真实 DOM 的 innerText
+        return mainContainer.innerText || document.body.innerText || '';
       },
     });
 
-    if (result && result.result && result.result.content) {
-      extractedContent = result.result.content;
+    if (result && result.result && typeof result.result === 'string') {
+      extractedContent = result.result.trim();
     }
   } catch (err) {
     console.warn('提取网页正文失败:', err);
@@ -1268,16 +1282,16 @@ async function handleQuickClipNote() {
 
   let clipMarkdown = `> 来源网页: [${tab.title || tab.url}](${tab.url})\n> 剪藏时间: ${new Date().toLocaleString()}\n\n`;
   if (extractedContent) {
-    clipMarkdown += `### 正文内容\n\n${extractedContent}\n`;
+    clipMarkdown += `### 正文内容\n\n${extractedContent.slice(0, 10000)}\n`;
+    showToast('🎉 已提取网页正文至笔记，可编辑修改并保存');
   } else {
-    clipMarkdown += `> (已记录网址，未在当前页面提取到额外正文，可在下方直接记录笔记)\n`;
+    clipMarkdown += `> (未在当前页面提取到成段正文，可在下方直接记录笔记)\n`;
+    showToast('已载入网址，请直接记录');
   }
 
   if (elements.noteContentInput) {
     elements.noteContentInput.value = clipMarkdown;
   }
-
-  showToast('已提取网页正文，可修改或点击 AI 提炼标题');
 }
 
 // 提交保存笔记
@@ -1365,9 +1379,9 @@ function renderAiModelSelectOptions() {
 
   let html = '';
   if (defaultModel) {
-    html += `<option value="${escapeHtml(defaultModel)}">默认: ${escapeHtml(defaultModel)}</option>`;
+    html += `<option value="${escapeHtml(defaultModel)}">${escapeHtml(defaultModel)}</option>`;
   } else {
-    html += `<option value="">跟随系统配置</option>`;
+    html += `<option value="">默认模型</option>`;
   }
 
   models.forEach((m) => {
@@ -1435,7 +1449,7 @@ async function sendAiMessage(userPrompt) {
 
   if (elements.aiPromptInput) elements.aiPromptInput.value = '';
 
-  // 更新左上角对话标题（若为首条消息）
+  // 若当前为新对话，首条消息作为标题
   if (state.currentAiTitle === '新对话') {
     state.currentAiTitle = prompt.slice(0, 16);
     updateHeaderTitle();
@@ -1525,11 +1539,15 @@ async function sendAiMessage(userPrompt) {
   }
 }
 
-// 快速快捷指令
+// 快速提问指令
 async function handleQuickPrompt(type) {
-  const tab = state.activeTab;
-  let pageContext = '';
+  let tab = state.activeTab;
+  try {
+    const [currentActive] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (currentActive) tab = currentActive;
+  } catch {}
 
+  let pageContext = '';
   if (tab) {
     pageContext = `当前网页标题: ${tab.title || ''}\n网页 URL: ${tab.url || ''}\n`;
     try {
@@ -1877,25 +1895,49 @@ function bindEvents() {
       } else if (state.activeModule === 'notes') {
         openNoteEditView();
       } else if (state.activeModule === 'ai') {
-        // AI 模式下点击顶栏“历史”按钮展开历史记录抽屉
-        toggleAiHistoryDrawer();
+        // 满足需求：在 AI 对话右上角保留之前的新对话按钮
+        startNewAiChat();
       }
     });
   }
 
-  // 侧边栏按钮绑定
+  // 侧边栏按钮双重保障绑定 (原生 Side Panel API + 贴边桌面独立工作台窗口)
   if (elements.btnOpenSidepanel) {
     elements.btnOpenSidepanel.addEventListener('click', async () => {
-      if (chrome.sidePanel && chrome.sidePanel.open) {
+      // 优先尝试原生 Chrome 116+ sidePanel API
+      if (typeof chrome !== 'undefined' && chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
         try {
-          const win = await chrome.windows.getCurrent();
-          await chrome.sidePanel.open({ windowId: win.id });
-          window.close();
-        } catch (err) {
-          showToast(`侧边栏启动提示: ${err.message || '请确保在网页页面使用'}`);
+          const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+          if (win && win.id) {
+            await chrome.sidePanel.open({ windowId: win.id });
+            window.close();
+            return;
+          }
+        } catch (e) {
+          console.warn('chrome.sidePanel.open 调用未成功，转入贴边伴随工作台:', e);
         }
-      } else {
-        showToast('当前浏览器环境不支持侧边栏 API (需 Chrome 116+)');
+      }
+
+      // 降级保障：在屏幕右侧开启 420px 伴随式工作台窗口 (全 Chromium 系列浏览器 100% 完美支持)
+      try {
+        const screenW = window.screen.availWidth || 1920;
+        const screenH = window.screen.availHeight || 1080;
+        const sideWidth = 420;
+        const leftPos = Math.max(0, screenW - sideWidth);
+
+        await chrome.windows.create({
+          url: chrome.runtime.getURL('popup.html?mode=sidepanel'),
+          type: 'popup',
+          width: sideWidth,
+          height: screenH,
+          top: 0,
+          left: leftPos,
+          focused: true,
+        });
+        window.close();
+      } catch (err) {
+        // 终极兜底：在新标签页打开
+        chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=sidepanel') });
       }
     });
   }
@@ -1998,8 +2040,9 @@ function bindEvents() {
   }
 
   // 6. AI 助手相关事件
-  if (elements.btnAiNewChat) {
-    elements.btnAiNewChat.addEventListener('click', startNewAiChat);
+  if (elements.btnAiHistoryToggle) {
+    // 满足需求：顶栏下面右上角的“+”图标改成历史图标，点击才展开历史
+    elements.btnAiHistoryToggle.addEventListener('click', toggleAiHistoryDrawer);
   }
   if (elements.btnAiSend) {
     elements.btnAiSend.addEventListener('click', () => sendAiMessage());
@@ -2010,7 +2053,6 @@ function bindEvents() {
       chrome.storage.local.set({ selectedAiModel: state.selectedAiModel });
       const activeModel = state.selectedAiModel || (state.aiSettings && state.aiSettings.model) || 'AI 助手';
       if (elements.aiModelName) elements.aiModelName.textContent = activeModel;
-      updateFooterStat();
       showToast(`已切换模型: ${activeModel}`);
     });
   }
@@ -2023,7 +2065,7 @@ function bindEvents() {
     });
     elements.aiPromptInput.addEventListener('input', () => {
       elements.aiPromptInput.style.height = 'auto';
-      elements.aiPromptInput.style.height = Math.min(elements.aiPromptInput.scrollHeight, 120) + 'px';
+      elements.aiPromptInput.style.height = Math.min(elements.aiPromptInput.scrollHeight, 80) + 'px';
     });
   }
   if (elements.aiQuickPrompts) {
