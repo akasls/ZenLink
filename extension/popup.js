@@ -69,12 +69,12 @@ const elements = {
   loginAlert: document.getElementById('login-alert'),
   btnLogin: document.getElementById('btn-login'),
 
-  // 顶栏通用 (左上角动态切换：我的书签 / 我的笔记 / AI对话)
   siteTitle: document.getElementById('display-site-name'),
   btnMainAction: document.getElementById('btn-main-action'),
   iconMainAction: document.getElementById('icon-main-action'),
   txtMainAction: document.getElementById('txt-main-action'),
-  btnOpenSidepanel: document.getElementById('btn-open-sidepanel'),
+  btnOpenWindow: document.getElementById('btn-open-window'),
+  btnOpenSidepanel: document.getElementById('btn-open-sidepanel') || document.getElementById('btn-open-window'),
   btnToSettings: document.getElementById('btn-to-settings'),
 
   // 底栏通用
@@ -309,11 +309,12 @@ async function request(path, options = {}) {
 // ==================== 初始化与秒开架构 ====================
 
 async function init() {
-  // 检查是否在 Chrome 侧边栏/独立贴边窗口中运行
-  const isSidePanel = window.location.search.includes('sidepanel') || 
-                      window.location.hash.includes('sidepanel') || 
-                      window.innerHeight > 610;
-  if (isSidePanel) {
+  // 检查是否在全高独立伴随工作台窗口或 Chrome 侧边栏中运行
+  const isWindowOrSidePanel = window.location.search.includes('window') || 
+                              window.location.search.includes('sidepanel') || 
+                              window.innerHeight > 610;
+  if (isWindowOrSidePanel) {
+    document.body.classList.add('in-window');
     document.body.classList.add('in-sidepanel');
   }
 
@@ -1888,53 +1889,39 @@ function bindEvents() {
     });
   }
 
-  // 侧边栏按钮优先原生 Side Panel API，全兼容降级为独立贴边伴随工作台
-  if (elements.btnOpenSidepanel) {
-    elements.btnOpenSidepanel.addEventListener('click', async () => {
-      let opened = false;
-
-      // 策略 1：优先通过 Chrome 116+ 原生 Side Panel API 开启
-      if (typeof chrome !== 'undefined' && chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
-        try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (tab && tab.id) {
-            await chrome.sidePanel.open({ tabId: tab.id });
-            opened = true;
-            window.close();
-            return;
-          }
-        } catch (e1) {
-          try {
-            const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
-            if (win && win.id) {
-              await chrome.sidePanel.open({ windowId: win.id });
-              opened = true;
-              window.close();
-              return;
-            }
-          } catch (e2) {}
-        }
-      }
-
-      // 策略 2：降级兜底在屏幕右侧贴边开启 420px 伴随式工作台窗口 (100% 任意 Chromium 兼容)
+  // 顶栏右上角「在新窗口中打开」按钮：在屏幕右侧开启与当前浏览器窗口网页等高的伴随工作台
+  const btnWindowTrigger = elements.btnOpenWindow || elements.btnOpenSidepanel;
+  if (btnWindowTrigger) {
+    btnWindowTrigger.addEventListener('click', async () => {
       try {
+        const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] }).catch(() => null);
         const screenW = window.screen.availWidth || 1920;
         const screenH = window.screen.availHeight || 1080;
-        const sideWidth = 420;
-        const leftPos = Math.max(0, screenW - sideWidth);
+        const sideWidth = 440;
+
+        let top = 0;
+        let height = screenH;
+        let left = Math.max(0, screenW - sideWidth);
+
+        if (win && typeof win.height === 'number') {
+          top = win.top >= 0 ? win.top : 0;
+          height = win.height;
+          left = Math.max(0, win.left + win.width - sideWidth);
+        }
 
         await chrome.windows.create({
-          url: chrome.runtime.getURL('popup.html?mode=sidepanel'),
+          url: chrome.runtime.getURL('popup.html?mode=window'),
           type: 'popup',
           width: sideWidth,
-          height: screenH,
-          top: 0,
-          left: leftPos,
+          height: height,
+          top: top,
+          left: left,
           focused: true,
         });
+
         window.close();
       } catch (err) {
-        chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=sidepanel') });
+        chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=window') });
       }
     });
   }
