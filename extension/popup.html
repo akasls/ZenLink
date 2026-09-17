@@ -466,6 +466,34 @@
           </div>
         </div>
 
+        <!-- 划词翻译功能设置 -->
+        <div class="card translation-settings-card">
+          <div class="card-section-title">划词翻译设置</div>
+          
+          <div class="info-row" style="margin-top: 8px;">
+            <div>
+              <span class="info-label font-semibold" style="color: var(--text-main);">启用划词翻译</span>
+              <div class="info-subtext">在网页划选文本后弹出悬浮图标快速翻译</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="st-translate-enabled" checked />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="info-row" style="margin-top: 8px;">
+            <span class="info-label">默认翻译来源</span>
+            <div class="select-wrapper" style="width: 135px;">
+              <select id="st-translate-provider">
+                <option value="google">谷歌 (Google)</option>
+                <option value="microsoft">微软 (Microsoft)</option>
+                <option value="baidu">百度 (Baidu)</option>
+                <option value="ai">AI 智能翻译</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-menu">
           <button id="btn-open-web" class="menu-item">
             <div class="menu-left">

@@ -154,6 +154,8 @@ const elements = {
   btnBackFromSettings: document.getElementById('btn-back-from-settings'),
   stServerUrl: document.getElementById('st-server-url'),
   stUsername: document.getElementById('st-username'),
+  stTranslateEnabled: document.getElementById('st-translate-enabled'),
+  stTranslateProvider: document.getElementById('st-translate-provider'),
   btnOpenWeb: document.getElementById('btn-open-web'),
   btnSyncAll: document.getElementById('btn-sync-all'),
   btnLogout: document.getElementById('btn-logout'),
@@ -1919,10 +1921,22 @@ function showAddAlert(msg, type = 'error') {
 
 // ==================== 设置与账号视图 ====================
 
-function openSettingsView() {
+async function openSettingsView() {
   switchView('settings');
   if (elements.stServerUrl) elements.stServerUrl.textContent = state.serverUrl || '--';
   if (elements.stUsername) elements.stUsername.textContent = (state.user && state.user.username) || '已连接';
+
+  try {
+    const stored = await chrome.storage.local.get(['translationEnabled', 'translationProvider']);
+    if (elements.stTranslateEnabled) {
+      elements.stTranslateEnabled.checked = stored.translationEnabled !== false;
+    }
+    if (elements.stTranslateProvider) {
+      elements.stTranslateProvider.value = stored.translationProvider || 'google';
+    }
+  } catch (e) {
+    console.warn('加载翻译设置失败', e);
+  }
 }
 
 // ==================== 事件监听绑定 ====================
@@ -2161,6 +2175,21 @@ function bindEvents() {
   // 9. 设置视图事件
   if (elements.btnBackFromSettings) {
     elements.btnBackFromSettings.addEventListener('click', () => switchView('main'));
+  }
+  if (elements.stTranslateEnabled) {
+    elements.stTranslateEnabled.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      chrome.storage.local.set({ translationEnabled: enabled });
+      showToast(enabled ? '已开启网页划词翻译' : '已关闭网页划词翻译');
+    });
+  }
+  if (elements.stTranslateProvider) {
+    elements.stTranslateProvider.addEventListener('change', (e) => {
+      const provider = e.target.value;
+      chrome.storage.local.set({ translationProvider: provider });
+      const providerName = e.target.options[e.target.selectedIndex] ? e.target.options[e.target.selectedIndex].text : provider;
+      showToast(`默认翻译来源已设为: ${providerName}`);
+    });
   }
   if (elements.btnOpenWeb) {
     elements.btnOpenWeb.addEventListener('click', () => {
