@@ -121,6 +121,7 @@ const elements = {
   aiSessionTitle: document.getElementById('ai-session-title'),
   btnAiHistoryToggle: document.getElementById('btn-ai-history-toggle'),
   aiChatMessages: document.getElementById('ai-chat-messages'),
+  aiComposerBox: document.querySelector('.ai-composer-box'),
   aiPromptInput: document.getElementById('ai-prompt-input'),
   aiModelSelect: document.getElementById('ai-model-select'),
   btnAiSend: document.getElementById('btn-ai-send'),
@@ -360,7 +361,7 @@ async function init() {
     renderNotes();
 
     // 3. 读取当前活动标签页
-    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+    getActiveWebTab().then((tab) => {
       if (tab) {
         state.activeTab = tab;
         updateActiveTabBanners(tab);
@@ -1183,16 +1184,38 @@ ${content.slice(0, 2500)}`;
   }
 }
 
-// 网页智能剪藏 (在真实可见 DOM 中深度提取文章正文与结构排版)
-async function handleQuickClipNote() {
-  let tab = state.activeTab;
+// 获取当前浏览器中用户正在查看的真实活动标签页 (排除扩展自身页面)
+async function getActiveWebTab() {
   try {
-    const [currentActive] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (currentActive) tab = currentActive;
-  } catch {}
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab && tab.url && !tab.url.startsWith('chrome-extension://')) {
+      return tab;
+    }
+  } catch (e) {}
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.url && !tab.url.startsWith('chrome-extension://')) {
+      return tab;
+    }
+  } catch (e) {}
+
+  try {
+    const tabs = await chrome.tabs.query({ active: true });
+    const webTab = tabs.find((t) => t.url && !t.url.startsWith('chrome-extension://'));
+    if (webTab) return webTab;
+  } catch (e) {}
+
+  return state.activeTab;
+}
+
+// 网页智能剪藏 (支持划选截取、论坛帖子正文与主流博客文章提取)
+async function handleQuickClipNote() {
+  const tab = await getActiveWebTab();
 
   if (!tab || !tab.id) {
     openNoteEditView();
+    showToast('未能定位网页，已开启空白笔记');
     return;
   }
 
@@ -1210,81 +1233,88 @@ async function handleQuickClipNote() {
   showToast('正在智能抓取网页正文内容...');
 
   let extractedContent = '';
+
+  // 1. 优先通过已注入的 content.js 进行提取
   try {
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        // 1. 若用户在网页上有鼠标划选内容，优先截取选中部分
-        const sel = window.getSelection ? window.getSelection().toString().trim() : '';
-        if (sel && sel.length > 10) {
-          return sel;
+    const response = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(tab.id, { action: 'CLIP_PAGE_CONTENT' }, (res) => {
+        if (chrome.runtime.lastError || !res) {
+          resolve(null);
+        } else {
+          resolve(res);
         }
-
-        // 2. 在真实附着的活动 DOM 中寻找正文主流语义容器
-        const selectors = [
-          'article',
-          'main',
-          '[role="main"]',
-          '.post-content',
-          '.article-content',
-          '.entry-content',
-          '#article-content',
-          '.markdown-body',
-          '#content',
-          '.content',
-          '.article-body',
-          '.rich_media_content',
-          '.topic-content'
-        ];
-        let mainContainer = null;
-        for (const s of selectors) {
-          const el = document.querySelector(s);
-          if (el && (el.innerText || el.textContent || '').trim().length > 80) {
-            mainContainer = el;
-            break;
-          }
-        }
-        if (!mainContainer) mainContainer = document.body;
-
-        // 3. 提取容器内部有意义的可见块级元素 (标题、段落、引用、代码块、列表)
-        const blocks = mainContainer.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, blockquote, li');
-        const lines = [];
-
-        blocks.forEach(el => {
-          // 剔除杂质元素 (广告、侧边栏、脚本、头部导航与评论区)
-          if (el.closest('script, style, noscript, nav, header, footer, iframe, aside, .sidebar, .comment, .comments, [role="navigation"], .ad, .advertisement')) {
-            return;
-          }
-          // 剔除隐藏不可见元素
-          if (el.offsetWidth === 0 && el.offsetHeight === 0) return;
-
-          const t = (el.innerText || el.textContent || '').trim();
-          if (!t) return;
-
-          const tag = el.tagName.toLowerCase();
-          if (tag === 'h1') lines.push(`\n# ${t}\n`);
-          else if (tag === 'h2') lines.push(`\n## ${t}\n`);
-          else if (tag === 'h3') lines.push(`\n### ${t}\n`);
-          else if (tag === 'pre') lines.push(`\n\`\`\`\n${t}\n\`\`\`\n`);
-          else if (tag === 'blockquote') lines.push(`\n> ${t}\n`);
-          else if (tag === 'li') lines.push(`- ${t}`);
-          else lines.push(`${t}\n`);
-        });
-
-        if (lines.length >= 2) {
-          return lines.join('\n');
-        }
-
-        // 4. 降级兜底直接提取真实 DOM 的 innerText
-        return mainContainer.innerText || document.body.innerText || '';
-      },
+      });
     });
-
-    if (result && result.result && typeof result.result === 'string') {
-      extractedContent = result.result.trim();
+    if (response && response.success && response.data && response.data.content) {
+      extractedContent = response.data.content.trim();
     }
-  } catch (err) {
-    console.warn('提取网页正文失败:', err);
+  } catch (e) {}
+
+  // 2. 备用方案：若 content.js 未就绪，通过 scripting.executeScript 动态注入提取
+  if (!extractedContent) {
+    try {
+      const [result] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          // 2.1 检查用户划选文本
+          const sel = window.getSelection ? window.getSelection().toString().trim() : '';
+          if (sel && sel.length > 5) return sel;
+
+          // 2.2 匹配主流文章与论坛帖子容器 (包含 NodeSeek, V2EX 等论坛和主流博客)
+          const selectors = [
+            '.post-content', '.post-message', '.topic-content',
+            'article', '.article-content', '.entry-content',
+            '#article-content', '.markdown-body', '.rich_media_content',
+            '.content-body', 'main', '#content', '.content'
+          ];
+          let container = null;
+          for (const s of selectors) {
+            const el = document.querySelector(s);
+            if (el) {
+              const txt = (el.innerText || el.textContent || '').trim();
+              if (txt.length > 10) {
+                container = el;
+                break;
+              }
+            }
+          }
+          if (!container) container = document.body;
+
+          const clone = container.cloneNode(true);
+          const junk = [
+            'script', 'style', 'noscript', 'nav', 'header', 'footer', 
+            'iframe', 'aside', '.sidebar', '.ad', '.advertisement'
+          ];
+          if (clone === document.body) junk.push('.comment', '.comments', '#comments');
+          junk.forEach((sel) => clone.querySelectorAll(sel).forEach((el) => el.remove()));
+
+          const blocks = clone.querySelectorAll('h1, h2, h3, h4, h5, h6, p, pre, blockquote, ul, ol, div');
+          const lines = [];
+          blocks.forEach((el) => {
+            const hasBlockChildren = el.querySelector('h1, h2, h3, h4, h5, h6, p, pre, blockquote, ul, ol');
+            if (hasBlockChildren) return;
+            const t = (el.innerText || el.textContent || '').trim();
+            if (!t) return;
+            const tag = el.tagName.toLowerCase();
+            if (tag === 'h1') lines.push(`\n# ${t}\n`);
+            else if (tag === 'h2') lines.push(`\n## ${t}\n`);
+            else if (tag === 'h3') lines.push(`\n### ${t}\n`);
+            else if (tag === 'pre') lines.push(`\n\`\`\`\n${t}\n\`\`\`\n`);
+            else if (tag === 'blockquote') lines.push(`\n> ${t}\n`);
+            else lines.push(`${t}\n`);
+          });
+
+          if (lines.length >= 1) return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+          return (clone.innerText || clone.textContent || '').trim();
+        },
+      });
+
+      if (result && result.result && typeof result.result === 'string') {
+        extractedContent = result.result.trim();
+      }
+    } catch (err) {
+      console.warn('动态脚本提取网页正文失败:', err);
+    }
   }
 
   openNoteEditView();
@@ -1295,8 +1325,8 @@ async function handleQuickClipNote() {
 
   let clipMarkdown = `> 来源网页: [${tab.title || tab.url}](${tab.url})\n> 剪藏时间: ${new Date().toLocaleString()}\n\n`;
   if (extractedContent) {
-    clipMarkdown += `### 正文内容\n\n${extractedContent.slice(0, 10000)}\n`;
-    showToast('🎉 已提取网页正文至笔记，可编辑修改并保存');
+    clipMarkdown += `### 正文内容\n\n${extractedContent.slice(0, 15000)}\n`;
+    showToast('🎉 已成功剪藏网页正文至笔记');
   } else {
     clipMarkdown += `> (未在当前页面提取到成段正文，可在下方直接记录笔记)\n`;
     showToast('已载入网址，请直接记录');
@@ -1416,13 +1446,7 @@ function startNewAiChat() {
   updateAiSessionTitle('新对话');
 
   if (elements.aiChatMessages) {
-    elements.aiChatMessages.innerHTML = `
-      <div class="ai-msg ai-msg-assistant">
-        <div class="ai-msg-bubble">
-          你好！我是你的 ZenLink 智能助手。你可以随时与我对话。
-        </div>
-      </div>
-    `;
+    elements.aiChatMessages.innerHTML = '';
   }
   if (elements.aiPromptInput) {
     elements.aiPromptInput.value = '';
@@ -2033,6 +2057,17 @@ function bindEvents() {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendAiMessage();
+      }
+    });
+    elements.aiPromptInput.addEventListener('input', () => {
+      elements.aiPromptInput.style.height = 'auto';
+      elements.aiPromptInput.style.height = Math.min(Math.max(elements.aiPromptInput.scrollHeight, 44), 120) + 'px';
+    });
+  }
+  if (elements.aiComposerBox) {
+    elements.aiComposerBox.addEventListener('click', (e) => {
+      if (e.target !== elements.aiModelSelect && !e.target.closest('#btn-ai-send') && !e.target.closest('.ai-model-borderless-wrap')) {
+        if (elements.aiPromptInput) elements.aiPromptInput.focus();
       }
     });
   }

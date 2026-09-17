@@ -78,20 +78,26 @@
   -webkit-font-smoothing: antialiased;
 }
 
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 body {
-  width: 410px;
-  height: 600px;
+  width: 100%;
+  height: 100vh;
+  min-width: 380px;
   background-color: var(--bg-app);
   color: var(--text-main);
-  overflow: hidden;
   user-select: none;
 }
 
 body.in-sidepanel {
   width: 100vw !important;
   height: 100vh !important;
-  max-width: 100vw !important;
-  max-height: 100vh !important;
 }
 
 body.in-sidepanel #btn-open-sidepanel {
@@ -1045,11 +1051,10 @@ input:checked + .slider:before {
   border-bottom-left-radius: 3px;
 }
 
-/* AI 两行输入框容器，模型与发送按钮位于右下角，模型无方框外包裹 */
+/* AI 输入框一体化卡片容器：模型与发送按钮位于输入框内部右下角 */
 .ai-composer-wrapper {
-  padding: 6px 10px 10px;
+  padding: 6px 12px 10px;
   background: var(--bg-app);
-  border-top: 1px solid var(--border-color);
   flex-shrink: 0;
 }
 .ai-composer-box {
@@ -1059,6 +1064,7 @@ input:checked + .slider:before {
   display: flex;
   flex-direction: column;
   padding: 8px 10px 6px;
+  cursor: text;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ai-composer-box:focus-within {
@@ -1069,11 +1075,11 @@ input:checked + .slider:before {
   width: 100%;
   height: 44px; /* 两行文本高度 */
   min-height: 44px;
-  max-height: 90px;
+  max-height: 120px;
   border: none;
   background: transparent;
   color: var(--text-main);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.45;
   resize: none;
   outline: none;

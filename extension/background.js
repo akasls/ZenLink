@@ -3,8 +3,19 @@
  * 负责右键上下文菜单快速收藏、快捷键处理及后台通知
  */
 
-// 扩展安装或更新时注册右键菜单
+// 启用点击工具栏图标直接展开侧边栏（与网页同高，展示更多内容）
+function enableSidePanelOnAction() {
+  if (typeof chrome !== 'undefined' && chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+      console.warn('配置 sidePanel 点击行为:', err);
+    });
+  }
+}
+enableSidePanelOnAction();
+
+// 扩展安装或更新时注册右键菜单与侧边栏配置
 chrome.runtime.onInstalled.addListener(() => {
+  enableSidePanelOnAction();
   try {
     chrome.contextMenus.removeAll(() => {
       // 1. 针对当前页面的右键菜单
@@ -25,6 +36,38 @@ chrome.runtime.onInstalled.addListener(() => {
     console.error('注册右键菜单失败', e);
   }
 });
+
+// 点击扩展图标的兼容降级处理（针对不支持 openPanelOnActionClick 的环境）
+if (typeof chrome !== 'undefined' && chrome.action && chrome.action.onClicked) {
+  chrome.action.onClicked.addListener(async (tab) => {
+    if (chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
+      try {
+        if (tab && tab.id) {
+          await chrome.sidePanel.open({ tabId: tab.id });
+          return;
+        } else if (tab && tab.windowId) {
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+          return;
+        }
+      } catch (e) {}
+    }
+
+    // 兜底方案：在屏幕右侧开启全高贴边工作台 (与网页高度一致)
+    try {
+      chrome.windows.create({
+        url: chrome.runtime.getURL('popup.html?mode=sidepanel'),
+        type: 'popup',
+        width: 440,
+        height: 1000,
+        top: 0,
+        left: 1400,
+        focused: true,
+      });
+    } catch (err) {
+      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=sidepanel') });
+    }
+  });
+}
 
 // 处理右键菜单点击
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
