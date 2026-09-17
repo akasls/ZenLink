@@ -348,6 +348,12 @@ textarea {
 }
 
 .input-wrapper input {
+  padding: 8px 10px;
+}
+
+/* 仅当输入框前面有图标元素时才增加左侧内边距 30px，普通输入框左侧不留多余空白 */
+.input-icon + input,
+.input-wrapper:has(.input-icon) input {
   padding-left: 30px;
 }
 
@@ -875,14 +881,16 @@ input:checked + .slider:before {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.bm-actions {
+.bm-actions,
+.note-actions {
   display: flex;
   align-items: center;
   gap: 2px;
-  opacity: 0;
+  opacity: 0.75;
   transition: opacity 0.15s;
 }
-.bookmark-card:hover .bm-actions {
+.bookmark-card:hover .bm-actions,
+.note-card:hover .note-actions {
   opacity: 1;
 }
 .action-btn {
@@ -1083,19 +1091,21 @@ input:checked + .slider:before {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 2px rgba(241, 64, 75, 0.12);
 }
-.ai-composer-box textarea {
+.ai-composer-box textarea,
+.ai-composer-box textarea:focus {
   width: 100%;
   height: 44px; /* 两行文本高度 */
   min-height: 44px;
   max-height: 120px;
-  border: none;
-  background: transparent;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--text-main);
   font-size: 13px;
   line-height: 1.45;
   resize: none;
-  outline: none;
-  padding: 0;
+  outline: none !important;
+  padding: 0 !important;
 }
 .ai-composer-bottom {
   display: flex;

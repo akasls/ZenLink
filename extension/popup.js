@@ -16,12 +16,13 @@ const state = {
   siteName: 'ZenLink',
   activeModule: 'nav', // 'nav' | 'notes' | 'ai'
 
-  // 导航模块
+  // 书签导航模块
   categories: [],
   bookmarks: [],
   selectedTopCatId: 'all',
   selectedSubCatId: 'all',
   searchQuery: '',
+  editingBookmarkId: null,
 
   // 笔记模块
   notes: [],
@@ -134,6 +135,7 @@ const elements = {
   aiHistoryList: document.getElementById('ai-history-list'),
 
   // 添加书签视图
+  addBookmarkHeaderTitle: document.getElementById('add-bookmark-header-title'),
   btnBackFromAdd: document.getElementById('btn-back-from-add'),
   addForm: document.getElementById('add-bookmark-form'),
   bmUrl: document.getElementById('bm-url'),
@@ -871,6 +873,9 @@ function renderBookmarks() {
           <span class="bm-desc">${escapeHtml(bm.description || bm.url)}</span>
         </div>
         <div class="bm-actions">
+          <button class="action-btn btn-edit-bm" title="编辑书签" data-id="${bm.id}">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          </button>
           <button class="action-btn btn-copy" title="复制链接" data-copy="${escapeHtml(bm.url)}">
             <svg class="icon-sm" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
           </button>
@@ -893,6 +898,15 @@ function renderBookmarks() {
       if (e.target.closest('.action-btn')) return;
       const url = card.dataset.url;
       if (url) chrome.tabs.create({ url });
+    });
+  });
+
+  elements.bookmarkList.querySelectorAll('.btn-edit-bm').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bmId = Number(btn.dataset.id);
+      const target = state.bookmarks.find((b) => b.id === bmId);
+      if (target) openAddBookmarkView(target, true);
     });
   });
 
@@ -1018,6 +1032,7 @@ function openNoteEditView(noteId = null) {
 
   if (noteId) {
     if (elements.noteEditHeaderTitle) elements.noteEditHeaderTitle.textContent = '编辑笔记';
+    if (elements.btnSubmitNote) elements.btnSubmitNote.textContent = '更新笔记';
     const note = state.notes.find(n => n.id === noteId);
     if (note) {
       if (elements.noteTitleInput) elements.noteTitleInput.value = note.title || '';
@@ -1030,6 +1045,7 @@ function openNoteEditView(noteId = null) {
     }
   } else {
     if (elements.noteEditHeaderTitle) elements.noteEditHeaderTitle.textContent = '新建笔记';
+    if (elements.btnSubmitNote) elements.btnSubmitNote.textContent = '保存笔记';
     if (elements.noteTitleInput) elements.noteTitleInput.value = '';
     if (elements.noteTagsInput) elements.noteTagsInput.value = '';
     if (elements.noteContentInput) elements.noteContentInput.value = '';
@@ -1387,7 +1403,7 @@ async function handleNoteSubmit(e) {
   } catch (err) {
     showNoteEditAlert(err.message || '保存笔记失败', 'error');
   } finally {
-    setButtonLoading(elements.btnSubmitNote, false, '保存笔记');
+    setButtonLoading(elements.btnSubmitNote, false, state.editingNoteId ? '更新笔记' : '保存笔记');
   }
 }
 
@@ -1712,16 +1728,26 @@ async function clearAllConversations() {
 
 // ==================== 新增书签视图 ====================
 
-function openAddBookmarkView(prefillTab = state.activeTab) {
+function openAddBookmarkView(targetOrTab = state.activeTab, isEdit = false) {
+  state.editingBookmarkId = isEdit && targetOrTab ? targetOrTab.id : null;
   switchView('add');
   if (elements.addAlert) elements.addAlert.classList.add('hidden');
+
+  if (elements.addBookmarkHeaderTitle) {
+    elements.addBookmarkHeaderTitle.textContent = isEdit ? '编辑导航书签' : '添加书签至导航';
+  }
+  if (elements.btnSubmitAdd) {
+    elements.btnSubmitAdd.textContent = isEdit ? '更新书签' : '保存至导航';
+  }
 
   if (elements.bmCategory) {
     let catOptions = '<option value="">默认分类 (未归类)</option>';
     const tops = getTopCategories();
 
     let defaultSelected = '';
-    if (state.selectedSubCatId !== 'all') {
+    if (isEdit && targetOrTab && targetOrTab.category_id) {
+      defaultSelected = String(targetOrTab.category_id);
+    } else if (state.selectedSubCatId !== 'all') {
       defaultSelected = String(state.selectedSubCatId);
     } else if (state.selectedTopCatId !== 'all') {
       defaultSelected = String(state.selectedTopCatId);
@@ -1741,23 +1767,34 @@ function openAddBookmarkView(prefillTab = state.activeTab) {
     elements.bmCategory.innerHTML = catOptions;
   }
 
-  if (prefillTab) {
-    if (elements.bmUrl) elements.bmUrl.value = prefillTab.url || '';
-    if (elements.bmTitle) elements.bmTitle.value = prefillTab.title || '';
-    if (elements.bmFavicon) elements.bmFavicon.value = prefillTab.favIconUrl || '';
+  if (isEdit && targetOrTab) {
+    if (elements.bmUrl) elements.bmUrl.value = targetOrTab.url || '';
+    if (elements.bmTitle) elements.bmTitle.value = targetOrTab.title || '';
+    if (elements.bmDesc) elements.bmDesc.value = targetOrTab.description || '';
+    if (elements.bmFavicon) elements.bmFavicon.value = targetOrTab.favicon || '';
     if (elements.bmFaviconPreview) {
-      elements.bmFaviconPreview.src = prefillTab.favIconUrl || 'icons/icon16.png';
+      elements.bmFaviconPreview.src = targetOrTab.favicon || 'icons/icon16.png';
       elements.bmFaviconPreview.onerror = () => { elements.bmFaviconPreview.src = 'icons/icon16.png'; };
     }
+    if (elements.bmPrivate) elements.bmPrivate.checked = !!targetOrTab.is_private;
+  } else if (targetOrTab && targetOrTab.url) {
+    if (elements.bmUrl) elements.bmUrl.value = targetOrTab.url || '';
+    if (elements.bmTitle) elements.bmTitle.value = targetOrTab.title || '';
+    if (elements.bmFavicon) elements.bmFavicon.value = targetOrTab.favIconUrl || '';
+    if (elements.bmFaviconPreview) {
+      elements.bmFaviconPreview.src = targetOrTab.favIconUrl || 'icons/icon16.png';
+      elements.bmFaviconPreview.onerror = () => { elements.bmFaviconPreview.src = 'icons/icon16.png'; };
+    }
+    if (elements.bmDesc) elements.bmDesc.value = '';
+    if (elements.bmPrivate) elements.bmPrivate.checked = false;
   } else {
     if (elements.bmUrl) elements.bmUrl.value = '';
     if (elements.bmTitle) elements.bmTitle.value = '';
     if (elements.bmFavicon) elements.bmFavicon.value = '';
     if (elements.bmFaviconPreview) elements.bmFaviconPreview.src = 'icons/icon16.png';
+    if (elements.bmDesc) elements.bmDesc.value = '';
+    if (elements.bmPrivate) elements.bmPrivate.checked = false;
   }
-
-  if (elements.bmDesc) elements.bmDesc.value = '';
-  if (elements.bmPrivate) elements.bmPrivate.checked = false;
 
   setTimeout(() => {
     if (elements.bmTitle) elements.bmTitle.focus();
@@ -1811,7 +1848,8 @@ async function handleAddSubmit(e) {
     return;
   }
 
-  setButtonLoading(elements.btnSubmitAdd, true, '保存中...');
+  const isEdit = !!state.editingBookmarkId;
+  setButtonLoading(elements.btnSubmitAdd, true, isEdit ? '更新中...' : '保存中...');
   showAddAlert('', '');
 
   try {
@@ -1824,27 +1862,47 @@ async function handleAddSubmit(e) {
       isPrivate,
     };
 
-    const res = await request('/api/bookmarks', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    if (isEdit) {
+      const res = await request(`/api/bookmarks/${state.editingBookmarkId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
 
-    if (res && res.bookmark) {
-      showToast('🎉 书签已成功保存至 ZenLink');
-      state.bookmarks.unshift(res.bookmark);
+      const updatedBm = res && res.bookmark ? res.bookmark : { id: state.editingBookmarkId, ...payload, category_id: categoryId, is_private: isPrivate };
+      const idx = state.bookmarks.findIndex((b) => b.id === state.editingBookmarkId);
+      if (idx !== -1) {
+        state.bookmarks[idx] = { ...state.bookmarks[idx], ...updatedBm };
+      }
       await chrome.storage.local.set({ cachedBookmarks: state.bookmarks });
       renderCategoryPills();
       renderSubCategoryPills();
       renderBookmarks();
       switchView('main');
       switchModule('nav');
+      showToast('✅ 书签已成功更新');
     } else {
-      throw new Error('保存失败，服务端未返回有效结果');
+      const res = await request('/api/bookmarks', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (res && res.bookmark) {
+        showToast('🎉 书签已成功保存至 ZenLink');
+        state.bookmarks.unshift(res.bookmark);
+        await chrome.storage.local.set({ cachedBookmarks: state.bookmarks });
+        renderCategoryPills();
+        renderSubCategoryPills();
+        renderBookmarks();
+        switchView('main');
+        switchModule('nav');
+      } else {
+        throw new Error('保存失败，服务端未返回有效结果');
+      }
     }
   } catch (err) {
-    showAddAlert(err.message || '保存书签失败', 'error');
+    showAddAlert(err.message || (isEdit ? '更新书签失败' : '保存书签失败'), 'error');
   } finally {
-    setButtonLoading(elements.btnSubmitAdd, false, '保存至导航');
+    setButtonLoading(elements.btnSubmitAdd, false, isEdit ? '更新书签' : '保存至导航');
   }
 }
 
