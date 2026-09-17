@@ -628,15 +628,21 @@ input:checked + .slider:before {
   color: var(--text-main);
 }
 
-/* 分类滚动胶囊 */
+/* 一级分类外层容器 (横向平滑滚动) */
+.category-scroll-container {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+}
 .category-pills {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px 8px;
+  padding: 0 12px 6px;
   overflow-x: auto;
   white-space: nowrap;
-  flex-shrink: 0;
+  scroll-behavior: smooth;
+  cursor: default;
 }
 .pill {
   padding: 3px 9px;
@@ -651,16 +657,70 @@ input:checked + .slider:before {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
+  user-select: none;
 }
 .pill:hover {
   background: var(--bg-card-hover);
   color: var(--text-main);
+  border-color: rgba(241, 64, 75, 0.3);
 }
 .pill.active {
   background: var(--brand-primary);
   border-color: var(--brand-primary);
   color: #ffffff;
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(241, 64, 75, 0.3);
+}
+
+/* 二级分类容器与胶囊 */
+.subcategory-container {
+  padding: 0 12px 8px;
+  flex-shrink: 0;
+  animation: fadeInDown 0.18s ease;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.subcategory-pills {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scroll-behavior: smooth;
+  padding: 4px 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+.sub-pill {
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.sub-pill:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+}
+.sub-pill.active {
+  background: var(--bg-card);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 
 /* 书签列表容器 */

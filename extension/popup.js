@@ -1,5 +1,7 @@
 /**
  * ZenLink Chrome 扩展 Popup 核心交互逻辑
+ * 高性能秒开架构：优先加载本地离线缓存，后台静默增量同步；
+ * 完整支持一级/二级分类联动层级与鼠标滚轮横向滑动。
  */
 
 // 全局响应式状态
@@ -10,9 +12,11 @@ const state = {
   siteName: 'ZenLink',
   categories: [],
   bookmarks: [],
-  selectedCategoryId: 'all',
+  selectedTopCatId: 'all', // 'all' 或一级分类 ID
+  selectedSubCatId: 'all', // 'all' 或二级分类 ID
   searchQuery: '',
   activeTab: null,
+  isSyncing: false,
 };
 
 // DOM 元素引用
@@ -35,7 +39,7 @@ const elements = {
   loginAlert: document.getElementById('login-alert'),
   btnLogin: document.getElementById('btn-login'),
 
-  // 主页面
+  // 主页面视图
   siteTitle: document.getElementById('display-site-name'),
   btnToAdd: document.getElementById('btn-to-add'),
   btnToSettings: document.getElementById('btn-to-settings'),
@@ -45,12 +49,14 @@ const elements = {
   searchInput: document.getElementById('search-input'),
   btnClearSearch: document.getElementById('btn-clear-search'),
   categoryPills: document.getElementById('category-pills'),
+  subcategoryContainer: document.getElementById('subcategory-container'),
+  subcategoryPills: document.getElementById('subcategory-pills'),
   bookmarkList: document.getElementById('bookmark-list'),
   emptyState: document.getElementById('empty-state'),
   statCount: document.getElementById('stat-count'),
   btnRefresh: document.getElementById('btn-refresh'),
 
-  // 添加书签
+  // 添加书签视图
   btnBackFromAdd: document.getElementById('btn-back-from-add'),
   addForm: document.getElementById('add-bookmark-form'),
   bmUrl: document.getElementById('bm-url'),
@@ -115,6 +121,39 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// 绑定横向鼠标滚轮滑动与拖拽支持
+function enableHorizontalScroll(container) {
+  if (!container) return;
+
+  // 1. 鼠标滚轮竖向位移转换为横向滚动 (解决普通鼠标无法横向滑动问题)
+  container.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+
+  // 2. 鼠标按住拖拽滚动支持
+  let isDown = false;
+  let startX = 0;
+  let scrollLeft = 0;
+
+  container.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button')) return;
+    isDown = true;
+    startX = e.pageX - container.offsetLeft;
+    scrollLeft = container.scrollLeft;
+  });
+  window.addEventListener('mouseup', () => { isDown = false; });
+  container.addEventListener('mousemove', (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - container.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    container.scrollLeft = scrollLeft - walk;
+  });
+}
+
 // ==================== API 请求客户端 ====================
 
 async function request(path, options = {}) {
@@ -137,7 +176,6 @@ async function request(path, options = {}) {
     const data = await res.json().catch(() => null);
 
     if (res.status === 401) {
-      // 凭据过期或未授权
       if (path !== '/api/auth/login') {
         showToast('登录已过期，请重新登录');
         handleLogout();
@@ -151,57 +189,67 @@ async function request(path, options = {}) {
 
     return data;
   } catch (err) {
-    if (err.message && err.message.includes('Failed to fetch')) {
+    if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
       throw new Error('无法连接到服务端，请检查服务端地址是否正确且运行正常');
     }
     throw err;
   }
 }
 
-// ==================== 初始化与存储同步 ====================
+// ==================== 初始化与本地秒开架构 ====================
 
 async function init() {
-  // 1. 获取当前浏览器活动标签页
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) {
-      state.activeTab = tab;
-      updateQuickBanner(tab);
-    }
-  } catch (e) {
-    console.warn('获取活动标签页失败', e);
-  }
-
-  // 2. 读取 Chrome 本地存储
+  // 1. 读取本地存储缓存，做到 0 延迟秒开呈现已有数据
   const stored = await chrome.storage.local.get([
     'serverUrl',
     'authToken',
     'authUser',
     'siteName',
+    'cachedCategories',
+    'cachedBookmarks',
+    'selectedTopCatId',
+    'selectedSubCatId',
   ]);
 
   state.serverUrl = stored.serverUrl || '';
   state.token = stored.authToken || '';
   state.user = stored.authUser || null;
   state.siteName = stored.siteName || 'ZenLink';
+  state.categories = Array.isArray(stored.cachedCategories) ? stored.cachedCategories : [];
+  state.bookmarks = Array.isArray(stored.cachedBookmarks) ? stored.cachedBookmarks : [];
+  state.selectedTopCatId = stored.selectedTopCatId || 'all';
+  state.selectedSubCatId = stored.selectedSubCatId || 'all';
 
   if (elements.siteTitle) {
     elements.siteTitle.textContent = state.siteName;
   }
 
+  // 绑定滚动事件
+  enableHorizontalScroll(elements.categoryPills);
+  enableHorizontalScroll(elements.subcategoryPills);
+  bindEvents();
+
+  // 2. 检查是否有登录态
   if (state.serverUrl && state.token) {
-    // 验证当前 Token 是否有效并获取最新配置
-    try {
-      await verifyAndLoad();
-    } catch (e) {
-      console.warn('自动登录校验失败', e);
-      prepareLoginView(state.serverUrl);
-    }
+    // 瞬间展示主界面并渲染本地缓存书签，彻底告别白屏卡顿
+    switchView('main');
+    renderCategoryPills();
+    renderSubCategoryPills();
+    renderBookmarks();
+
+    // 3. 异步非阻塞执行：读取当前活动标签页与后台静默更新
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      if (tab) {
+        state.activeTab = tab;
+        updateQuickBanner(tab);
+      }
+    }).catch(() => {});
+
+    // 后台非阻塞静默拉取最新数据
+    silentSyncData();
   } else {
     prepareLoginView(state.serverUrl || 'http://127.0.0.1:3000');
   }
-
-  bindEvents();
 }
 
 function updateQuickBanner(tab) {
@@ -223,31 +271,53 @@ function prepareLoginView(defaultUrl) {
   if (elements.totpGroup) elements.totpGroup.classList.add('hidden');
 }
 
-async function verifyAndLoad() {
-  // 验证当前用户信息
-  const authRes = await request('/api/auth/me');
-  if (authRes && authRes.user) {
-    state.user = authRes.user;
-    await chrome.storage.local.set({ authUser: authRes.user });
-  }
+// 后台静默增量同步数据（不阻碍用户界面操作）
+async function silentSyncData() {
+  if (state.isSyncing) return;
+  state.isSyncing = true;
 
-  // 尝试拉取站点基础配置 (读取站点名称)
   try {
-    const settingsRes = await request('/api/settings');
+    const [catRes, bmRes, settingsRes] = await Promise.all([
+      request('/api/categories').catch(() => null),
+      request('/api/bookmarks').catch(() => null),
+      request('/api/settings').catch(() => null),
+    ]);
+
+    let hasChanges = false;
+
+    if (catRes && catRes.categories) {
+      state.categories = catRes.categories;
+      hasChanges = true;
+    }
+    if (bmRes && bmRes.bookmarks) {
+      state.bookmarks = bmRes.bookmarks;
+      hasChanges = true;
+    }
     if (settingsRes && settingsRes.settings && settingsRes.settings.site_name) {
       state.siteName = settingsRes.settings.site_name;
       if (elements.siteTitle) elements.siteTitle.textContent = state.siteName;
-      await chrome.storage.local.set({ siteName: state.siteName });
     }
-  } catch {}
 
-  switchView('main');
-  await loadData();
+    if (hasChanges) {
+      await chrome.storage.local.set({
+        cachedCategories: state.categories,
+        cachedBookmarks: state.bookmarks,
+        siteName: state.siteName,
+      });
+      renderCategoryPills();
+      renderSubCategoryPills();
+      renderBookmarks();
+    }
+  } catch (err) {
+    console.warn('静默同步数据失败:', err);
+  } finally {
+    state.isSyncing = false;
+  }
 }
 
-// 加载分类与书签列表
-async function loadData() {
-  if (elements.statCount) elements.statCount.textContent = '正在同步数据...';
+// 手动前台刷新数据（带反馈提示）
+async function loadData(showSuccessToast = false) {
+  if (elements.statCount) elements.statCount.textContent = '正在同步最新数据...';
 
   try {
     const [catRes, bmRes] = await Promise.all([
@@ -258,15 +328,23 @@ async function loadData() {
     state.categories = (catRes && catRes.categories) || [];
     state.bookmarks = (bmRes && bmRes.bookmarks) || [];
 
+    await chrome.storage.local.set({
+      cachedCategories: state.categories,
+      cachedBookmarks: state.bookmarks,
+    });
+
     renderCategoryPills();
+    renderSubCategoryPills();
     renderBookmarks();
+
+    if (showSuccessToast) showToast('已成功同步最新分类与书签');
   } catch (err) {
     showToast(err.message || '加载数据失败');
-    if (elements.statCount) elements.statCount.textContent = '加载失败，请重试';
+    if (elements.statCount) elements.statCount.textContent = '同步遇到问题，展示离线缓存';
   }
 }
 
-// ==================== 登录逻辑 ====================
+// ==================== 登录与登出 ====================
 
 async function handleLogin(e) {
   e.preventDefault();
@@ -290,9 +368,7 @@ async function handleLogin(e) {
 
   try {
     const payload = { username, password };
-    if (totpCode) {
-      payload.totp_code = totpCode;
-    }
+    if (totpCode) payload.totp_code = totpCode;
 
     const res = await request('/api/auth/login', {
       method: 'POST',
@@ -309,14 +385,14 @@ async function handleLogin(e) {
         authUser: state.user,
       });
 
-      showToast('登录成功，已绑定服务端');
-      await verifyAndLoad();
+      showToast('登录成功，正在进入');
+      switchView('main');
+      await loadData();
     } else {
       throw new Error('未能获取到有效的登录令牌');
     }
   } catch (err) {
     const msg = err.message || '登录失败';
-    // 判断是否需要两步验证码
     if (msg.includes('两步验证') || msg.includes('2FA') || msg.includes('TOTP') || msg.includes('totp')) {
       if (elements.totpGroup) {
         elements.totpGroup.classList.remove('hidden');
@@ -345,25 +421,56 @@ async function handleLogout() {
   state.user = null;
   state.bookmarks = [];
   state.categories = [];
-  await chrome.storage.local.remove(['authToken', 'authUser']);
+  await chrome.storage.local.remove(['authToken', 'authUser', 'cachedCategories', 'cachedBookmarks']);
   prepareLoginView(state.serverUrl);
-  showToast('已断开连接并退出登录');
+  showToast('已退出登录');
 }
 
-// ==================== 渲染书签与分类 ====================
+// ==================== 一级与二级分类层级联动 ====================
 
+// 获取所有一级分类 (无 parent_id)
+function getTopCategories() {
+  return state.categories
+    .filter((c) => !c.parent_id)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+
+// 获取某个一级分类下的所有二级子分类
+function getSubCategories(topCategoryId) {
+  if (!topCategoryId || topCategoryId === 'all') return [];
+  const topId = Number(topCategoryId);
+  return state.categories
+    .filter((c) => c.parent_id === topId)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+
+// 获取一级分类及其所有子分类的 ID 集合
+function getCategoryFamilyIds(topCategoryId) {
+  const topId = Number(topCategoryId);
+  const ids = new Set([topId]);
+  state.categories.forEach((c) => {
+    if (c.parent_id === topId) ids.add(c.id);
+  });
+  return ids;
+}
+
+// 渲染一级分类胶囊
 function renderCategoryPills() {
   if (!elements.categoryPills) return;
 
-  const totalCount = state.bookmarks.length;
-  let html = `<button class="pill ${state.selectedCategoryId === 'all' ? 'active' : ''}" data-id="all">
+  const topCats = getTopCategories();
+  const totalBookmarksCount = state.bookmarks.length;
+
+  let html = `<button class="pill ${state.selectedTopCatId === 'all' ? 'active' : ''}" data-id="all">
     <span>全部</span>
-    <span class="text-[10px] opacity-75">(${totalCount})</span>
+    <span class="text-[10px] opacity-75">(${totalBookmarksCount})</span>
   </button>`;
 
-  state.categories.forEach((cat) => {
-    const count = state.bookmarks.filter((b) => b.category_id === cat.id).length;
-    const isActive = String(state.selectedCategoryId) === String(cat.id);
+  topCats.forEach((cat) => {
+    const familyIds = getCategoryFamilyIds(cat.id);
+    const count = state.bookmarks.filter((b) => b.category_id && familyIds.has(b.category_id)).length;
+    const isActive = String(state.selectedTopCatId) === String(cat.id);
+
     html += `<button class="pill ${isActive ? 'active' : ''}" data-id="${cat.id}">
       <span>${escapeHtml(cat.name)}</span>
       <span class="text-[10px] opacity-75">(${count})</span>
@@ -372,34 +479,116 @@ function renderCategoryPills() {
 
   elements.categoryPills.innerHTML = html;
 
-  // 绑定胶囊点击事件
+  // 绑定一级分类点击切换
   elements.categoryPills.querySelectorAll('.pill').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.selectedCategoryId = btn.dataset.id;
+      const catId = btn.dataset.id;
+      state.selectedTopCatId = catId === 'all' ? 'all' : Number(catId);
+      // 切换一级分类时，重置二级分类为“全部”
+      state.selectedSubCatId = 'all';
+
+      chrome.storage.local.set({
+        selectedTopCatId: state.selectedTopCatId,
+        selectedSubCatId: state.selectedSubCatId,
+      });
+
       renderCategoryPills();
+      renderSubCategoryPills();
       renderBookmarks();
     });
   });
 }
 
+// 渲染二级分类胶囊
+function renderSubCategoryPills() {
+  if (!elements.subcategoryContainer || !elements.subcategoryPills) return;
+
+  // 如果处于“全部”或当前一级分类没有二级分类，隐藏二级栏
+  if (state.selectedTopCatId === 'all') {
+    elements.subcategoryContainer.classList.add('hidden');
+    elements.subcategoryPills.innerHTML = '';
+    return;
+  }
+
+  const subs = getSubCategories(state.selectedTopCatId);
+  if (subs.length === 0) {
+    elements.subcategoryContainer.classList.add('hidden');
+    elements.subcategoryPills.innerHTML = '';
+    return;
+  }
+
+  elements.subcategoryContainer.classList.remove('hidden');
+
+  // 当前大类总数
+  const familyIds = getCategoryFamilyIds(state.selectedTopCatId);
+  const totalInTop = state.bookmarks.filter((b) => b.category_id && familyIds.has(b.category_id)).length;
+
+  let html = `<button class="sub-pill ${state.selectedSubCatId === 'all' ? 'active' : ''}" data-subid="all">
+    <span>全部子项</span>
+    <span class="text-[9px] opacity-75">(${totalInTop})</span>
+  </button>`;
+
+  subs.forEach((sub) => {
+    const count = state.bookmarks.filter((b) => b.category_id === sub.id).length;
+    const isActive = String(state.selectedSubCatId) === String(sub.id);
+
+    html += `<button class="sub-pill ${isActive ? 'active' : ''}" data-subid="${sub.id}">
+      <span>${escapeHtml(sub.name)}</span>
+      <span class="text-[9px] opacity-75">(${count})</span>
+    </button>`;
+  });
+
+  elements.subcategoryPills.innerHTML = html;
+
+  // 绑定二级分类点击切换
+  elements.subcategoryPills.querySelectorAll('.sub-pill').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const subId = btn.dataset.subid;
+      state.selectedSubCatId = subId === 'all' ? 'all' : Number(subId);
+
+      chrome.storage.local.set({
+        selectedSubCatId: state.selectedSubCatId,
+      });
+
+      renderSubCategoryPills();
+      renderBookmarks();
+    });
+  });
+}
+
+// ==================== 渲染书签列表 ====================
+
 function renderBookmarks() {
   if (!elements.bookmarkList) return;
 
   const query = state.searchQuery.trim().toLowerCase();
-  const filtered = state.bookmarks.filter((bm) => {
-    // 分类过滤
-    if (state.selectedCategoryId !== 'all') {
-      if (String(bm.category_id) !== String(state.selectedCategoryId)) {
-        return false;
-      }
+
+  // 根据当前一级/二级分类筛选
+  let allowedCatIds = null;
+  if (state.selectedTopCatId !== 'all') {
+    if (state.selectedSubCatId !== 'all') {
+      // 严格选中特定二级分类
+      allowedCatIds = new Set([Number(state.selectedSubCatId)]);
+    } else {
+      // 选中特定一级分类的所有家族分类
+      allowedCatIds = getCategoryFamilyIds(state.selectedTopCatId);
     }
-    // 搜索过滤
+  }
+
+  const filtered = state.bookmarks.filter((bm) => {
+    // 1. 分类匹配过滤
+    if (allowedCatIds && (!bm.category_id || !allowedCatIds.has(bm.category_id))) {
+      return false;
+    }
+
+    // 2. 搜索关键词匹配
     if (query) {
       const matchTitle = (bm.title || '').toLowerCase().includes(query);
       const matchDesc = (bm.description || '').toLowerCase().includes(query);
       const matchUrl = (bm.url || '').toLowerCase().includes(query);
       if (!matchTitle && !matchDesc && !matchUrl) return false;
     }
+
     return true;
   });
 
@@ -420,7 +609,10 @@ function renderBookmarks() {
   state.categories.forEach((c) => catMap.set(c.id, c.name));
 
   let html = '';
-  filtered.forEach((bm) => {
+  // 最多预先渲染 80 项，超大列表时保持丝滑响应
+  const renderList = filtered.slice(0, 80);
+
+  renderList.forEach((bm) => {
     const catName = catMap.get(bm.category_id) || '未归类';
     let iconSrc = bm.favicon || '';
     if (!iconSrc && bm.url) {
@@ -431,7 +623,7 @@ function renderBookmarks() {
     html += `
       <div class="bookmark-card" data-url="${escapeHtml(bm.url)}" title="${escapeHtml(bm.title)}\n${escapeHtml(bm.url)}">
         <div class="bm-icon-wrapper">
-          <img class="bm-icon" src="${escapeHtml(iconSrc)}" alt="" onerror="this.src='icons/icon16.png'" />
+          <img class="bm-icon" src="${escapeHtml(iconSrc)}" loading="lazy" alt="" onerror="this.src='icons/icon16.png'" />
         </div>
         <div class="bm-main">
           <div class="bm-title-row">
@@ -453,12 +645,15 @@ function renderBookmarks() {
     `;
   });
 
+  if (filtered.length > 80) {
+    html += `<div class="text-center py-2 text-[10px] text-muted-foreground">余下 ${filtered.length - 80} 条请在上方输入关键词搜索</div>`;
+  }
+
   elements.bookmarkList.innerHTML = html;
 
-  // 绑定书签点击事件
+  // 绑定卡片交互
   elements.bookmarkList.querySelectorAll('.bookmark-card').forEach((card) => {
     card.addEventListener('click', (e) => {
-      // 避免触发复制按钮事件
       if (e.target.closest('.action-btn')) return;
       const url = card.dataset.url;
       if (url) chrome.tabs.create({ url });
@@ -486,19 +681,36 @@ function renderBookmarks() {
   });
 }
 
-// ==================== 新增书签逻辑 ====================
+// ==================== 新增书签视图 ====================
 
 function openAddBookmarkView(prefillTab = state.activeTab) {
   switchView('add');
   if (elements.addAlert) elements.addAlert.classList.add('hidden');
 
-  // 渲染分类下拉框
+  // 构建支持二级分类层级缩进的下拉选项
   if (elements.bmCategory) {
     let catOptions = '<option value="">默认分类 (未归类)</option>';
-    state.categories.forEach((cat) => {
-      const isSelected = state.selectedCategoryId === String(cat.id) ? 'selected' : '';
-      catOptions += `<option value="${cat.id}" ${isSelected}>${escapeHtml(cat.name)}</option>`;
-    });
+    const tops = getTopCategories();
+
+    // 默认预选中当前在主页选中的分类
+    let defaultSelected = '';
+    if (state.selectedSubCatId !== 'all') {
+      defaultSelected = String(state.selectedSubCatId);
+    } else if (state.selectedTopCatId !== 'all') {
+      defaultSelected = String(state.selectedTopCatId);
+    }
+
+    for (const top of tops) {
+      const isTopSel = defaultSelected === String(top.id) ? 'selected' : '';
+      catOptions += `<option value="${top.id}" ${isTopSel}>📁 ${escapeHtml(top.name)}</option>`;
+
+      const subs = getSubCategories(top.id);
+      for (const sub of subs) {
+        const isSubSel = defaultSelected === String(sub.id) ? 'selected' : '';
+        catOptions += `<option value="${sub.id}" ${isSubSel}>&nbsp;&nbsp;&nbsp;&nbsp;└ 📄 ${escapeHtml(sub.name)}</option>`;
+      }
+    }
+
     elements.bmCategory.innerHTML = catOptions;
   }
 
@@ -523,13 +735,12 @@ function openAddBookmarkView(prefillTab = state.activeTab) {
   if (elements.bmDesc) elements.bmDesc.value = '';
   if (elements.bmPrivate) elements.bmPrivate.checked = false;
 
-  // 聚焦标题
   setTimeout(() => {
     if (elements.bmTitle) elements.bmTitle.focus();
-  }, 100);
+  }, 80);
 }
 
-// 智能提取网页元信息 (AI / 抓取)
+// 智能识别网站元数据
 async function fetchMetaForActiveTab() {
   const url = elements.bmUrl ? elements.bmUrl.value.trim() : '';
   if (!url) {
@@ -554,7 +765,7 @@ async function fetchMetaForActiveTab() {
         elements.bmFavicon.value = res.favicon;
         if (elements.bmFaviconPreview) elements.bmFaviconPreview.src = res.favicon;
       }
-      showToast(res.aiUsed ? '已由 AI 提炼精准标题与中文简介' : '已抓取网站元数据');
+      showToast(res.aiUsed ? '已由 AI 提炼精准标题与中文简介' : '已成功抓取网站元信息');
     }
   } catch (err) {
     showAddAlert(`自动提取提示: ${err.message || '抓取失败，请手动输入'}`, 'error');
@@ -563,6 +774,7 @@ async function fetchMetaForActiveTab() {
   }
 }
 
+// 提交新增书签
 async function handleAddSubmit(e) {
   e.preventDefault();
   const url = elements.bmUrl.value.trim();
@@ -597,8 +809,12 @@ async function handleAddSubmit(e) {
 
     if (res && res.bookmark) {
       showToast('🎉 书签已成功保存至 ZenLink');
-      // 重新拉取数据
-      await loadData();
+      // 本地乐观更新，无需全量重载
+      state.bookmarks.unshift(res.bookmark);
+      await chrome.storage.local.set({ cachedBookmarks: state.bookmarks });
+      renderCategoryPills();
+      renderSubCategoryPills();
+      renderBookmarks();
       switchView('main');
     } else {
       throw new Error('保存失败，服务端未返回有效结果');
@@ -626,7 +842,7 @@ function showAddAlert(msg, type = 'error') {
 function openSettingsView() {
   switchView('settings');
   if (elements.stServerUrl) elements.stServerUrl.textContent = state.serverUrl || '--';
-  if (elements.stUsername) elements.stUsername.textContent = (state.user && state.user.username) || '未登录';
+  if (elements.stUsername) elements.stUsername.textContent = (state.user && state.user.username) || '已连接';
 }
 
 function setButtonLoading(btn, loading, text) {
@@ -641,7 +857,7 @@ function setButtonLoading(btn, loading, text) {
   }
 }
 
-// ==================== 事件绑定 ====================
+// ==================== 事件监听绑定 ====================
 
 function bindEvents() {
   // 登录表单
@@ -649,7 +865,7 @@ function bindEvents() {
     elements.loginForm.addEventListener('submit', handleLogin);
   }
 
-  // 导航栏操作
+  // 顶栏操作
   if (elements.btnToAdd) {
     elements.btnToAdd.addEventListener('click', () => openAddBookmarkView(state.activeTab));
   }
@@ -663,8 +879,7 @@ function bindEvents() {
     elements.btnRefresh.addEventListener('click', async () => {
       elements.btnRefresh.style.transform = 'rotate(360deg)';
       elements.btnRefresh.style.transition = 'transform 0.5s ease';
-      await loadData();
-      showToast('已同步最新数据');
+      await loadData(true);
       setTimeout(() => {
         elements.btnRefresh.style.transform = '';
         elements.btnRefresh.style.transition = '';
@@ -672,7 +887,7 @@ function bindEvents() {
     });
   }
 
-  // 搜索输入
+  // 搜索输入过滤
   if (elements.searchInput) {
     elements.searchInput.addEventListener('input', (e) => {
       state.searchQuery = e.target.value;
@@ -692,7 +907,7 @@ function bindEvents() {
     });
   }
 
-  // 添加书签
+  // 新增书签事件
   if (elements.btnBackFromAdd) {
     elements.btnBackFromAdd.addEventListener('click', () => switchView('main'));
   }
@@ -714,7 +929,7 @@ function bindEvents() {
     });
   }
 
-  // 设置视图
+  // 设置视图事件
   if (elements.btnBackFromSettings) {
     elements.btnBackFromSettings.addEventListener('click', () => switchView('main'));
   }
@@ -725,8 +940,7 @@ function bindEvents() {
   }
   if (elements.btnSyncAll) {
     elements.btnSyncAll.addEventListener('click', async () => {
-      await loadData();
-      showToast('重新同步完成');
+      await loadData(true);
     });
   }
   if (elements.btnLogout) {
@@ -734,5 +948,5 @@ function bindEvents() {
   }
 }
 
-// 页面加载就绪后启动
+// 页面 DOM 加载完毕后启动
 document.addEventListener('DOMContentLoaded', init);
