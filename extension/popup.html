@@ -481,15 +481,25 @@
             </label>
           </div>
 
-          <div class="info-row" style="margin-top: 8px;">
-            <span class="info-label">默认翻译来源</span>
-            <div class="select-wrapper" style="width: 135px;">
-              <select id="st-translate-provider">
-                <option value="google">谷歌 (Google)</option>
-                <option value="microsoft">微软 (Microsoft)</option>
-                <option value="baidu">百度 (Baidu)</option>
-                <option value="ai">AI 智能翻译</option>
-              </select>
+          <div class="engine-group-wrapper" style="margin-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 8px;">
+            <div class="info-label font-semibold" style="color: var(--text-main); margin-bottom: 6px;">翻译来源引擎 (多选将同时对比显示)</div>
+            <div class="engine-grid">
+              <label class="engine-checkbox-card">
+                <input type="checkbox" class="st-engine-check" value="google" checked />
+                <span class="engine-tag-label">谷歌 (Google)</span>
+              </label>
+              <label class="engine-checkbox-card">
+                <input type="checkbox" class="st-engine-check" value="microsoft" />
+                <span class="engine-tag-label">微软 (Microsoft)</span>
+              </label>
+              <label class="engine-checkbox-card">
+                <input type="checkbox" class="st-engine-check" value="baidu" />
+                <span class="engine-tag-label">百度 (Baidu)</span>
+              </label>
+              <label class="engine-checkbox-card">
+                <input type="checkbox" class="st-engine-check" value="ai" />
+                <span class="engine-tag-label">AI 智能模型</span>
+              </label>
             </div>
           </div>
         </div>

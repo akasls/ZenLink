@@ -127,15 +127,16 @@
   });
 
   // ==================== 网页划词翻译浮层交互 ====================
+  // ==================== 网页划词翻译浮层交互 ====================
   initFloatingTranslation();
 
   function initFloatingTranslation() {
     if (document.getElementById('zenlink-translate-root')) return;
 
-    // 创建宿主节点并挂载 Shadow DOM，隔绝宿主网页样式干扰
+    // 创建宿主节点并挂载 Shadow DOM，使用 fixed 绝对穿透布局隔绝宿主网页样式干扰
     const host = document.createElement('div');
     host.id = 'zenlink-translate-root';
-    host.style.all = 'initial';
+    host.style.cssText = 'all: initial !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 0 !important; height: 0 !important; z-index: 2147483647 !important; pointer-events: none !important;';
     const shadow = host.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
@@ -162,30 +163,31 @@
         }
       }
 
-      /* 悬浮小图标徽标 */
+      /* 悬浮小图标徽标 (使用 fixed 精准跟随视口划选坐标) */
       #zenlink-float-btn {
-        position: absolute;
+        position: fixed !important;
         display: none;
-        z-index: 2147483647;
-        width: 28px;
-        height: 28px;
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
         background: #f1404b;
         color: #ffffff;
         border: 2px solid #ffffff;
-        box-shadow: 0 4px 14px rgba(241, 64, 75, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 14px rgba(241, 64, 75, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2);
         cursor: pointer;
         outline: none;
-        transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+        transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s ease;
         padding: 0;
       }
       #zenlink-float-btn:hover {
-        transform: scale(1.16);
-        box-shadow: 0 6px 18px rgba(241, 64, 75, 0.55), 0 3px 8px rgba(0, 0, 0, 0.2);
+        transform: scale(1.18);
+        box-shadow: 0 6px 20px rgba(241, 64, 75, 0.6), 0 3px 8px rgba(0, 0, 0, 0.25);
       }
       #zenlink-float-btn svg {
-        width: 15px;
-        height: 15px;
+        width: 16px;
+        height: 16px;
         fill: currentColor;
         display: block;
         margin: auto;
@@ -193,24 +195,27 @@
 
       /* 悬浮翻译面板卡片 */
       #zenlink-card {
-        position: absolute;
+        position: fixed !important;
         display: none;
         flex-direction: column;
-        z-index: 2147483647;
-        width: 330px;
-        max-width: calc(100vw - 28px);
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+        width: 360px;
+        max-width: calc(100vw - 24px);
+        max-height: min(520px, calc(100vh - 40px));
         background: #ffffff;
         border-radius: 12px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.22), 0 6px 14px rgba(0, 0, 0, 0.1);
         overflow: hidden;
-        animation: zenlinkFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        animation: zenlinkFadeIn 0.16s ease-out;
       }
       @media (prefers-color-scheme: dark) {
         #zenlink-card {
           background: #181c24;
-          border-color: rgba(255, 255, 255, 0.1);
-          box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.3);
+          border-color: rgba(255, 255, 255, 0.12);
+          box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.6), 0 6px 16px rgba(0, 0, 0, 0.35);
+          color: #f1f5f9;
         }
       }
 
@@ -243,43 +248,9 @@
         color: #f1404b;
       }
       .zenlink-brand svg {
-        width: 13px;
-        height: 13px;
+        width: 14px;
+        height: 14px;
         fill: currentColor;
-      }
-
-      .zenlink-header-right {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .zenlink-provider-select {
-        appearance: none;
-        -webkit-appearance: none;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        background: #ffffff;
-        color: #475569;
-        font-size: 11px;
-        font-weight: 500;
-        padding: 3px 20px 3px 8px;
-        outline: none;
-        cursor: pointer;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2364748b' d='M0 0l5 5 5-5z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 6px center;
-        transition: all 0.15s;
-      }
-      .zenlink-provider-select:hover {
-        border-color: #f1404b;
-        color: #0f172a;
-      }
-      @media (prefers-color-scheme: dark) {
-        .zenlink-provider-select {
-          background-color: #1e293b;
-          border-color: #334155;
-          color: #cbd5e1;
-        }
       }
 
       .zenlink-close-btn {
@@ -293,7 +264,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 15px;
+        font-size: 16px;
         line-height: 1;
         transition: all 0.15s;
       }
@@ -302,14 +273,14 @@
         background: rgba(241, 64, 75, 0.1);
       }
 
-      /* 正文区 */
+      /* 正文区 (支持多个引擎结果对比滚动展示) */
       .zenlink-body {
-        padding: 12px;
-        max-height: 280px;
+        padding: 10px 12px;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
         gap: 8px;
+        max-height: 380px;
       }
       .zenlink-source-box {
         padding: 6px 8px;
@@ -329,23 +300,90 @@
         }
       }
 
-      .zenlink-result-box {
-        font-size: 13px;
-        line-height: 1.6;
-        word-break: break-word;
-        min-height: 48px;
+      /* 单个翻译引擎结果卡片 */
+      .zenlink-engine-card {
+        border-radius: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
       }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-engine-card {
+          background: #1e2430;
+          border-color: #2e3848;
+        }
+      }
+      .zenlink-engine-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .zenlink-engine-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: #f1404b;
+      }
+      .zenlink-engine-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #f1404b;
+      }
+      .zenlink-subcopy-btn {
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 10px;
+        color: #94a3b8;
+        padding: 2px 5px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        transition: all 0.15s;
+      }
+      .zenlink-subcopy-btn:hover {
+        color: #f1404b;
+        background: rgba(241, 64, 75, 0.1);
+      }
+      .zenlink-subcopy-btn svg {
+        width: 10px;
+        height: 10px;
+        fill: currentColor;
+      }
+
+      .zenlink-engine-content {
+        font-size: 13px;
+        line-height: 1.55;
+        color: #1e293b;
+        word-break: break-word;
+        user-select: text;
+        white-space: pre-wrap;
+      }
+      @media (prefers-color-scheme: dark) {
+        .zenlink-engine-content {
+          color: #e2e8f0;
+        }
+      }
+
       .zenlink-loading {
         display: flex;
         align-items: center;
         gap: 8px;
         color: #64748b;
         font-size: 12px;
-        padding: 12px 0;
+        padding: 6px 0;
       }
       .zenlink-spinner {
-        width: 14px;
-        height: 14px;
+        width: 13px;
+        height: 13px;
         border: 2px solid #e2e8f0;
         border-top-color: #f1404b;
         border-radius: 50%;
@@ -400,7 +438,7 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 3px 8px;
+        padding: 4px 10px;
         border-radius: 6px;
         border: 1px solid #cbd5e1;
         background: #ffffff;
@@ -415,8 +453,8 @@
         color: #f1404b;
       }
       .zenlink-action-btn svg {
-        width: 11px;
-        height: 11px;
+        width: 12px;
+        height: 12px;
         fill: currentColor;
       }
       @media (prefers-color-scheme: dark) {
@@ -446,27 +484,19 @@
       <div class="zenlink-header">
         <div class="zenlink-brand">
           <svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.08c1.74-1.94 2.98-4.17 3.71-6.49H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
-          <span>划词翻译</span>
+          <span>ZenLink 划词翻译</span>
         </div>
-        <div class="zenlink-header-right">
-          <select id="zenlink-provider-select" class="zenlink-provider-select" title="切换翻译来源">
-            <option value="google">谷歌 (Google)</option>
-            <option value="microsoft">微软 (Microsoft)</option>
-            <option value="baidu">百度 (Baidu)</option>
-            <option value="ai">AI 智能</option>
-          </select>
-          <button id="zenlink-close-btn" class="zenlink-close-btn" title="关闭 (Esc)">&times;</button>
-        </div>
+        <button id="zenlink-close-btn" class="zenlink-close-btn" title="关闭 (Esc)">&times;</button>
       </div>
       <div class="zenlink-body">
         <div id="zenlink-source-preview" class="zenlink-source-box"></div>
-        <div id="zenlink-result-container" class="zenlink-result-box"></div>
+        <div id="zenlink-results-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
       </div>
       <div class="zenlink-footer">
-        <span id="zenlink-lang-badge" class="zenlink-target-badge">中文</span>
-        <button id="zenlink-copy-btn" class="zenlink-action-btn" title="复制译文">
+        <span id="zenlink-lang-badge" class="zenlink-target-badge">目标语言</span>
+        <button id="zenlink-copy-all-btn" class="zenlink-action-btn" title="复制全部翻译结果">
           <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-          <span id="zenlink-copy-text">复制</span>
+          <span id="zenlink-copy-all-text">复制全部</span>
         </button>
       </div>
     `;
@@ -477,116 +507,166 @@
     (document.body || document.documentElement).appendChild(host);
 
     // 内部 DOM 引用
-    const providerSelect = shadow.getElementById('zenlink-provider-select');
     const closeBtn = shadow.getElementById('zenlink-close-btn');
     const sourcePreview = shadow.getElementById('zenlink-source-preview');
-    const resultContainer = shadow.getElementById('zenlink-result-container');
+    const resultsList = shadow.getElementById('zenlink-results-list');
     const langBadge = shadow.getElementById('zenlink-lang-badge');
-    const copyBtn = shadow.getElementById('zenlink-copy-btn');
-    const copyText = shadow.getElementById('zenlink-copy-text');
+    const copyAllBtn = shadow.getElementById('zenlink-copy-all-btn');
+    const copyAllText = shadow.getElementById('zenlink-copy-all-text');
 
     let currentSelectedText = '';
-    let currentTranslation = '';
-    let currentTargetLang = '';
     let lastSelectionRect = null;
+    let lastResults = [];
 
-    // 监听网页划选文本事件 (mouseup)
-    document.addEventListener('mouseup', (e) => {
-      // 若事件来源于组件自身内部，不予处理
-      if (e.composedPath().includes(host)) return;
+    // 本地内存持久化缓存配置，确保划词响应 0 延迟
+    let isEnabled = true;
+    let activeProviders = ['google'];
 
-      // 检查开关配置
-      chrome.storage.local.get(['translationEnabled', 'translationProvider'], (stored) => {
-        if (stored.translationEnabled === false) {
-          floatBtn.style.display = 'none';
-          return;
+    chrome.storage.local.get(['translationEnabled', 'translationProviders', 'translationProvider'], (stored) => {
+      if (stored) {
+        if (stored.translationEnabled !== undefined) isEnabled = stored.translationEnabled !== false;
+        if (Array.isArray(stored.translationProviders) && stored.translationProviders.length > 0) {
+          activeProviders = stored.translationProviders;
+        } else if (stored.translationProvider) {
+          activeProviders = [stored.translationProvider];
         }
-
-        const provider = stored.translationProvider || 'google';
-        if (providerSelect.value !== provider) {
-          providerSelect.value = provider;
-        }
-
-        const selection = window.getSelection ? window.getSelection() : null;
-        const text = selection ? selection.toString().trim() : '';
-
-        // 过滤空选区或超长文本
-        if (!text || text.length === 0 || text.length > 3500) {
-          floatBtn.style.display = 'none';
-          return;
-        }
-
-        if (selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        if (rect.width === 0 && rect.height === 0) return;
-
-        currentSelectedText = text;
-        lastSelectionRect = rect;
-
-        const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
-        const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-
-        let btnX = rect.right + scrollX + 4;
-        let btnY = rect.bottom + scrollY + 4;
-
-        // 边缘防溢出处理
-        const docW = document.documentElement.clientWidth;
-        if (btnX + 34 > docW + scrollX) {
-          btnX = docW + scrollX - 36;
-        }
-
-        floatBtn.style.left = `${Math.max(6, btnX)}px`;
-        floatBtn.style.top = `${Math.max(6, btnY)}px`;
-        floatBtn.style.display = 'block';
-      });
+      }
     });
 
-    // 点击浮动按钮触发翻译
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local') {
+        if (changes.translationEnabled !== undefined) {
+          isEnabled = changes.translationEnabled.newValue !== false;
+          if (!isEnabled) {
+            floatBtn.style.display = 'none';
+            card.style.display = 'none';
+          }
+        }
+        if (changes.translationProviders) {
+          activeProviders = changes.translationProviders.newValue || ['google'];
+        } else if (changes.translationProvider) {
+          activeProviders = [changes.translationProvider.newValue || 'google'];
+        }
+      }
+    });
+
+    // 检查并展示选中文本后的悬浮微标
+    function handleSelectionCheck() {
+      if (!isEnabled) {
+        floatBtn.style.display = 'none';
+        return;
+      }
+
+      const selection = window.getSelection ? window.getSelection() : null;
+      const text = selection ? selection.toString().trim() : '';
+
+      // 选区为空或超长文本不触发
+      if (!text || text.length === 0 || text.length > 3500) {
+        floatBtn.style.display = 'none';
+        return;
+      }
+
+      if (selection.rangeCount === 0) return;
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (!rect || (rect.width === 0 && rect.height === 0)) return;
+
+      currentSelectedText = text;
+      lastSelectionRect = rect;
+
+      // 使用 position: fixed 视口像素坐标，不受宿主网页滚动条、祖先容器 transform 等干扰
+      let btnX = rect.right + 6;
+      let btnY = rect.bottom + 6;
+
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
+
+      // 屏幕边缘防护
+      if (btnX + 34 > winW) btnX = winW - 38;
+      if (btnY + 34 > winH) btnY = Math.max(6, rect.top - 36);
+
+      floatBtn.style.left = `${Math.max(6, Math.round(btnX))}px`;
+      floatBtn.style.top = `${Math.max(6, Math.round(btnY))}px`;
+      floatBtn.style.display = 'block';
+    }
+
+    // 监听鼠标划选 (延迟 20ms 等待浏览器原生划选状态稳定)
+    document.addEventListener('mouseup', (e) => {
+      if (e.composedPath().includes(host)) return;
+      setTimeout(handleSelectionCheck, 20);
+    });
+
+    // 监听键盘快捷选择 (如 Shift+方向键选中文本)
+    document.addEventListener('keyup', (e) => {
+      if (e.composedPath().includes(host)) return;
+      if (e.key === 'Shift' || e.key.startsWith('Arrow')) {
+        setTimeout(handleSelectionCheck, 20);
+      }
+    });
+
+    // 点击浮动小图标触发翻译卡片
     floatBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       floatBtn.style.display = 'none';
 
       if (!currentSelectedText || !lastSelectionRect) return;
 
-      const scrollX = window.pageXOffset || document.documentElement.scrollLeft || 0;
-      const scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-      const cardWidth = 330;
+      const cardWidth = 360;
+      let cardX = lastSelectionRect.left;
+      let cardY = lastSelectionRect.bottom + 8;
 
-      let cardX = lastSelectionRect.left + scrollX;
-      let cardY = lastSelectionRect.bottom + scrollY + 8;
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
 
-      const docW = document.documentElement.clientWidth;
-      if (cardX + cardWidth > docW + scrollX - 14) {
-        cardX = docW + scrollX - cardWidth - 14;
+      if (cardX + cardWidth > winW - 12) cardX = winW - cardWidth - 12;
+      if (cardX < 12) cardX = 12;
+
+      // 若接近视口底部且上方空间充裕，翻转至选区上方
+      if (lastSelectionRect.bottom + 280 > winH && lastSelectionRect.top > 240) {
+        cardY = Math.max(12, lastSelectionRect.top - 260);
+      } else if (cardY + 280 > winH) {
+        cardY = Math.max(12, winH - 290);
       }
-      if (cardX < scrollX + 8) cardX = scrollX + 8;
 
-      // 若接近视口底部且上方空间充裕，则翻转置于选区上方展示
-      if (lastSelectionRect.bottom + 260 > window.innerHeight && lastSelectionRect.top > 220) {
-        cardY = lastSelectionRect.top + scrollY - 240;
-      }
-
-      card.style.left = `${Math.max(8, cardX)}px`;
-      card.style.top = `${Math.max(8, cardY)}px`;
+      card.style.left = `${Math.round(cardX)}px`;
+      card.style.top = `${Math.round(cardY)}px`;
       card.style.display = 'flex';
 
       // 填充原文预览
       sourcePreview.textContent = currentSelectedText;
 
-      executeTranslation(currentSelectedText, providerSelect.value);
+      executeTranslation(currentSelectedText, activeProviders);
     });
 
-    // 执行翻译请求
-    function executeTranslation(text, provider) {
-      resultContainer.innerHTML = `
-        <div class="zenlink-loading">
-          <div class="zenlink-spinner"></div>
-          <span>正在使用 ${getProviderName(provider)} 翻译中...</span>
-        </div>
-      `;
-      copyBtn.style.opacity = '0.5';
-      copyBtn.style.pointerEvents = 'none';
+    // 执行多引擎翻译请求
+    function executeTranslation(text, providers) {
+      const currentProviders = Array.isArray(providers) && providers.length > 0 ? providers : ['google'];
+
+      // 初始化各引擎加载状态骨架卡片
+      let listHtml = '';
+      currentProviders.forEach((p) => {
+        listHtml += `
+          <div class="zenlink-engine-card" id="zenlink-card-${p}">
+            <div class="zenlink-engine-header">
+              <div class="zenlink-engine-tag">
+                <span class="zenlink-engine-dot"></span>
+                <span>${getProviderName(p)}</span>
+              </div>
+              <button class="zenlink-subcopy-btn" data-provider="${p}" title="复制此结果">
+                <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                <span>复制</span>
+              </button>
+            </div>
+            <div class="zenlink-engine-content" id="zenlink-content-${p}">
+              <div class="zenlink-loading">
+                <div class="zenlink-spinner"></div>
+                <span>正在请求翻译...</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      resultsList.innerHTML = listHtml;
 
       const hasChinese = /[\u4e00-\u9fa5]/.test(text);
       const targetLang = hasChinese ? 'en' : 'zh-CN';
@@ -596,16 +676,13 @@
         {
           action: 'TRANSLATE_TEXT',
           text,
-          provider,
+          providers: currentProviders,
           targetLang,
         },
         (response) => {
-          copyBtn.style.opacity = '1';
-          copyBtn.style.pointerEvents = 'auto';
-
           if (chrome.runtime.lastError || !response || !response.success) {
             const errMsg = (response && response.error) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || '翻译请求失败';
-            resultContainer.innerHTML = `
+            resultsList.innerHTML = `
               <div class="zenlink-error">
                 <div>⚠️ ${escapeText(errMsg)}</div>
                 <button class="zenlink-retry-btn" id="zenlink-btn-retry">重试</button>
@@ -613,27 +690,57 @@
             `;
             const retryBtn = shadow.getElementById('zenlink-btn-retry');
             if (retryBtn) {
-              retryBtn.addEventListener('click', () => executeTranslation(text, provider));
+              retryBtn.addEventListener('click', () => executeTranslation(text, currentProviders));
             }
             return;
           }
 
-          currentTranslation = response.translation || '';
-          currentTargetLang = response.targetLang || targetLang;
-          langBadge.textContent = currentTargetLang === 'zh-CN' ? '译为 简体中文' : '译为 English';
+          const results = response.results || [];
+          lastResults = results;
 
-          resultContainer.textContent = currentTranslation;
+          results.forEach((r) => {
+            const contentEl = shadow.getElementById(`zenlink-content-${r.provider}`);
+            if (!contentEl) return;
+
+            if (r.success) {
+              contentEl.textContent = r.translation;
+            } else {
+              contentEl.innerHTML = `<span style="color:#ef4444; font-size:11px;">⚠️ ${escapeText(r.error || '翻译失败')}</span>`;
+            }
+          });
+
+          // 绑定每个卡片的独立复制按钮
+          shadow.querySelectorAll('.zenlink-subcopy-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const p = btn.dataset.provider;
+              const targetRes = lastResults.find((x) => x.provider === p && x.success);
+              if (targetRes && targetRes.translation) {
+                navigator.clipboard.writeText(targetRes.translation).then(() => {
+                  const label = btn.querySelector('span');
+                  if (label) {
+                    const old = label.textContent;
+                    label.textContent = '已复制 ✓';
+                    btn.style.color = '#10b981';
+                    setTimeout(() => {
+                      label.textContent = old;
+                      btn.style.color = '';
+                    }, 1500);
+                  }
+                });
+              }
+            });
+          });
         }
       );
     }
 
     function getProviderName(provider) {
       switch (provider) {
-        case 'microsoft': return '微软';
-        case 'baidu': return '百度';
-        case 'ai': return 'ZenLink AI';
+        case 'microsoft': return '微软 (Microsoft)';
+        case 'baidu': return '百度 (Baidu)';
+        case 'ai': return 'ZenLink AI 智能';
         case 'google':
-        default: return '谷歌';
+        default: return '谷歌 (Google)';
       }
     }
 
@@ -647,26 +754,23 @@
       }[m]));
     }
 
-    // 切换翻译渠道即刻重新翻译并保存首选
-    providerSelect.addEventListener('change', (e) => {
-      const newProvider = e.target.value;
-      chrome.storage.local.set({ translationProvider: newProvider });
-      if (currentSelectedText) {
-        executeTranslation(currentSelectedText, newProvider);
-      }
-    });
+    // 复制全部翻译结果
+    copyAllBtn.addEventListener('click', () => {
+      const validResults = lastResults.filter((r) => r.success && r.translation);
+      if (validResults.length === 0) return;
 
-    // 复制译文
-    copyBtn.addEventListener('click', () => {
-      if (!currentTranslation) return;
-      navigator.clipboard.writeText(currentTranslation).then(() => {
-        copyText.textContent = '已复制 ✓';
-        copyBtn.style.color = '#10b981';
-        copyBtn.style.borderColor = '#10b981';
+      const combinedText = validResults
+        .map((r) => `【${getProviderName(r.provider)}】\n${r.translation}`)
+        .join('\n\n');
+
+      navigator.clipboard.writeText(combinedText).then(() => {
+        copyAllText.textContent = '已复制全部 ✓';
+        copyAllBtn.style.color = '#10b981';
+        copyAllBtn.style.borderColor = '#10b981';
         setTimeout(() => {
-          copyText.textContent = '复制';
-          copyBtn.style.color = '';
-          copyBtn.style.borderColor = '';
+          copyAllText.textContent = '复制全部';
+          copyAllBtn.style.color = '';
+          copyAllBtn.style.borderColor = '';
         }, 1800);
       });
     });

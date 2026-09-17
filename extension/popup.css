@@ -1444,6 +1444,42 @@ input:checked + .slider:before {
   color: var(--text-muted);
   margin-top: 2px;
 }
+.engine-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.engine-checkbox-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 11px;
+  color: var(--text-main);
+  user-select: none;
+}
+.engine-checkbox-card:hover {
+  border-color: var(--brand-primary);
+  background: var(--bg-card-hover);
+}
+.engine-checkbox-card input[type="checkbox"] {
+  accent-color: var(--brand-primary);
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+.engine-tag-label {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .info-row {
   display: flex;
   align-items: center;

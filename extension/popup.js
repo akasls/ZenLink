@@ -376,6 +376,16 @@ async function init() {
     // 4. 后台静默增量拉取最新数据
     silentSyncData();
     initAiSettings();
+
+    // 5. 检查是否存在右键菜单发起的「添加当前网页到书签」待处理任务
+    try {
+      const storedPending = await chrome.storage.local.get(['pendingAddBookmark']);
+      if (storedPending && storedPending.pendingAddBookmark && Date.now() - storedPending.pendingAddBookmark.timestamp < 180000) {
+        const pending = storedPending.pendingAddBookmark;
+        await chrome.storage.local.remove(['pendingAddBookmark']);
+        openAddBookmarkView(pending, false);
+      }
+    } catch (e) {}
   } else {
     prepareLoginView(state.serverUrl || 'http://127.0.0.1:3000');
   }
@@ -1927,13 +1937,16 @@ async function openSettingsView() {
   if (elements.stUsername) elements.stUsername.textContent = (state.user && state.user.username) || '已连接';
 
   try {
-    const stored = await chrome.storage.local.get(['translationEnabled', 'translationProvider']);
+    const stored = await chrome.storage.local.get(['translationEnabled', 'translationProviders', 'translationProvider']);
     if (elements.stTranslateEnabled) {
       elements.stTranslateEnabled.checked = stored.translationEnabled !== false;
     }
-    if (elements.stTranslateProvider) {
-      elements.stTranslateProvider.value = stored.translationProvider || 'google';
-    }
+    const providers = Array.isArray(stored.translationProviders) && stored.translationProviders.length > 0
+      ? stored.translationProviders
+      : (stored.translationProvider ? [stored.translationProvider] : ['google']);
+    document.querySelectorAll('.st-engine-check').forEach((chk) => {
+      chk.checked = providers.includes(chk.value);
+    });
   } catch (e) {
     console.warn('加载翻译设置失败', e);
   }
@@ -2183,14 +2196,19 @@ function bindEvents() {
       showToast(enabled ? '已开启网页划词翻译' : '已关闭网页划词翻译');
     });
   }
-  if (elements.stTranslateProvider) {
-    elements.stTranslateProvider.addEventListener('change', (e) => {
-      const provider = e.target.value;
-      chrome.storage.local.set({ translationProvider: provider });
-      const providerName = e.target.options[e.target.selectedIndex] ? e.target.options[e.target.selectedIndex].text : provider;
-      showToast(`默认翻译来源已设为: ${providerName}`);
+  document.querySelectorAll('.st-engine-check').forEach((chk) => {
+    chk.addEventListener('change', () => {
+      const checkedBoxes = Array.from(document.querySelectorAll('.st-engine-check:checked'));
+      if (checkedBoxes.length === 0) {
+        chk.checked = true;
+        showToast('至少需保留一个翻译引擎');
+        return;
+      }
+      const selected = checkedBoxes.map((c) => c.value);
+      chrome.storage.local.set({ translationProviders: selected });
+      showToast(`已选择 ${selected.length} 个翻译引擎`);
     });
-  }
+  });
   if (elements.btnOpenWeb) {
     elements.btnOpenWeb.addEventListener('click', () => {
       if (state.serverUrl) chrome.tabs.create({ url: state.serverUrl });
@@ -2204,6 +2222,14 @@ function bindEvents() {
   if (elements.btnLogout) {
     elements.btnLogout.addEventListener('click', handleLogout);
   }
+
+  // 10. 监听来自 Background 的通知 (例如右键菜单打开添加书签)
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.action === 'OPEN_ADD_BOOKMARK' && msg.data) {
+      switchView('add');
+      openAddBookmarkView(msg.data, false);
+    }
+  });
 }
 
 // 页面 DOM 加载完毕后启动

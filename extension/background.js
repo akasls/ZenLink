@@ -21,14 +21,14 @@ chrome.runtime.onInstalled.addListener(() => {
       // 1. 针对当前页面的右键菜单
       chrome.contextMenus.create({
         id: 'zenlink_add_page',
-        title: '添加当前网页至 ZenLink',
+        title: '添加当前网页到书签',
         contexts: ['page'],
       });
 
       // 2. 针对超链接的右键菜单
       chrome.contextMenus.create({
         id: 'zenlink_add_link',
-        title: '添加链接至 ZenLink',
+        title: '添加链接到书签',
         contexts: ['link'],
       });
     });
@@ -69,17 +69,8 @@ if (typeof chrome !== 'undefined' && chrome.action && chrome.action.onClicked) {
   });
 }
 
-// 处理右键菜单点击
+// 处理右键菜单点击：弹出添加书签编辑表单，支持修改标题、描述、分类等
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  const stored = await chrome.storage.local.get(['serverUrl', 'authToken']);
-  const serverUrl = stored.serverUrl;
-  const token = stored.authToken;
-
-  if (!serverUrl || !token) {
-    notify('ZenLink 未登录', '请先点击浏览器右上角扩展图标登录您的 ZenLink 账号');
-    return;
-  }
-
   let targetUrl = '';
   let targetTitle = '';
   let targetFavicon = '';
@@ -98,31 +89,47 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return;
   }
 
+  const pendingData = {
+    url: targetUrl,
+    title: targetTitle,
+    favicon: targetFavicon,
+    description: '',
+    timestamp: Date.now(),
+  };
+
+  // 持久化待添加书签数据，供弹窗读取并自动填充到添加表单
+  await chrome.storage.local.set({ pendingAddBookmark: pendingData });
+
+  // 1. 优先尝试唤起 Chrome 116+ 侧边栏
+  if (chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
+    try {
+      if (tab && tab.id) {
+        await chrome.sidePanel.open({ tabId: tab.id });
+        chrome.runtime.sendMessage({ action: 'OPEN_ADD_BOOKMARK', data: pendingData }).catch(() => {});
+        return;
+      } else if (tab && tab.windowId) {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+        chrome.runtime.sendMessage({ action: 'OPEN_ADD_BOOKMARK', data: pendingData }).catch(() => {});
+        return;
+      }
+    } catch (e) {}
+  }
+
+  // 2. 兜底方案：在当前浏览器右侧开启全高伴随工作台编辑窗口
   try {
-    const res = await fetch(`${serverUrl}/api/bookmarks`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        url: targetUrl,
-        title: targetTitle,
-        favicon: targetFavicon,
-        description: '',
-        isPrivate: false,
-      }),
+    const screenW = 1920;
+    await chrome.windows.create({
+      url: chrome.runtime.getURL('popup.html?mode=add_bookmark'),
+      type: 'popup',
+      width: 440,
+      height: 960,
+      top: 0,
+      left: Math.max(0, screenW - 450),
+      focused: true,
     });
-
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error((data && data.error) || `HTTP ${res.status}`);
-    }
-
-    notify('已保存至 ZenLink', `「${targetTitle.slice(0, 30)}」已成功添加至导航`);
+    chrome.runtime.sendMessage({ action: 'OPEN_ADD_BOOKMARK', data: pendingData }).catch(() => {});
   } catch (err) {
-    notify('保存书签失败', err.message || '网络请求错误');
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=add_bookmark') });
   }
 });
 
@@ -165,36 +172,79 @@ async function handleTranslate(request) {
   const hasChinese = /[\u4e00-\u9fa5]/.test(cleanText);
   const toLang = targetLang || (hasChinese ? 'en' : 'zh-CN');
 
-  // 若未指定 provider，优先从本地持久化设置中获取
-  let provider = request.provider;
-  if (!provider) {
-    const stored = await chrome.storage.local.get(['translationProvider']);
-    provider = stored.translationProvider || 'google';
+  // 支持单个或多个翻译引擎
+  let providers = request.providers;
+  if (!providers || !Array.isArray(providers) || providers.length === 0) {
+    if (request.provider) {
+      providers = [request.provider];
+    } else {
+      const stored = await chrome.storage.local.get(['translationProviders', 'translationProvider']);
+      providers = stored.translationProviders || (stored.translationProvider ? [stored.translationProvider] : ['google']);
+    }
   }
 
-  let result;
-  switch (provider) {
-    case 'microsoft':
-      result = await translateWithMicrosoft(cleanText, toLang);
-      break;
-    case 'baidu':
-      result = await translateWithBaidu(cleanText, toLang);
-      break;
-    case 'ai':
-      result = await translateWithAi(cleanText, toLang);
-      break;
-    case 'google':
-    default:
-      result = await translateWithGoogle(cleanText, toLang);
-      break;
+  // 确保至少有一个引擎
+  if (!Array.isArray(providers) || providers.length === 0) {
+    providers = ['google'];
   }
+
+  // 并行调用所选引擎
+  const tasks = providers.map(async (p) => {
+    try {
+      let res;
+      switch (p) {
+        case 'microsoft':
+          res = await translateWithMicrosoft(cleanText, toLang);
+          break;
+        case 'baidu':
+          res = await translateWithBaidu(cleanText, toLang);
+          break;
+        case 'ai':
+          res = await translateWithAi(cleanText, toLang);
+          break;
+        case 'google':
+        default:
+          res = await translateWithGoogle(cleanText, toLang);
+          break;
+      }
+      return {
+        provider: p,
+        name: getProviderLabel(p),
+        success: true,
+        translation: res.translation,
+        detectedLang: res.detectedLang,
+        fallbackFrom: res.fallbackFrom,
+      };
+    } catch (err) {
+      return {
+        provider: p,
+        name: getProviderLabel(p),
+        success: false,
+        error: err.message || '翻译接口异常',
+      };
+    }
+  });
+
+  const results = await Promise.all(tasks);
 
   return {
     success: true,
-    ...result,
+    results,
+    // 兼容单结果直接取用
+    translation: results.find((r) => r.success)?.translation || '',
     originalText: cleanText,
     targetLang: toLang,
   };
+}
+
+function getProviderLabel(provider) {
+  switch (provider) {
+    case 'google': return '谷歌 (Google)';
+    case 'microsoft': return '微软 (Microsoft)';
+    case 'baidu': return '百度 (Baidu)';
+    case 'ai': return 'AI 智能';
+    default: return provider;
+  }
 }
 
 /**
