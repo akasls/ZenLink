@@ -127,16 +127,15 @@
   });
 
   // ==================== 网页划词翻译浮层交互 ====================
-  // ==================== 网页划词翻译浮层交互 ====================
   initFloatingTranslation();
 
   function initFloatingTranslation() {
     if (document.getElementById('zenlink-translate-root')) return;
 
-    // 创建宿主节点并挂载 Shadow DOM，使用 fixed 绝对穿透布局隔绝宿主网页样式干扰
+    // 创建宿主节点并挂载 Shadow DOM，隔绝宿主网页所有 CSS 样式干扰
     const host = document.createElement('div');
     host.id = 'zenlink-translate-root';
-    host.style.cssText = 'all: initial !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 0 !important; height: 0 !important; z-index: 2147483647 !important; pointer-events: none !important;';
+    host.style.cssText = 'all: initial !important; display: block !important; position: static !important;';
     const shadow = host.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
@@ -163,34 +162,36 @@
         }
       }
 
-      /* 悬浮小图标徽标 (使用 fixed 精准跟随视口划选坐标) */
+      /* 悬浮小图标徽标 (使用 fixed 视口绝对像素，无惧网页缩放、局部滚动或定位干扰) */
       #zenlink-float-btn {
         position: fixed !important;
         display: none;
+        align-items: center !important;
+        justify-content: center !important;
         z-index: 2147483647 !important;
-        pointer-events: auto !important;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: #f1404b;
-        color: #ffffff;
-        border: 2px solid #ffffff;
-        box-shadow: 0 4px 14px rgba(241, 64, 75, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2);
-        cursor: pointer;
-        outline: none;
-        transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s ease;
-        padding: 0;
+        width: 28px !important;
+        height: 28px !important;
+        border-radius: 50% !important;
+        background: #f1404b !important;
+        color: #ffffff !important;
+        border: 2px solid #ffffff !important;
+        box-shadow: 0 4px 14px rgba(241, 64, 75, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+        cursor: pointer !important;
+        outline: none !important;
+        transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s ease !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
       #zenlink-float-btn:hover {
-        transform: scale(1.18);
-        box-shadow: 0 6px 20px rgba(241, 64, 75, 0.6), 0 3px 8px rgba(0, 0, 0, 0.25);
+        transform: scale(1.18) !important;
+        box-shadow: 0 6px 20px rgba(241, 64, 75, 0.6), 0 3px 8px rgba(0, 0, 0, 0.25) !important;
       }
       #zenlink-float-btn svg {
-        width: 16px;
-        height: 16px;
-        fill: currentColor;
-        display: block;
-        margin: auto;
+        width: 15px !important;
+        height: 15px !important;
+        fill: #ffffff !important;
+        display: block !important;
+        margin: auto !important;
       }
 
       /* 悬浮翻译面板卡片 */
@@ -199,7 +200,6 @@
         display: none;
         flex-direction: column;
         z-index: 2147483647 !important;
-        pointer-events: auto !important;
         width: 360px;
         max-width: calc(100vw - 24px);
         max-height: min(520px, calc(100vh - 40px));
@@ -522,33 +522,77 @@
     let isEnabled = true;
     let activeProviders = ['google'];
 
-    chrome.storage.local.get(['translationEnabled', 'translationProviders', 'translationProvider'], (stored) => {
-      if (stored) {
+    try {
+      chrome.storage.local.get(['translationEnabled', 'translationProviders', 'translationProvider'], (stored) => {
+        if (chrome.runtime.lastError || !stored) return;
         if (stored.translationEnabled !== undefined) isEnabled = stored.translationEnabled !== false;
         if (Array.isArray(stored.translationProviders) && stored.translationProviders.length > 0) {
           activeProviders = stored.translationProviders;
         } else if (stored.translationProvider) {
           activeProviders = [stored.translationProvider];
         }
-      }
-    });
+      });
+    } catch (e) {
+      isEnabled = true;
+    }
 
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local') {
-        if (changes.translationEnabled !== undefined) {
-          isEnabled = changes.translationEnabled.newValue !== false;
-          if (!isEnabled) {
-            floatBtn.style.display = 'none';
-            card.style.display = 'none';
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local') {
+          if (changes.translationEnabled !== undefined) {
+            isEnabled = changes.translationEnabled.newValue !== false;
+            if (!isEnabled) {
+              floatBtn.style.display = 'none';
+              card.style.display = 'none';
+            }
+          }
+          if (changes.translationProviders) {
+            activeProviders = changes.translationProviders.newValue || ['google'];
+          } else if (changes.translationProvider) {
+            activeProviders = [changes.translationProvider.newValue || 'google'];
           }
         }
-        if (changes.translationProviders) {
-          activeProviders = changes.translationProviders.newValue || ['google'];
-        } else if (changes.translationProvider) {
-          activeProviders = [changes.translationProvider.newValue || 'google'];
+      });
+    } catch (e) {}
+
+    // 提取当前划选文本及准确的视口矩形
+    function getSelectedTextAndRect() {
+      // 1. 尝试从活动输入框中获取
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        const start = activeEl.selectionStart;
+        const end = activeEl.selectionEnd;
+        if (typeof start === 'number' && typeof end === 'number' && end > start) {
+          const text = activeEl.value.substring(start, end).trim();
+          if (text) {
+            const rect = activeEl.getBoundingClientRect();
+            return { text, rect };
+          }
         }
       }
-    });
+
+      // 2. 网页常规 DOM 文本划选
+      const selection = window.getSelection ? window.getSelection() : null;
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
+
+      const text = selection.toString().trim();
+      if (!text) return null;
+
+      const range = selection.getRangeAt(0);
+      let rect = range.getBoundingClientRect();
+
+      // 若 getBoundingClientRect 为空，降级提取切片矩形
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        const rects = range.getClientRects();
+        if (rects && rects.length > 0) {
+          rect = rects[rects.length - 1]; // 优先取末尾矩形
+        }
+      }
+
+      if (!rect || (rect.width === 0 && rect.height === 0)) return null;
+
+      return { text, rect };
+    }
 
     // 检查并展示选中文本后的悬浮微标
     function handleSelectionCheck() {
@@ -557,51 +601,59 @@
         return;
       }
 
-      const selection = window.getSelection ? window.getSelection() : null;
-      const text = selection ? selection.toString().trim() : '';
-
-      // 选区为空或超长文本不触发
-      if (!text || text.length === 0 || text.length > 3500) {
+      const res = getSelectedTextAndRect();
+      if (!res || !res.text || res.text.length > 3500) {
         floatBtn.style.display = 'none';
         return;
       }
 
-      if (selection.rangeCount === 0) return;
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      if (!rect || (rect.width === 0 && rect.height === 0)) return;
+      currentSelectedText = res.text;
+      lastSelectionRect = res.rect;
 
-      currentSelectedText = text;
-      lastSelectionRect = rect;
-
-      // 使用 position: fixed 视口像素坐标，不受宿主网页滚动条、祖先容器 transform 等干扰
-      let btnX = rect.right + 6;
-      let btnY = rect.bottom + 6;
+      // 使用 position: fixed 视口像素坐标，无惧页面滚动与嵌套
+      let btnX = res.rect.right + 6;
+      let btnY = res.rect.bottom + 6;
 
       const winW = window.innerWidth;
       const winH = window.innerHeight;
 
       // 屏幕边缘防护
       if (btnX + 34 > winW) btnX = winW - 38;
-      if (btnY + 34 > winH) btnY = Math.max(6, rect.top - 36);
+      if (btnY + 34 > winH) btnY = Math.max(6, res.rect.top - 36);
 
       floatBtn.style.left = `${Math.max(6, Math.round(btnX))}px`;
       floatBtn.style.top = `${Math.max(6, Math.round(btnY))}px`;
-      floatBtn.style.display = 'block';
+      floatBtn.style.display = 'flex';
     }
 
-    // 监听鼠标划选 (延迟 20ms 等待浏览器原生划选状态稳定)
-    document.addEventListener('mouseup', (e) => {
-      if (e.composedPath().includes(host)) return;
+    // 在捕获阶段 (Capture: true) 监听，免疫任何网页框架 stopPropagation 阻断
+    window.addEventListener('mouseup', (e) => {
+      if (e.composedPath && e.composedPath().includes(host)) return;
       setTimeout(handleSelectionCheck, 20);
-    });
+    }, true);
 
-    // 监听键盘快捷选择 (如 Shift+方向键选中文本)
-    document.addEventListener('keyup', (e) => {
-      if (e.composedPath().includes(host)) return;
-      if (e.key === 'Shift' || e.key.startsWith('Arrow')) {
+    window.addEventListener('keyup', (e) => {
+      if (e.composedPath && e.composedPath().includes(host)) return;
+      if (e.key === 'Shift' || (e.key && e.key.startsWith('Arrow'))) {
         setTimeout(handleSelectionCheck, 20);
       }
+    }, true);
+
+    // 网页点击收起浮层 (必须在捕获阶段监听)
+    window.addEventListener('mousedown', (e) => {
+      if (e.composedPath && e.composedPath().includes(host)) return;
+      floatBtn.style.display = 'none';
+      card.style.display = 'none';
+    }, true);
+
+    // 防止点击自身图标时触发全局 mousedown 清除选区
+    floatBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    card.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
     });
 
     // 点击浮动小图标触发翻译卡片
@@ -781,15 +833,8 @@
       floatBtn.style.display = 'none';
     });
 
-    // 点击空白处收起浮动组件
-    document.addEventListener('mousedown', (e) => {
-      if (e.composedPath().includes(host)) return;
-      floatBtn.style.display = 'none';
-      card.style.display = 'none';
-    });
-
     // ESC 按键快捷关闭
-    document.addEventListener('keydown', (e) => {
+    window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         floatBtn.style.display = 'none';
         card.style.display = 'none';

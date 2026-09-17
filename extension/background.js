@@ -13,29 +13,57 @@ function enableSidePanelOnAction() {
 }
 enableSidePanelOnAction();
 
-// 扩展安装或更新时注册右键菜单与侧边栏配置
-chrome.runtime.onInstalled.addListener(() => {
-  enableSidePanelOnAction();
+// 注册右键上下文菜单
+function setupContextMenus() {
+  if (typeof chrome === 'undefined' || !chrome.contextMenus) return;
   try {
     chrome.contextMenus.removeAll(() => {
-      // 1. 针对当前页面的右键菜单
       chrome.contextMenus.create({
         id: 'zenlink_add_page',
         title: '添加当前网页到书签',
         contexts: ['page'],
+      }, () => {
+        if (chrome.runtime.lastError) {}
       });
 
-      // 2. 针对超链接的右键菜单
       chrome.contextMenus.create({
         id: 'zenlink_add_link',
         title: '添加链接到书签',
         contexts: ['link'],
+      }, () => {
+        if (chrome.runtime.lastError) {}
       });
     });
   } catch (e) {
     console.error('注册右键菜单失败', e);
   }
+}
+
+// 重新加载或安装时，为当前所有打开的网页动态注入 content.js，实现免 F5 刷新即刻生效
+async function injectContentScriptToAllTabs() {
+  if (typeof chrome === 'undefined' || !chrome.scripting || !chrome.tabs) return;
+  try {
+    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js'],
+        }).catch(() => {});
+      }
+    }
+  } catch (e) {}
+}
+
+// 扩展安装或更新时注册
+chrome.runtime.onInstalled.addListener(() => {
+  enableSidePanelOnAction();
+  setupContextMenus();
+  injectContentScriptToAllTabs();
 });
+
+// Service Worker 启动阶段即刻执行，确保右键菜单立即更新生效
+setupContextMenus();
 
 // 点击扩展图标的兼容降级处理（针对不支持 openPanelOnActionClick 的环境）
 if (typeof chrome !== 'undefined' && chrome.action && chrome.action.onClicked) {
