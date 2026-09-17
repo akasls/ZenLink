@@ -86,6 +86,10 @@ await fastify.register(cors, {
       return cb(null, { origin: true, credentials: true });
     }
 
+    if (origin.startsWith('chrome-extension://') || origin.startsWith('moz-extension://')) {
+      return cb(null, { origin: true, credentials: true });
+    }
+
     if (allowedOrigins.has(origin)) {
       return cb(null, { origin: true, credentials: true });
     }
