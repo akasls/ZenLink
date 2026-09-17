@@ -1,11 +1,11 @@
 /**
  * ZenLink Chrome 扩展 Popup 核心交互逻辑
  * 1. 0 延迟秒开：本地离线缓存 + 后台静默增量同步
- * 2. 多合一工作台：底栏左下角无缝切换 [网址导航] / [在线笔记] / [AI 智能助手]
+ * 2. 多合一工作台：底栏左下角无缝切换 [我的书签] / [我的笔记] / [AI对话]
  * 3. 完美横向平移：分类胶囊按钮支持鼠标直接抓取拖动与滚轮横向滚动，智能防误触
- * 4. 实时流式对话：单行紧凑输入框 (模型选择+输入+发送同一行)，顶栏保留新对话，副顶栏历史图标展开会话抽屉
+ * 4. 实时流式对话：两行紧凑输入框 (模型选择无方框外包裹+输入+发送同一行)，副顶栏左上角展示当前会话标题 (如“新对话”)，右上角历史图标展开抽屉
  * 5. 网页真实正文智能剪藏：在真实可见 DOM 中提取文章段落排版转 Markdown，支持 Markdown 工具条与 AI 生成标题/标签
- * 6. 原生/贴边侧边栏：支持原生 Chrome Side Panel 与全兼容右侧停靠工作台双重保障
+ * 6. 原生/贴边侧边栏：优先原生 Chrome Side Panel，自动降级右侧停靠工作台双重保障
  */
 
 // 全局响应式状态
@@ -69,7 +69,7 @@ const elements = {
   loginAlert: document.getElementById('login-alert'),
   btnLogin: document.getElementById('btn-login'),
 
-  // 顶栏通用
+  // 顶栏通用 (左上角动态切换：我的书签 / 我的笔记 / AI对话)
   siteTitle: document.getElementById('display-site-name'),
   btnMainAction: document.getElementById('btn-main-action'),
   iconMainAction: document.getElementById('icon-main-action'),
@@ -117,10 +117,9 @@ const elements = {
   btnCancelNote: document.getElementById('btn-cancel-note'),
   btnSubmitNote: document.getElementById('btn-submit-note'),
 
-  // AI 面板
-  aiModelName: document.getElementById('ai-model-name'),
+  // AI 面板 (副顶栏左上角展示当前会话标题如“新对话”)
+  aiSessionTitle: document.getElementById('ai-session-title'),
   btnAiHistoryToggle: document.getElementById('btn-ai-history-toggle'),
-  aiQuickPrompts: document.getElementById('ai-quick-prompts'),
   aiChatMessages: document.getElementById('ai-chat-messages'),
   aiPromptInput: document.getElementById('ai-prompt-input'),
   aiModelSelect: document.getElementById('ai-model-select'),
@@ -310,7 +309,9 @@ async function request(path, options = {}) {
 
 async function init() {
   // 检查是否在 Chrome 侧边栏/独立贴边窗口中运行
-  const isSidePanel = window.location.search.includes('sidepanel') || window.location.hash.includes('sidepanel');
+  const isSidePanel = window.location.search.includes('sidepanel') || 
+                      window.location.hash.includes('sidepanel') || 
+                      window.innerHeight > 610;
   if (isSidePanel) {
     document.body.classList.add('in-sidepanel');
   }
@@ -430,20 +431,33 @@ function switchModule(modName) {
 
   // 更新顶栏主操作按钮
   updateMainActionButton();
-  // 更新顶栏左上角标题
+  // 更新顶栏左上角标题 (满足需求：我的书签 / 我的笔记 / AI对话)
   updateHeaderTitle();
   // 更新底栏状态文字
   updateFooterStat();
 }
 
+// 满足需求 1：左上角标题分别改成：我的书签 我的笔记 AI对话
 function updateHeaderTitle() {
   if (!elements.siteTitle) return;
-  if (state.activeModule === 'ai') {
-    elements.siteTitle.textContent = state.currentAiTitle || '新对话';
-    elements.siteTitle.title = `当前会话: ${state.currentAiTitle || '新对话'}`;
-  } else {
-    elements.siteTitle.textContent = state.siteName || 'ZenLink';
-    elements.siteTitle.title = state.siteName || 'ZenLink';
+  if (state.activeModule === 'nav') {
+    elements.siteTitle.textContent = '我的书签';
+    elements.siteTitle.title = '我的书签';
+  } else if (state.activeModule === 'notes') {
+    elements.siteTitle.textContent = '我的笔记';
+    elements.siteTitle.title = '我的笔记';
+  } else if (state.activeModule === 'ai') {
+    elements.siteTitle.textContent = 'AI对话';
+    elements.siteTitle.title = 'AI对话';
+  }
+}
+
+// 满足需求 3：AI对话页面顶栏下面的左上角显示对话标题不要显示模型名称，例如：新对话
+function updateAiSessionTitle(title) {
+  state.currentAiTitle = title || '新对话';
+  if (elements.aiSessionTitle) {
+    elements.aiSessionTitle.textContent = state.currentAiTitle;
+    elements.aiSessionTitle.title = `当前会话: ${state.currentAiTitle}`;
   }
 }
 
@@ -476,7 +490,7 @@ function updateFooterStat() {
   } else if (state.activeModule === 'notes') {
     elements.statCount.textContent = `共 ${state.notes.length} 篇笔记`;
   } else if (state.activeModule === 'ai') {
-    // 满足需求：右下角底栏不用显示模型名称
+    // 满足需求 4：右下角底栏不用显示模型名称
     elements.statCount.textContent = '已就绪';
   }
 }
@@ -516,7 +530,6 @@ async function silentSyncData() {
     }
     if (settingsRes && settingsRes.settings && settingsRes.settings.site_name) {
       state.siteName = settingsRes.settings.site_name;
-      updateHeaderTitle();
     }
 
     if (hasChanges) {
@@ -832,7 +845,7 @@ function renderBookmarks() {
   state.categories.forEach((c) => catMap.set(c.id, c.name));
 
   let html = '';
-  const renderList = filtered.slice(0, 80);
+  const renderList = filtered.slice(0, 100);
 
   renderList.forEach((bm) => {
     const catName = catMap.get(bm.category_id) || '未归类';
@@ -867,8 +880,8 @@ function renderBookmarks() {
     `;
   });
 
-  if (filtered.length > 80) {
-    html += `<div class="text-center py-2 text-[10px] text-muted-foreground">余下 ${filtered.length - 80} 条请在上方输入关键词搜索</div>`;
+  if (filtered.length > 100) {
+    html += `<div class="text-center py-2 text-[10px] text-muted-foreground">余下 ${filtered.length - 100} 条请在上方输入关键词搜索</div>`;
   }
 
   elements.bookmarkList.innerHTML = html;
@@ -1183,7 +1196,7 @@ async function handleQuickClipNote() {
     return;
   }
 
-  // 内部浏览器页面防护
+  // 内部系统页面防护
   if (/^(chrome|edge|about|devtools):/i.test(tab.url || '')) {
     openNoteEditView();
     if (elements.noteTitleInput) elements.noteTitleInput.value = tab.title || '网页笔记';
@@ -1395,24 +1408,18 @@ function renderAiModelSelectOptions() {
   if (state.selectedAiModel) {
     elements.aiModelSelect.value = state.selectedAiModel;
   }
-
-  const activeModel = elements.aiModelSelect.value || defaultModel || 'AI 助手';
-  if (elements.aiModelName) {
-    elements.aiModelName.textContent = activeModel;
-  }
 }
 
 function startNewAiChat() {
   state.aiConversationId = null;
-  state.currentAiTitle = '新对话';
   state.aiHistory = [];
-  updateHeaderTitle();
+  updateAiSessionTitle('新对话');
 
   if (elements.aiChatMessages) {
     elements.aiChatMessages.innerHTML = `
       <div class="ai-msg ai-msg-assistant">
         <div class="ai-msg-bubble">
-          你好！我是你的 ZenLink 智能助手。你可以随时与我对话，或点击上方快速总结当前浏览的网页！
+          你好！我是你的 ZenLink 智能助手。你可以随时与我对话。
         </div>
       </div>
     `;
@@ -1449,10 +1456,9 @@ async function sendAiMessage(userPrompt) {
 
   if (elements.aiPromptInput) elements.aiPromptInput.value = '';
 
-  // 若当前为新对话，首条消息作为标题
+  // 若当前为新对话，更新副顶栏会话标题为首条问题摘要
   if (state.currentAiTitle === '新对话') {
-    state.currentAiTitle = prompt.slice(0, 16);
-    updateHeaderTitle();
+    updateAiSessionTitle(prompt.slice(0, 16));
   }
 
   appendAiMessage('user', prompt);
@@ -1536,48 +1542,6 @@ async function sendAiMessage(userPrompt) {
     state.isAiStreaming = false;
     if (elements.btnAiSend) elements.btnAiSend.disabled = false;
     if (elements.aiPromptInput) elements.aiPromptInput.focus();
-  }
-}
-
-// 快速提问指令
-async function handleQuickPrompt(type) {
-  let tab = state.activeTab;
-  try {
-    const [currentActive] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (currentActive) tab = currentActive;
-  } catch {}
-
-  let pageContext = '';
-  if (tab) {
-    pageContext = `当前网页标题: ${tab.title || ''}\n网页 URL: ${tab.url || ''}\n`;
-    try {
-      const [selectionResult] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => window.getSelection().toString(),
-      });
-      if (selectionResult && selectionResult.result && selectionResult.result.trim()) {
-        pageContext += `网页选中文本: \n"""\n${selectionResult.result.trim()}\n"""\n`;
-      }
-    } catch {}
-  }
-
-  let prompt = '';
-  if (type === 'summary_page') {
-    prompt = pageContext
-      ? `${pageContext}\n请用简明扼要的中文条列总结以上网页的核心内容、主要观点及核心价值。`
-      : '请总结当前网页的核心内容。';
-  } else if (type === 'explain_page') {
-    prompt = pageContext
-      ? `${pageContext}\n请针对以上网页内容提炼出 3-5 个最具参考价值的核心知识点或操作步骤。`
-      : '请提炼当前内容的核心知识点。';
-  } else if (type === 'translate_zh') {
-    prompt = pageContext
-      ? `${pageContext}\n请将上述内容准确、通顺、地道地翻译为高质量中文。`
-      : '请帮我将内容翻译成高质量中文。';
-  }
-
-  if (prompt) {
-    sendAiMessage(prompt);
   }
 }
 
@@ -1665,8 +1629,7 @@ async function openConversation(conversationId) {
   state.aiConversationId = conversationId;
   const targetConv = state.aiConversations.find(c => c.id === conversationId);
   if (targetConv) {
-    state.currentAiTitle = targetConv.title || '对话';
-    updateHeaderTitle();
+    updateAiSessionTitle(targetConv.title || '对话');
   }
 
   if (elements.aiChatMessages) {
@@ -1895,30 +1858,41 @@ function bindEvents() {
       } else if (state.activeModule === 'notes') {
         openNoteEditView();
       } else if (state.activeModule === 'ai') {
-        // 满足需求：在 AI 对话右上角保留之前的新对话按钮
+        // AI 模式下顶栏右上角新对话按钮
         startNewAiChat();
       }
     });
   }
 
-  // 侧边栏按钮双重保障绑定 (原生 Side Panel API + 贴边桌面独立工作台窗口)
+  // 侧边栏按钮优先原生 Side Panel API，全兼容降级为独立贴边伴随工作台
   if (elements.btnOpenSidepanel) {
     elements.btnOpenSidepanel.addEventListener('click', async () => {
-      // 优先尝试原生 Chrome 116+ sidePanel API
+      let opened = false;
+
+      // 策略 1：优先通过 Chrome 116+ 原生 Side Panel API 开启
       if (typeof chrome !== 'undefined' && chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
         try {
-          const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
-          if (win && win.id) {
-            await chrome.sidePanel.open({ windowId: win.id });
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab && tab.id) {
+            await chrome.sidePanel.open({ tabId: tab.id });
+            opened = true;
             window.close();
             return;
           }
-        } catch (e) {
-          console.warn('chrome.sidePanel.open 调用未成功，转入贴边伴随工作台:', e);
+        } catch (e1) {
+          try {
+            const win = await chrome.windows.getLastFocused({ windowTypes: ['normal'] });
+            if (win && win.id) {
+              await chrome.sidePanel.open({ windowId: win.id });
+              opened = true;
+              window.close();
+              return;
+            }
+          } catch (e2) {}
         }
       }
 
-      // 降级保障：在屏幕右侧开启 420px 伴随式工作台窗口 (全 Chromium 系列浏览器 100% 完美支持)
+      // 策略 2：降级兜底在屏幕右侧贴边开启 420px 伴随式工作台窗口 (100% 任意 Chromium 兼容)
       try {
         const screenW = window.screen.availWidth || 1920;
         const screenH = window.screen.availHeight || 1080;
@@ -1936,7 +1910,6 @@ function bindEvents() {
         });
         window.close();
       } catch (err) {
-        // 终极兜底：在新标签页打开
         chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?mode=sidepanel') });
       }
     });
@@ -2041,7 +2014,7 @@ function bindEvents() {
 
   // 6. AI 助手相关事件
   if (elements.btnAiHistoryToggle) {
-    // 满足需求：顶栏下面右上角的“+”图标改成历史图标，点击才展开历史
+    // 满足需求：顶栏下方右上角历史图标点击展开历史
     elements.btnAiHistoryToggle.addEventListener('click', toggleAiHistoryDrawer);
   }
   if (elements.btnAiSend) {
@@ -2052,7 +2025,6 @@ function bindEvents() {
       state.selectedAiModel = e.target.value;
       chrome.storage.local.set({ selectedAiModel: state.selectedAiModel });
       const activeModel = state.selectedAiModel || (state.aiSettings && state.aiSettings.model) || 'AI 助手';
-      if (elements.aiModelName) elements.aiModelName.textContent = activeModel;
       showToast(`已切换模型: ${activeModel}`);
     });
   }
@@ -2062,18 +2034,6 @@ function bindEvents() {
         e.preventDefault();
         sendAiMessage();
       }
-    });
-    elements.aiPromptInput.addEventListener('input', () => {
-      elements.aiPromptInput.style.height = 'auto';
-      elements.aiPromptInput.style.height = Math.min(elements.aiPromptInput.scrollHeight, 80) + 'px';
-    });
-  }
-  if (elements.aiQuickPrompts) {
-    elements.aiQuickPrompts.querySelectorAll('.ai-prompt-chip').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        const promptType = chip.dataset.prompt;
-        handleQuickPrompt(promptType);
-      });
     });
   }
 

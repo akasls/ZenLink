@@ -79,8 +79,8 @@
 }
 
 body {
-  width: 380px;
-  height: 570px;
+  width: 410px;
+  height: 600px;
   background-color: var(--bg-app);
   color: var(--text-main);
   overflow: hidden;
@@ -972,13 +972,21 @@ input:checked + .slider:before {
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
-.ai-model-chip {
+.ai-session-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
   font-size: 11px;
   font-weight: 600;
   color: var(--text-main);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ai-dot {
   width: 6px;
@@ -991,34 +999,6 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.ai-quick-prompts {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  overflow-x: auto;
-  white-space: nowrap;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border-color);
-}
-.ai-prompt-chip {
-  padding: 3px 8px;
-  font-size: 10px;
-  font-weight: 500;
-  border-radius: var(--radius-full);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-.ai-prompt-chip:hover {
-  background: var(--brand-primary-light);
-  color: var(--brand-primary);
-  border-color: rgba(241, 64, 75, 0.3);
 }
 
 .ai-chat-messages {
@@ -1065,66 +1045,76 @@ input:checked + .slider:before {
   border-bottom-left-radius: 3px;
 }
 
-/* AI 单行紧凑输入栏 (模型选择、编辑框和发送按钮同一行) */
-.ai-input-row {
-  padding: 8px 10px;
-  border-top: 1px solid var(--border-color);
+/* AI 两行输入框容器，模型与发送按钮位于右下角，模型无方框外包裹 */
+.ai-composer-wrapper {
+  padding: 6px 10px 10px;
   background: var(--bg-app);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  border-top: 1px solid var(--border-color);
   flex-shrink: 0;
 }
-.ai-model-select-pill {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  background: var(--bg-subtle);
+.ai-composer-box {
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 0 4px;
-  height: 34px;
-  max-width: 105px;
-  transition: border-color 0.15s;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 6px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.ai-model-select-pill:focus-within {
+.ai-composer-box:focus-within {
   border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(241, 64, 75, 0.12);
 }
-.ai-model-select {
+.ai-composer-box textarea {
   width: 100%;
+  height: 44px; /* 两行文本高度 */
+  min-height: 44px;
+  max-height: 90px;
   border: none;
   background: transparent;
   color: var(--text-main);
+  font-size: 12px;
+  line-height: 1.45;
+  resize: none;
+  outline: none;
+  padding: 0;
+}
+.ai-composer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.ai-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* 模型选择组件：无边框无方框外包裹 */
+.ai-model-borderless-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.ai-model-borderless-select {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   outline: none;
+  max-width: 170px;
   text-overflow: ellipsis;
-  padding-right: 2px;
+  padding: 2px 4px;
+  transition: color 0.15s;
 }
-.ai-input-row textarea {
-  flex: 1;
-  min-height: 34px;
-  max-height: 80px;
-  height: 34px;
-  padding: 7px 10px;
-  font-size: 12px;
-  line-height: 1.4;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
+.ai-model-borderless-select:hover {
   color: var(--text-main);
-  resize: none;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.ai-input-row textarea:focus {
-  border-color: var(--border-focus);
 }
 .btn-ai-send {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   background: var(--brand-primary);
   color: #ffffff;
   border: none;

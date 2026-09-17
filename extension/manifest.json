@@ -29,7 +29,7 @@
     "notifications"
   ],
   "side_panel": {
-    "default_path": "popup.html?mode=sidepanel"
+    "default_path": "popup.html"
   },
   "host_permissions": [
     "<all_urls>"
