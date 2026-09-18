@@ -3,15 +3,56 @@
  * 负责右键上下文菜单快速收藏、快捷键处理及后台通知
  */
 
-// 启用点击工具栏图标直接展开侧边栏（与网页同高，展示更多内容）
-function enableSidePanelOnAction() {
-  if (typeof chrome !== 'undefined' && chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
-      console.warn('配置 sidePanel 点击行为:', err);
-    });
+// 动态同步侧边栏与弹窗行为：根据用户设置决定点击图标是在侧边栏展开还是展示默认浮窗
+async function syncSidePanelBehavior(openInSidePanel) {
+  if (typeof chrome === 'undefined') return;
+  try {
+    if (openInSidePanel) {
+      if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+        await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+          console.warn('配置 sidePanel openPanelOnActionClick: true 失败:', err);
+        });
+      }
+      if (chrome.action && chrome.action.setPopup) {
+        await chrome.action.setPopup({ popup: '' }).catch(() => {});
+      }
+    } else {
+      if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+        await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch((err) => {
+          console.warn('配置 sidePanel openPanelOnActionClick: false 失败:', err);
+        });
+      }
+      if (chrome.action && chrome.action.setPopup) {
+        await chrome.action.setPopup({ popup: 'popup.html' }).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('同步侧边栏行为异常:', err);
   }
 }
-enableSidePanelOnAction();
+
+// 初始化时按本地存储的偏好配置侧边栏 / 默认浮窗（默认开启侧边栏模式）
+async function initSidePanelPreference() {
+  if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+  try {
+    const data = await chrome.storage.local.get(['openInSidePanel']);
+    const openInSidePanel = data.openInSidePanel !== false;
+    await syncSidePanelBehavior(openInSidePanel);
+  } catch (e) {
+    console.warn('读取侧边栏偏好失败:', e);
+  }
+}
+initSidePanelPreference();
+
+// 监听存储中的 openInSidePanel 配置变更，实时生效无需重启插件
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.openInSidePanel !== undefined) {
+      const openInSidePanel = changes.openInSidePanel.newValue !== false;
+      syncSidePanelBehavior(openInSidePanel);
+    }
+  });
+}
 
 // 注册右键上下文菜单
 function setupContextMenus() {
@@ -57,7 +98,7 @@ async function injectContentScriptToAllTabs() {
 
 // 扩展安装或更新时注册
 chrome.runtime.onInstalled.addListener(() => {
-  enableSidePanelOnAction();
+  initSidePanelPreference();
   setupContextMenus();
   injectContentScriptToAllTabs();
 });
@@ -65,9 +106,20 @@ chrome.runtime.onInstalled.addListener(() => {
 // Service Worker 启动阶段即刻执行，确保右键菜单立即更新生效
 setupContextMenus();
 
-// 点击扩展图标的兼容降级处理（针对不支持 openPanelOnActionClick 的环境）
+// 点击扩展图标的兼容降级处理（针对不支持 openPanelOnActionClick 的环境或 popup 动态切换）
 if (typeof chrome !== 'undefined' && chrome.action && chrome.action.onClicked) {
   chrome.action.onClicked.addListener(async (tab) => {
+    // 优先读取用户偏好：若设置为不使用侧边栏，则确保恢复 popup 并退出
+    try {
+      const data = await chrome.storage.local.get(['openInSidePanel']);
+      if (data.openInSidePanel === false) {
+        if (chrome.action && chrome.action.setPopup) {
+          await chrome.action.setPopup({ popup: 'popup.html' }).catch(() => {});
+        }
+        return;
+      }
+    } catch (e) {}
+
     if (chrome.sidePanel && typeof chrome.sidePanel.open === 'function') {
       try {
         if (tab && tab.id) {

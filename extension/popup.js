@@ -154,6 +154,7 @@ const elements = {
   btnBackFromSettings: document.getElementById('btn-back-from-settings'),
   stServerUrl: document.getElementById('st-server-url'),
   stUsername: document.getElementById('st-username'),
+  stOpenSidepanel: document.getElementById('st-open-sidepanel'),
   stTranslateEnabled: document.getElementById('st-translate-enabled'),
   stTranslateProvider: document.getElementById('st-translate-provider'),
   btnOpenWeb: document.getElementById('btn-open-web'),
@@ -1957,7 +1958,10 @@ async function openSettingsView() {
   }
 
   try {
-    const stored = await chrome.storage.local.get(['translationEnabled', 'translationProviders', 'translationProvider']);
+    const stored = await chrome.storage.local.get(['openInSidePanel', 'translationEnabled', 'translationProviders', 'translationProvider']);
+    if (elements.stOpenSidepanel) {
+      elements.stOpenSidepanel.checked = stored.openInSidePanel !== false;
+    }
     if (elements.stTranslateEnabled) {
       elements.stTranslateEnabled.checked = stored.translationEnabled !== false;
     }
@@ -2219,6 +2223,13 @@ function bindEvents() {
   // 9. 设置视图事件
   if (elements.btnBackFromSettings) {
     elements.btnBackFromSettings.addEventListener('click', () => switchView('main'));
+  }
+  if (elements.stOpenSidepanel) {
+    elements.stOpenSidepanel.addEventListener('change', async (e) => {
+      const enabled = e.target.checked;
+      await chrome.storage.local.set({ openInSidePanel: enabled });
+      showToast(enabled ? '已开启点击图标在侧边栏打开' : '已切换为点击图标默认浮窗显示');
+    });
   }
   if (elements.stTranslateEnabled) {
     elements.stTranslateEnabled.addEventListener('change', (e) => {
