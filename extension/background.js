@@ -481,7 +481,7 @@ async function translateWithBaidu(text, targetLang) {
  * ZenLink 后端 AI 智能翻译引擎 (基于已登录的 ZenLink 后台大模型)
  */
 async function translateWithAi(text, targetLang) {
-  const stored = await chrome.storage.local.get(['serverUrl', 'authToken', 'selectedAiModel']);
+  const stored = await chrome.storage.local.get(['serverUrl', 'authToken', 'selectedAiModel', 'extensionAiModel']);
   const serverUrl = stored.serverUrl;
   const token = stored.authToken;
 
@@ -494,6 +494,9 @@ async function translateWithAi(text, targetLang) {
 
 ${text.slice(0, 3000)}`;
 
+  // 优先采用插件专属模型，若未设置由后端自动跟随全局默认模型
+  const targetModel = stored.extensionAiModel || stored.selectedAiModel || undefined;
+
   const res = await fetch(`${serverUrl}/api/ai/chat`, {
     method: 'POST',
     headers: {
@@ -504,7 +507,8 @@ ${text.slice(0, 3000)}`;
       message: prompt,
       stream: true,
       is_private: true,
-      model: stored.selectedAiModel || undefined,
+      scene: 'extension',
+      model: targetModel,
     }),
   });
 

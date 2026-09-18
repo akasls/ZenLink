@@ -198,6 +198,7 @@ export const aiApi = {
     model?: string;
     writing_model?: string;
     bookmark_model?: string;
+    extension_model?: string;
     system_prompt?: string;
     available_models?: string[];
     all_models?: string[];

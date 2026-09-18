@@ -1451,6 +1451,9 @@ async function initAiSettings() {
     const res = await request('/api/ai/settings').catch(() => null);
     if (res && res.settings) {
       state.aiSettings = res.settings;
+      if (res.settings.extension_model !== undefined) {
+        chrome.storage.local.set({ extensionAiModel: res.settings.extension_model || '' });
+      }
       renderAiModelSelectOptions();
     }
   } catch (err) {
@@ -1461,7 +1464,7 @@ async function initAiSettings() {
 function renderAiModelSelectOptions() {
   if (!elements.aiModelSelect) return;
   const models = (state.aiSettings && state.aiSettings.available_models) || [];
-  const defaultModel = (state.aiSettings && state.aiSettings.model) || '';
+  const defaultModel = (state.aiSettings && (state.aiSettings.extension_model || state.aiSettings.model)) || '';
 
   let html = '';
   if (defaultModel) {

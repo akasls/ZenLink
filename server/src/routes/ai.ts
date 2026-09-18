@@ -14,6 +14,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       model: '',
       writing_model: '',
       bookmark_model: '',
+      extension_model: '',
       system_prompt: '你是一个知识渊博、高效简洁的智能全能助理。你精通各种编程语言、工具推荐、效率技巧以及文章写作。',
       available_models: [],
       temperature: 0.7,
@@ -55,13 +56,16 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     if (settings.bookmark_model === undefined || settings.bookmark_model === null) {
       settings.bookmark_model = '';
     }
+    if (settings.extension_model === undefined || settings.extension_model === null) {
+      settings.extension_model = '';
+    }
     return reply.send({ settings });
   });
 
   // 2. 更新 AI 配置（需要登录）
   fastify.post('/api/ai/settings', { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
-    const { api_key, base_url, model, writing_model, bookmark_model, system_prompt, available_models, all_models, temperature, top_p, max_tokens, reasoning_mode } = body;
+    const { api_key, base_url, model, writing_model, bookmark_model, extension_model, system_prompt, available_models, all_models, temperature, top_p, max_tokens, reasoning_mode } = body;
 
     if (api_key !== undefined) {
       dbHelper.run('INSERT OR REPLACE INTO ai_settings (key, value) VALUES (?, ?)', ['api_key', api_key]);
@@ -77,6 +81,9 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
     if (bookmark_model !== undefined) {
       dbHelper.run('INSERT OR REPLACE INTO ai_settings (key, value) VALUES (?, ?)', ['bookmark_model', bookmark_model]);
+    }
+    if (extension_model !== undefined) {
+      dbHelper.run('INSERT OR REPLACE INTO ai_settings (key, value) VALUES (?, ?)', ['extension_model', extension_model]);
     }
     if (system_prompt !== undefined) {
       dbHelper.run('INSERT OR REPLACE INTO ai_settings (key, value) VALUES (?, ?)', ['system_prompt', system_prompt]);
@@ -465,6 +472,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       max_tokens,
       is_private = false,
       history: clientHistory = [],
+      scene,
     } = body;
 
     if (!message || !message.trim()) {
@@ -516,11 +524,22 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const keyRow = dbHelper.get('SELECT value FROM ai_settings WHERE key = ?', ['api_key']);
     const urlRow = dbHelper.get('SELECT value FROM ai_settings WHERE key = ?', ['base_url']);
     const modelRow = dbHelper.get('SELECT value FROM ai_settings WHERE key = ?', ['model']);
+    const extensionModelRow = dbHelper.get('SELECT value FROM ai_settings WHERE key = ?', ['extension_model']);
     const promptRow = dbHelper.get('SELECT value FROM ai_settings WHERE key = ?', ['system_prompt']);
 
     const apiKey = keyRow?.value || process.env.OPENAI_API_KEY || '';
     const baseUrl = urlRow?.value || process.env.OPENAI_BASE_URL || 'https://api.deepseek.com/v1';
-    const model = requestModel || modelRow?.value || '';
+
+    // 浏览器插件模型解析规则：如果标记了 scene === 'extension' 且未显式指定覆盖模型，优先采用插件专属模型，未设置则跟随全局默认模型
+    const extensionModel = extensionModelRow?.value?.trim();
+    const globalDefaultModel = modelRow?.value?.trim() || '';
+    let model = requestModel;
+    if (scene === 'extension') {
+      model = requestModel || extensionModel || globalDefaultModel;
+    } else if (!model) {
+      model = globalDefaultModel;
+    }
+
     const systemPrompt = custom_prompt || promptRow?.value || '你是一个知识渊博、高效简洁的智能全能助理。';
 
     let messages: any[] = [];

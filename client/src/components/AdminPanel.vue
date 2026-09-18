@@ -657,6 +657,7 @@ const aiSettings = ref({
   model: '',
   writing_model: '',
   bookmark_model: '',
+  extension_model: '',
   system_prompt: '你是一个知识渊博、高效简洁的智能全能助理。',
   has_api_key: 'false',
   api_key_masked: '',
@@ -795,6 +796,7 @@ async function saveAdminAiSettings() {
       model: aiSettings.value.model,
       writing_model: aiSettings.value.writing_model,
       bookmark_model: aiSettings.value.bookmark_model,
+      extension_model: aiSettings.value.extension_model,
       system_prompt: aiSettings.value.system_prompt,
       available_models: aiSettings.value.available_models,
       all_models: allFetchedModels.value,
@@ -1785,7 +1787,7 @@ onMounted(() => {
             </div>
 
             <!-- 3. 专属场景模型 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div class="space-y-1.5">
                 <label class="block text-xs font-medium text-foreground">在线笔记写作专属模型</label>
                 <Select
@@ -1807,6 +1809,22 @@ onMounted(() => {
                 <Select
                   :model-value="aiSettings.bookmark_model || '__default__'"
                   @update:model-value="aiSettings.bookmark_model = $event === '__default__' ? '' : $event"
+                >
+                  <SelectTrigger class="w-full h-8 text-xs bg-background">
+                    <SelectValue placeholder="跟随全局默认" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">跟随全局默认</SelectItem>
+                    <SelectItem v-for="m in allFetchedModels" :key="m" :value="m">{{ m }}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="block text-xs font-medium text-foreground">浏览器插件专属模型</label>
+                <Select
+                  :model-value="aiSettings.extension_model || '__default__'"
+                  @update:model-value="aiSettings.extension_model = $event === '__default__' ? '' : $event"
                 >
                   <SelectTrigger class="w-full h-8 text-xs bg-background">
                     <SelectValue placeholder="跟随全局默认" />
