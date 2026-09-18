@@ -316,12 +316,10 @@ async function request(path, options = {}) {
 
 async function init() {
   // 检查是否在全高独立伴随工作台窗口或 Chrome 侧边栏中运行
-  const isSidePanel = document.documentElement.classList.contains('in-sidepanel') ||
-                      document.body.classList.contains('in-sidepanel') ||
-                      window.location.pathname.includes('sidepanel') ||
+  const isSidePanel = window.location.pathname.includes('sidepanel') ||
                       window.location.search.includes('window') || 
-                      window.location.search.includes('sidepanel') || 
-                      window.innerHeight > 610;
+                      window.location.search.includes('sidepanel') ||
+                      (document.documentElement.classList.contains('in-sidepanel') && !document.documentElement.classList.contains('in-popup'));
   if (isSidePanel) {
     document.documentElement.classList.remove('in-popup');
     document.body.classList.remove('in-popup');
@@ -331,6 +329,11 @@ async function init() {
       document.documentElement.classList.add('in-window');
       document.body.classList.add('in-window');
     }
+  } else {
+    document.documentElement.classList.remove('in-sidepanel', 'in-window');
+    document.body.classList.remove('in-sidepanel', 'in-window');
+    document.documentElement.classList.add('in-popup');
+    document.body.classList.add('in-popup');
   }
 
   // 1. 读取本地缓存，做到 0 延迟秒开

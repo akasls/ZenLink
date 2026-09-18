@@ -78,31 +78,26 @@
   -webkit-font-smoothing: antialiased;
 }
 
-html {
-  width: 100%;
-  height: 100%;
+/* 默认基础规格：为 Chrome 气泡窗口提供标准的 420x600 实体尺寸，确保完整展开不被截断 */
+html,
+body {
+  width: 420px;
+  height: 600px;
+  min-width: 420px;
+  min-height: 600px;
+  max-width: 420px;
+  max-height: 600px;
   margin: 0;
   padding: 0;
   overflow: hidden;
-}
-
-body {
-  width: 100% !important;
-  height: 100% !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
   background-color: var(--bg-app);
   color: var(--text-main);
-  overflow: hidden;
   user-select: none;
   box-sizing: border-box;
 }
 
-/* 仅在纯弹窗 Action Popup 模式时，强制固定 420x600 撑开 Chrome 气泡窗口 */
+/* 显式声明 Popup 模式规格，防止任何环境样式回退 */
+html.in-popup,
 html.in-popup body,
 body.in-popup {
   width: 420px !important;
@@ -113,8 +108,10 @@ body.in-popup {
   max-height: 600px !important;
 }
 
-/* 侧边栏与独立窗口模式：100% 弹性充满容器，隐藏多余的“新窗口打开”按钮 */
+/* 侧边栏与独立窗口模式（sidepanel.html）：100% 弹性充满容器，隐藏多余的“新窗口打开”按钮 */
+html.in-sidepanel,
 html.in-sidepanel body,
+html.in-window,
 html.in-window body,
 body.in-sidepanel,
 body.in-window {

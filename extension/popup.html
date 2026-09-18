@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="in-popup">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -11,18 +11,17 @@
                           urlParams.get('mode') === 'window' || 
                           window.location.pathname.includes('sidepanel');
       if (isSidePanel) {
+        document.documentElement.classList.remove('in-popup');
         document.documentElement.classList.add('in-sidepanel');
         if (urlParams.get('mode') === 'window') {
           document.documentElement.classList.add('in-window');
         }
-      } else {
-        document.documentElement.classList.add('in-popup');
       }
     })();
   </script>
   <link rel="stylesheet" href="popup.css" />
 </head>
-<body>
+<body class="in-popup">
   <div id="app" class="app-container">
     <!-- 全局 Toast 提示容器 -->
     <div id="toast" class="toast hidden"></div>
