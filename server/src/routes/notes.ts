@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import dbHelper, { saveDatabase } from '../db/index.js';
-import { requireAuth as authenticate } from '../middleware/auth.js';
+import { requireAuth as authenticate, verifyToken } from '../middleware/auth.js';
 import { uploadFileBuffer, getStorageSettings, getR2Client } from '../utils/s3.js';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { resolve, dirname, basename } from 'path';
@@ -378,6 +378,44 @@ export default async function noteRoutes(fastify: FastifyInstance) {
 
   const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
+  /**
+   * 检查附件访问权限：仅允许已登录用户、站点公开资源或有效公开分享访问
+   */
+  async function checkAttachmentAccess(request: FastifyRequest, safeFile: string): Promise<boolean> {
+    const user = await verifyToken(request);
+    if (user) return true;
+
+    // 检查是否为公开站点设置（如站点 Logo 或背景图）
+    try {
+      const isPublicSetting = dbHelper.get(
+        "SELECT 1 FROM system_settings WHERE (key = 'site_logo' OR key = 'search_bg_image') AND value LIKE '%' || ? || '%'",
+        [safeFile]
+      );
+      if (isPublicSetting) return true;
+    } catch {}
+
+    // 检查是否属于当前生效中的无密码公开笔记分享
+    try {
+      const isPublicShare = dbHelper.get(
+        "SELECT 1 FROM note_shares s JOIN notes n ON s.note_id = n.id WHERE n.content LIKE '%' || ? || '%' AND (s.expires_at IS NULL OR s.expires_at > datetime('now')) AND (s.password IS NULL OR s.password = '')",
+        [safeFile]
+      );
+      if (isPublicShare) return true;
+
+      // 若携带有效的公开分享代码，且该文件确属该分享笔记内容
+      const query = request.query as any;
+      if (query?.share_code) {
+        const isSharedCode = dbHelper.get(
+          "SELECT 1 FROM note_shares s JOIN notes n ON s.note_id = n.id WHERE s.id = ? AND n.content LIKE '%' || ? || '%' AND (s.expires_at IS NULL OR s.expires_at > datetime('now'))",
+          [String(query.share_code).trim(), safeFile]
+        );
+        if (isSharedCode) return true;
+      }
+    } catch {}
+
+    return false;
+  }
+
   // 获取文件原始内容 (用于图片预览/直接内嵌)
   fastify.get('/api/notes/raw/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
@@ -385,6 +423,11 @@ export default async function noteRoutes(fastify: FastifyInstance) {
 
     if (WINDOWS_RESERVED.test(safeFile) || safeFile.includes('..') || !safeFile.trim()) {
       return reply.status(400).send({ error: '无效的文件名' });
+    }
+
+    const hasAccess = await checkAttachmentAccess(request, safeFile);
+    if (!hasAccess) {
+      return reply.status(401).send({ error: '未授权访问附件，请先登录' });
     }
 
     const config = getStorageSettings();
@@ -403,7 +446,7 @@ export default async function noteRoutes(fastify: FastifyInstance) {
           });
           const res = await client.send(cmd);
           if (res.ContentType) reply.header('Content-Type', res.ContentType);
-          reply.header('Cache-Control', 'public, max-age=86400');
+          reply.header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
           return reply.send(res.Body);
         } catch {}
       }
@@ -432,7 +475,7 @@ export default async function noteRoutes(fastify: FastifyInstance) {
       reply.header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
     }
     const stream = createReadStream(filePath);
-    return reply.header('Content-Type', contentType).header('Cache-Control', 'public, max-age=86400').send(stream);
+    return reply.header('Content-Type', contentType).header('Cache-Control', 'private, no-cache, no-store, must-revalidate').send(stream);
   });
 
   // 下载附件文件
@@ -443,6 +486,11 @@ export default async function noteRoutes(fastify: FastifyInstance) {
 
     if (WINDOWS_RESERVED.test(safeFile) || safeFile.includes('..') || !safeFile.trim()) {
       return reply.status(400).send({ error: '无效的文件名' });
+    }
+
+    const hasAccess = await checkAttachmentAccess(request, safeFile);
+    if (!hasAccess) {
+      return reply.status(401).send({ error: '未授权下载附件，请先登录' });
     }
 
     const downloadName = name || safeFile;
@@ -464,7 +512,8 @@ export default async function noteRoutes(fastify: FastifyInstance) {
           const res = await client.send(cmd);
           reply
             .header('Content-Type', res.ContentType || 'application/octet-stream')
-            .header('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
+            .header('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`)
+            .header('Cache-Control', 'private, no-cache, no-store, must-revalidate');
           return reply.send(res.Body);
         } catch {
           return reply.status(404).send({ error: '无法从 R2 读取文件' });
@@ -481,6 +530,7 @@ export default async function noteRoutes(fastify: FastifyInstance) {
     reply
       .header('Content-Type', 'application/octet-stream')
       .header('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`)
+      .header('Cache-Control', 'private, no-cache, no-store, must-revalidate')
       .send(stream);
   });
 

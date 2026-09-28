@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import multipart from '@fastify/multipart';
 import compress from '@fastify/compress';
@@ -36,13 +37,22 @@ const fastify = Fastify({
 
 import { ZodError } from 'zod';
 
-// 全局现代安全标头
+// 全局现代安全标头（强化 CSP、HSTS、防嗅探、防点击劫持）
 fastify.addHook('onSend', async (request, reply) => {
   reply.header('X-Content-Type-Options', 'nosniff');
   reply.header('X-Frame-Options', 'SAMEORIGIN');
   reply.header('X-XSS-Protection', '1; mode=block');
   reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  reply.header(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http: blob:; connect-src 'self' https: http: wss: ws:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';"
+  );
+
+  const isHttps = request.protocol === 'https' || request.headers['x-forwarded-proto'] === 'https';
+  if (isHttps) {
+    reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
 });
 
 // 全局异常处理：自动转换 Zod 参数验证错误为 400 状态码
@@ -78,7 +88,7 @@ if (process.env.APP_URL) {
   } catch {}
 }
 
-// CORS 配置：放行自建部署同源/自定义反代域名访问并阻断恶意跨域
+// CORS 配置：严格来源白名单校验，禁止任意 IP 反射，兼顾浏览器插件与自建部署同源访问
 await fastify.register(cors, {
   delegator: (req, cb) => {
     const origin = req.headers.origin;
@@ -98,35 +108,19 @@ await fastify.register(cors, {
       const parsed = new URL(origin);
       const hostname = parsed.hostname;
 
-      // 同 Host 访问放行（自建反代与用户自定义域名即开即用，无须繁琐配置环境变量）
+      // 同 Host 访问放行（包含当前绑定的实际域名/IP，自建反代与多网段同源无缝访问）
       const reqHost = req.headers.host;
       if (reqHost && (parsed.host === reqHost || hostname === reqHost.split(':')[0])) {
         return cb(null, { origin: true, credentials: true });
       }
 
-      // 本地环回地址放行
-      if (hostname === 'localhost' || hostname === '0.0.0.0' || hostname === '::1') {
-        return cb(null, { origin: true, credentials: true });
-      }
-
-      // 自建服务器 IP 访问放行 (包含 VPS IP 与局域网私网 IP)
-      if (isIP(hostname) !== 0) {
-        return cb(null, { origin: true, credentials: true });
-      }
-
-      // 局域网私有服务域名放行
-      if (
-        hostname.endsWith('.local') ||
-        hostname.endsWith('.internal') ||
-        hostname.endsWith('.lan') ||
-        hostname.endsWith('.home') ||
-        hostname.endsWith('.arpa')
-      ) {
+      // 本地环回地址放行（开发者及测试套件）
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
         return cb(null, { origin: true, credentials: true });
       }
     } catch {}
 
-    // 拦截未授权第三方外部跨域请求
+    // 拦截任何未授权第三方外部跨域请求（包括任意外部恶意 IP 跨域）
     cb(null, { origin: false });
   },
   credentials: true,
@@ -134,6 +128,9 @@ await fastify.register(cors, {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   maxAge: 86400,
 });
+
+// Cookie 支持：用于静态资源与附件鉴权
+await fastify.register(cookie);
 
 // JWT 密钥自动安全管理：优先读取环境变量；若未提供则在数据卷中自动生成并持久化存储，无需用户手动繁琐配置
 let jwtSecret = process.env.JWT_SECRET?.trim();

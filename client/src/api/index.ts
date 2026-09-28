@@ -64,6 +64,9 @@ export const authApi = {
   verifyWebAuthnLogin(data: any) {
     return api.post('/auth/webauthn/login-verify', data);
   },
+  logout() {
+    return api.post('/auth/logout');
+  },
 };
 
 // ==================== Bookmarks API ====================

@@ -7,6 +7,8 @@ export interface User {
   username: string;
   totp_enabled?: boolean;
   webauthn_enabled?: boolean;
+  must_change_password?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -56,7 +58,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await authApi.logout();
+    } catch {}
     user.value = null;
     token.value = null;
     localStorage.removeItem('zenlink_token');

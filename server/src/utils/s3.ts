@@ -1,8 +1,10 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import dbHelper, { saveDatabase } from '../db/index.js';
+import { isSafeUrl } from '../services/meta-scraper.js';
 import { resolve, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'fs';
+import crypto from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = existsSync(resolve(__dirname, '../../data/uploads'))
@@ -22,6 +24,46 @@ export interface StorageConfig {
   r2_secret_access_key?: string;
   r2_bucket_name?: string;
   r2_public_domain?: string;
+}
+
+const ACCOUNT_ID_REGEX = /^[0-9a-fA-F]{32}$/;
+const BUCKET_NAME_REGEX = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+
+/**
+ * 校验 Cloudflare R2 配置合法性，严防 SSRF、端口探测与非法路径注入
+ */
+export function validateR2Settings(cfg: Partial<StorageConfig>): { valid: boolean; error?: string } {
+  if (cfg.r2_account_id !== undefined && cfg.r2_account_id !== '') {
+    const aid = cfg.r2_account_id.trim();
+    if (!ACCOUNT_ID_REGEX.test(aid)) {
+      return {
+        valid: false,
+        error: 'Cloudflare Account ID 格式错误，必须为 32 位十六进制字符串（杜绝非法主机与 SSRF 端口探测）',
+      };
+    }
+  }
+
+  if (cfg.r2_bucket_name !== undefined && cfg.r2_bucket_name !== '') {
+    const bucket = cfg.r2_bucket_name.trim();
+    if (!BUCKET_NAME_REGEX.test(bucket) || bucket.includes('..')) {
+      return {
+        valid: false,
+        error: '存储桶名称格式错误，必须符合 S3/R2 命名规范且不能包含特殊字符或路径片段',
+      };
+    }
+  }
+
+  if (cfg.r2_public_domain !== undefined && cfg.r2_public_domain.trim() !== '') {
+    const domain = cfg.r2_public_domain.trim();
+    if (!isSafeUrl(domain)) {
+      return {
+        valid: false,
+        error: 'R2 自定义公开访问域名不合法或属于受保护的私有网段/环回地址',
+      };
+    }
+  }
+
+  return { valid: true };
 }
 
 export function getStorageSettings(): StorageConfig {
@@ -45,6 +87,11 @@ export function getStorageSettings(): StorageConfig {
 }
 
 export function saveStorageSettings(settings: Partial<StorageConfig>): void {
+  const validation = validateR2Settings(settings);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
   for (const [k, v] of Object.entries(settings)) {
     if (v !== undefined) {
       dbHelper.run('INSERT OR REPLACE INTO storage_settings (key, value) VALUES (?, ?)', [k, String(v)]);
@@ -59,7 +106,25 @@ export function getR2Client(customConfig?: Partial<StorageConfig>): S3Client | n
     return null;
   }
 
-  const endpoint = `https://${cfg.r2_account_id.trim()}.r2.cloudflarestorage.com`;
+  const accountId = cfg.r2_account_id.trim();
+  if (!ACCOUNT_ID_REGEX.test(accountId)) {
+    return null;
+  }
+
+  const endpoint = `https://${accountId.toLowerCase()}.r2.cloudflarestorage.com`;
+  try {
+    const parsed = new URL(endpoint);
+    if (
+      parsed.protocol !== 'https:' ||
+      parsed.hostname !== `${accountId.toLowerCase()}.r2.cloudflarestorage.com` ||
+      parsed.port ||
+      parsed.pathname !== '/'
+    ) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
 
   return new S3Client({
     region: 'auto',
@@ -77,9 +142,14 @@ export async function testR2Connection(customConfig?: Partial<StorageConfig>): P
     return { success: false, message: '请完整填写 Account ID、Access Key、Secret Key 与存储桶名称' };
   }
 
+  const validation = validateR2Settings(cfg);
+  if (!validation.valid) {
+    return { success: false, message: validation.error || '配置参数验证失败' };
+  }
+
   const client = getR2Client(cfg);
   if (!client) {
-    return { success: false, message: '初始化 R2 客户端失败' };
+    return { success: false, message: '初始化 R2 客户端失败，请检查配置参数有效性' };
   }
 
   try {
@@ -109,7 +179,8 @@ export async function uploadFileBuffer(
 }> {
   const config = getStorageSettings();
   const safeBaseName = basename(originalFilename).replace(/[^a-zA-Z0-9._-]/g, '_') || 'file.bin';
-  const uniqueKey = `${Date.now()}-${safeBaseName}`;
+  // 使用密码学安全 UUID 替代递增时间戳，杜绝任何可预测性与暴力枚举漏洞
+  const uniqueKey = `${crypto.randomUUID()}-${safeBaseName}`;
   const isImage = (mimeType || '').startsWith('image/');
 
   if (config.storage_type === 'r2' && config.r2_bucket_name) {

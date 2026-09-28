@@ -4,6 +4,7 @@ process.env.JWT_SECRET = 'test-secret-key-12345678901234567890';
 const { fastify } = await import('../index.js');
 import dbHelper, { saveDatabase } from '../db/index.js';
 import { authenticator } from 'otplib';
+import bcrypt from 'bcryptjs';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -57,8 +58,9 @@ async function runTests() {
   console.log('🚀 开始执行 ZenLink 全量自动化深度测试...\n');
   await fastify.ready();
 
-  // 确保测试基准环境干净：重置管理员 2FA 状态为初始状态
-  dbHelper.run("UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE username = 'admin'");
+  // 确保测试基准环境干净：重置管理员密码与 2FA 状态
+  const initHash = bcrypt.hashSync('admin123', 12);
+  dbHelper.run("UPDATE users SET password_hash = ?, totp_enabled = 0, totp_secret = NULL, must_change_password = 1 WHERE username = 'admin'", [initHash]);
   saveDatabase();
 
   let adminToken = '';
@@ -106,6 +108,28 @@ async function runTests() {
     );
   });
 
+  await test('任意外部 IP Origin 跨域请求应被严格阻断（杜绝 IP 反射）', async () => {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/api/settings',
+      headers: { origin: 'http://1.2.3.4' },
+    });
+    assert(
+      !res.headers['access-control-allow-origin'] ||
+      res.headers['access-control-allow-origin'] !== 'http://1.2.3.4',
+      '外部 IP Origin 绝不应被反射'
+    );
+  });
+
+  await test('全局安全响应标头校验 (CSP, X-Content-Type-Options)', async () => {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: '/api/settings',
+    });
+    assert(res.headers['content-security-policy'], '应包含 Content-Security-Policy 标头');
+    assertEqual(res.headers['x-content-type-options'], 'nosniff', '应包含 nosniff 标头');
+  });
+
   // ==========================================
   // Suite 2: 用户认证与安全模块
   // ==========================================
@@ -129,7 +153,7 @@ async function runTests() {
     assertEqual(res.statusCode, 400, '缺少必填字段应返回 400');
   });
 
-  await test('默认管理员账户 (admin / admin123) 登录应成功并签发 JWT (200)', async () => {
+  await test('默认管理员账户 (admin / admin123) 登录应成功并签发 JWT 与 HttpOnly Cookie', async () => {
     const res = await fastify.inject({
       method: 'POST',
       url: '/api/auth/login',
@@ -139,6 +163,8 @@ async function runTests() {
     const data = JSON.parse(res.body);
     assert(data.token, '应返回 token');
     assertEqual(data.user.username, 'admin', '用户名应为 admin');
+    assertEqual(data.user.mustChangePassword, true, '默认弱口令应返回 mustChangePassword: true');
+    assert(res.headers['set-cookie']?.includes('token='), '响应应设置 token HttpOnly Cookie');
     adminToken = data.token;
   });
 
@@ -163,9 +189,27 @@ async function runTests() {
       method: 'POST',
       url: '/api/auth/change-password',
       headers: { authorization: `Bearer ${adminToken}` },
-      payload: { currentPassword: 'wrong', newPassword: 'admin123_new' },
+      payload: { currentPassword: 'wrong', newPassword: 'newStrongPassword_999!' },
     });
     assertEqual(res.statusCode, 400, '旧密码错误应返回 400');
+  });
+
+  await test('修改密码弱口令拦截：小于 8 位或常见弱口令应拒绝 (400)', async () => {
+    const resShort = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { currentPassword: 'admin123', newPassword: 'short' },
+    });
+    assertEqual(resShort.statusCode, 400, '小于 8 位密码应拒绝');
+
+    const resCommon = await fastify.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { currentPassword: 'admin123', newPassword: 'password123' },
+    });
+    assertEqual(resCommon.statusCode, 400, '常见弱口令应拒绝');
   });
 
   await test('密码修改后旧 JWT 凭据应被立即注销吊销 (401)', async () => {
@@ -186,30 +230,14 @@ async function runTests() {
     });
     assertEqual(oldMeRes.statusCode, 401, '旧 Token 必须被注销拦截返回 401');
 
-    // 3. 使用新密码登录并获取新 Token
+    // 3. 使用新密码登录并更新全局 adminToken 供后续测试使用
     const loginRes = await fastify.inject({
       method: 'POST',
       url: '/api/auth/login',
       payload: { username: 'admin', password: 'newAdminPassword123!' },
     });
     assertEqual(loginRes.statusCode, 200, '新密码登录应成功');
-    const newAdminToken = JSON.parse(loginRes.body).token;
-
-    // 4. 将密码改回 admin123 恢复基准测试环境
-    const rollbackRes = await fastify.inject({
-      method: 'POST',
-      url: '/api/auth/change-password',
-      headers: { authorization: `Bearer ${newAdminToken}` },
-      payload: { currentPassword: 'newAdminPassword123!', newPassword: 'admin123' },
-    });
-    assertEqual(rollbackRes.statusCode, 200, '密码回滚应成功');
-
-    const finalLogin = await fastify.inject({
-      method: 'POST',
-      url: '/api/auth/login',
-      payload: { username: 'admin', password: 'admin123' },
-    });
-    adminToken = JSON.parse(finalLogin.body).token;
+    adminToken = JSON.parse(loginRes.body).token;
   });
 
   await test('TOTP 2FA 密钥初始化 (setup) 应生成密钥与二维码', async () => {
@@ -267,7 +295,7 @@ async function runTests() {
       method: 'POST',
       url: '/api/auth/totp/disable',
       headers: { authorization: `Bearer ${adminToken}` },
-      payload: { password: 'admin123' },
+      payload: { password: 'newAdminPassword123!' },
     });
     assertEqual(okDisableRes.statusCode, 200, '密码正确关闭 2FA 应成功');
 
@@ -818,11 +846,70 @@ async function runTests() {
   suite('9. 附件文件与路径穿越防御 (Storage & Uploads)');
 
   await test('本地静态文件路径穿越攻击防御 (/api/notes/raw/../../package.json)', async () => {
-    const res = await fastify.inject({
+    // 1. 未登录攻击者尝试路径穿越，被鉴权拦截 (401)
+    const unauthRes = await fastify.inject({
       method: 'GET',
       url: '/api/notes/raw/..%2F..%2Fpackage.json',
     });
-    assertEqual(res.statusCode, 404, '非法路径穿越应安全返回 404');
+    assertEqual(unauthRes.statusCode, 401, '未登录非法路径穿越应直接被 401 拦截');
+
+    // 2. 即使登录用户尝试路径穿越，也被安全拦截 (404 或 400)
+    const authRes = await fastify.inject({
+      method: 'GET',
+      url: '/api/notes/raw/..%2F..%2Fpackage.json',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert([400, 404].includes(authRes.statusCode), '登录状态路径穿越应安全返回 400/404');
+  });
+
+  let uploadedFileKey = '';
+
+  await test('上传附件文件名应具备 UUID 高强度随机性', async () => {
+    const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+    const payload = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="confidential.txt"\r\nContent-Type: text/plain\r\n\r\nCONFIDENTIAL-DATA-98765\r\n--${boundary}--\r\n`;
+
+    const res = await fastify.inject({
+      method: 'POST',
+      url: '/api/notes/upload',
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+        'content-type': `multipart/form-data; boundary=${boundary}`,
+      },
+      payload,
+    });
+    assertEqual(res.statusCode, 200, '文件上传应成功');
+    const data = JSON.parse(res.body);
+    assert(data.file?.path, '应返回文件 path');
+    uploadedFileKey = data.file.path;
+
+    // 验证 path 符合 UUID 命名规则（包含标准 UUID）
+    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    assert(uuidPattern.test(uploadedFileKey), '上传文件名应包含密码学安全 UUID');
+  });
+
+  await test('未授权访问私有附件应被严格拦截 (401)', async () => {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: `/api/notes/raw/${uploadedFileKey}`,
+    });
+    assertEqual(res.statusCode, 401, '未登录访问私有附件应被拦截为 401');
+
+    const downloadRes = await fastify.inject({
+      method: 'GET',
+      url: `/api/notes/download/${uploadedFileKey}`,
+    });
+    assertEqual(downloadRes.statusCode, 401, '未登录下载私有附件应被拦截为 401');
+  });
+
+  await test('已授权访问私有附件应成功返回并包含 private 缓存控制', async () => {
+    const res = await fastify.inject({
+      method: 'GET',
+      url: `/api/notes/raw/${uploadedFileKey}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assertEqual(res.statusCode, 200, '携带有效凭据访问私有附件应返回 200');
+    assert(res.headers['cache-control']?.includes('private'), 'Cache-Control 应声明为 private');
+    assertEqual(res.body, 'CONFIDENTIAL-DATA-98765', '文件内容应匹配');
   });
 
   await test('对象存储配置读取脱敏与配置持久化 (GET & POST /api/storage/settings)', async () => {
@@ -845,6 +932,53 @@ async function runTests() {
     });
     assertEqual(postRes.statusCode, 200, '保存存储配置应返回 200');
     assertEqual(JSON.parse(postRes.body).success, true, '应返回 success: true');
+  });
+
+  await test('Cloudflare R2 存储配置 SSRF 与端口探测注入防御', async () => {
+    // 注入尝试 1: IP + 端口重写注入
+    const testRes1 = await fastify.inject({
+      method: 'POST',
+      url: '/api/storage/test',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        r2_account_id: '127.0.0.1:443/',
+        r2_access_key_id: 'key',
+        r2_secret_access_key: 'secret',
+        r2_bucket_name: 'bucket',
+      },
+    });
+    const data1 = JSON.parse(testRes1.body);
+    assertEqual(data1.success, false, '恶意 Account ID 注入应测试失败');
+    assert(data1.message?.includes('Account ID') || data1.message?.includes('格式'), '应明确提示 Account ID 格式错误');
+
+    // 注入尝试 2: 云厂商元数据地址注入
+    const testRes2 = await fastify.inject({
+      method: 'POST',
+      url: '/api/storage/test',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        r2_account_id: '169.254.169.254',
+        r2_access_key_id: 'key',
+        r2_secret_access_key: 'secret',
+        r2_bucket_name: 'bucket',
+      },
+    });
+    const data2 = JSON.parse(testRes2.body);
+    assertEqual(data2.success, false, '元数据 IP 注入应测试失败');
+
+    // 保存非法配置应直接返回 400
+    const saveRes = await fastify.inject({
+      method: 'POST',
+      url: '/api/storage/settings',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        r2_account_id: '127.0.0.1:443/',
+        r2_access_key_id: 'key',
+        r2_secret_access_key: 'secret',
+        r2_bucket_name: 'bucket',
+      },
+    });
+    assertEqual(saveRes.statusCode, 400, '保存非法 R2 Account ID 配置应返回 400');
   });
 
   // ==========================================

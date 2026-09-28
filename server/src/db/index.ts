@@ -42,6 +42,7 @@ export async function initDatabase(): Promise<void> {
   saveDatabase(true);
   // 扩展表字段与配置
   try { db.run("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1;"); } catch {}
+  try { db.run("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0;"); } catch {}
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN role_id TEXT DEFAULT 'default';"); } catch {}
   try { db.run("ALTER TABLE ai_conversations ADD COLUMN icon TEXT DEFAULT '';"); } catch {}
   try { db.run("ALTER TABLE notes ADD COLUMN tags TEXT DEFAULT '[]';"); } catch {}

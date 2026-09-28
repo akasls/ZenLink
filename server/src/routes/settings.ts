@@ -79,10 +79,14 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   });
 
   // 4. 保存存储设置 (需要管理员鉴权)
-  fastify.post('/api/storage/settings', { preHandler: requireAuth }, async (request) => {
+  fastify.post('/api/storage/settings', { preHandler: requireAuth }, async (request, reply) => {
     const body = (request.body as any) || {};
-    saveStorageSettings(body);
-    return { success: true };
+    try {
+      saveStorageSettings(body);
+      return { success: true };
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message || '存储配置无效' });
+    }
   });
 
   // 5. 测试 Cloudflare R2 存储桶连通性 (需要管理员鉴权)

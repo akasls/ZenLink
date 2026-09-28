@@ -67,6 +67,7 @@ import {
   Download,
   Sparkles,
   Unlock,
+  AlertTriangle,
 } from 'lucide-vue-next';
 import { startRegistration } from '@simplewebauthn/browser';
 import Sortable from 'sortablejs';
@@ -1194,6 +1195,22 @@ onMounted(() => {
 
     <!-- 2. 主体自适应工作区 (紧凑顶部留白，整页显示，移动端自适应) -->
     <div class="flex-1 p-3 sm:p-5 md:p-6 w-full min-w-0 max-w-full box-border">
+      <!-- 弱口令/初始密码强制改密安全提示横幅 -->
+      <div
+        v-if="authStore.user?.must_change_password || authStore.user?.mustChangePassword"
+        class="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-3 text-xs text-amber-800 dark:text-amber-200 shadow-sm"
+      >
+        <div class="flex items-center gap-2 min-w-0">
+          <AlertTriangle class="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span class="truncate">
+            <strong>安全警告：</strong>当前系统管理员正在使用初始随机密码或默认弱口令，极易遭受公网扫描接管，请立即修改密码！
+          </span>
+        </div>
+        <Button size="sm" variant="default" class="h-7 text-xs shrink-0 bg-amber-600 hover:bg-amber-700 text-white cursor-pointer" @click="openAccountDialog">
+          立即修改密码
+        </Button>
+      </div>
+
       <Tabs v-model="activeTab" class="w-full">
         <!-- Tab 1：书签管理 -->
         <TabsContent value="bookmarks" class="space-y-3 mt-0">

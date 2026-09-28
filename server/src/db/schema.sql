@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
   totp_enabled INTEGER NOT NULL DEFAULT 0,
   -- WebAuthn
   webauthn_enabled INTEGER NOT NULL DEFAULT 0,
+  -- 强制改密标记（用于默认初始密码或弱口令安全防范）
+  must_change_password INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

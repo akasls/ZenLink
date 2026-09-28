@@ -125,7 +125,23 @@ export default async function authRoutes(fastify: FastifyInstance): Promise<void
       { expiresIn: '7d' }
     );
 
-    return { token, user: { id: user.id, username: user.username } };
+    // 写入安全 HttpOnly Cookie 供静态资源/附件渲染自动附带凭据
+    reply.setCookie('token', token, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: request.protocol === 'https',
+      maxAge: 7 * 24 * 3600,
+    });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        mustChangePassword: !!user.must_change_password,
+      },
+    };
   });
 
   // ==================== TOTP 2FA ====================
@@ -357,8 +373,24 @@ function getWebAuthnContext(request: any) {
           { expiresIn: '7d' }
         );
 
+        // 写入安全 HttpOnly Cookie
+        reply.setCookie('token', token, {
+          path: '/',
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: request.protocol === 'https',
+          maxAge: 7 * 24 * 3600,
+        });
+
         loginChallengeStore.delete(clientChallenge);
-        return { token, user: { id: user.id, username: user.username } };
+        return {
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            mustChangePassword: !!user.must_change_password,
+          },
+        };
       }
 
       return reply.status(400).send({ error: '验证失败' });
@@ -372,10 +404,15 @@ function getWebAuthnContext(request: any) {
   fastify.get('/api/auth/me', { preHandler: [requireAuth] }, async (request) => {
     const { userId } = request.user as any;
     const user = dbHelper.get(
-      'SELECT id, username, totp_enabled, webauthn_enabled, created_at FROM users WHERE id = ?',
+      'SELECT id, username, totp_enabled, webauthn_enabled, must_change_password, created_at FROM users WHERE id = ?',
       [userId]
     );
-    return { user };
+    return {
+      user: {
+        ...user,
+        must_change_password: !!user?.must_change_password,
+      },
+    };
   });
 
   // ==================== 修改密码 ====================
@@ -384,8 +421,17 @@ function getWebAuthnContext(request: any) {
     const { userId } = request.user as any;
     const { currentPassword, newPassword } = request.body as { currentPassword: string; newPassword: string };
 
-    if (!currentPassword || !newPassword || newPassword.length < 6) {
-      return reply.status(400).send({ error: '新密码至少6位' });
+    if (!currentPassword || !newPassword || newPassword.length < 8) {
+      return reply.status(400).send({ error: '新密码至少8位' });
+    }
+
+    const weakPasswords = ['admin123', '12345678', 'password', 'password123', 'adminadmin', '123456789'];
+    if (weakPasswords.includes(newPassword.toLowerCase())) {
+      return reply.status(400).send({ error: '新密码不能为常见弱口令' });
+    }
+
+    if (newPassword === currentPassword) {
+      return reply.status(400).send({ error: '新密码不能与当前密码相同' });
     }
 
     const user = dbHelper.get('SELECT password_hash, token_version FROM users WHERE id = ?', [userId]);
@@ -394,11 +440,21 @@ function getWebAuthnContext(request: any) {
     }
 
     const newHash = bcrypt.hashSync(newPassword, 12);
-    // 密码变更时自动递增 token_version，即刻注销所有旧会话与旧 JWT
-    dbHelper.run('UPDATE users SET password_hash = ?, token_version = COALESCE(token_version, 1) + 1, updated_at = datetime("now") WHERE id = ?', [newHash, userId]);
+    // 密码变更时自动递增 token_version，即刻注销所有旧会话与旧 JWT，并解除 must_change_password 强制改密标记
+    dbHelper.run(
+      'UPDATE users SET password_hash = ?, token_version = COALESCE(token_version, 1) + 1, must_change_password = 0, updated_at = datetime("now") WHERE id = ?',
+      [newHash, userId]
+    );
     saveDatabase();
 
     return { success: true, message: '密码已修改，所有既有设备会话已安全注销' };
+  });
+
+  // ==================== 退出登录 ====================
+
+  fastify.post('/api/auth/logout', async (request, reply) => {
+    reply.clearCookie('token', { path: '/' });
+    return { success: true };
   });
 
   // ==================== 修改用户名 ====================
